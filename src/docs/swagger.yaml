@@ -1,0 +1,243 @@
+openapi: 3.0.3
+info:
+  title: Ecommerce Backend API
+  version: '1.0'
+  description: REST API documentation for the ecommerce backend.
+servers:
+  - url: http://localhost:4000/api/v1
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: User registered
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+      responses:
+        '200':
+          description: Login success
+  /auth/refresh-token:
+    post:
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: Access token refreshed
+  /products:
+    get:
+      tags:
+        - Products
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List products
+    post:
+      tags:
+        - Products
+      requestBody:
+        required: true
+      responses:
+        '201':
+          description: Create product
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product detail
+    put:
+      tags:
+        - Products
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product updated
+    delete:
+      tags:
+        - Products
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product deleted
+  /wishlist:
+    get:
+      tags:
+        - Wishlist
+      responses:
+        '200':
+          description: Wishlist retrieved
+  /wishlist/{productId}:
+    post:
+      tags:
+        - Wishlist
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product added
+    delete:
+      tags:
+        - Wishlist
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product removed
+  /reviews/{productId}:
+    post:
+      tags:
+        - Reviews
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+      responses:
+        '201':
+          description: Review added
+  /reviews/{id}:
+    put:
+      tags:
+        - Reviews
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Review updated
+    delete:
+      tags:
+        - Reviews
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Review deleted
+  /orders:
+    post:
+      tags:
+        - Orders
+      requestBody:
+        required: true
+      responses:
+        '201':
+          description: Order created
+  /orders/my-orders:
+    get:
+      tags:
+        - Orders
+      responses:
+        '200':
+          description: Order history
+  /orders/{id}:
+    get:
+      tags:
+        - Orders
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order detail
+  /admin/dashboard:
+    get:
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Admin dashboard
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: List users
+  /admin/orders/{id}:
+    put:
+      tags:
+        - Admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order updated
