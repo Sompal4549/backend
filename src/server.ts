@@ -5,8 +5,17 @@ import { config } from './config/app.config.js';
 const startServer = async (): Promise<void> => {
   await connectDatabase();
   const app = createApp();
-  app.listen(config.port, () => {
+
+  const server = app.listen(config.port, () => {
     console.log(`Server is running on http://localhost:${config.port}`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`Error: Port ${config.port} is already in use.`);
+      process.exit(1);
+    }
+    throw err;
   });
 };
 

@@ -37,7 +37,7 @@ export const config = {
   uploadDir: getString('UPLOAD_DIR', 'uploads'),
   uploadMaxFileSizeBytes: getNumber('UPLOAD_MAX_FILE_SIZE_BYTES', 5 * 1024 * 1024),
   uploadMaxFiles: getNumber('UPLOAD_MAX_FILES', 6),
-  uploadAllowedMimeTypes: getList('UPLOAD_ALLOWED_MIME_TYPES', ['image/jpeg', 'image/png', 'image/jpg']),
+  uploadAllowedMimeTypes: getList('UPLOAD_ALLOWED_MIME_TYPES', ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/svg+xml', 'image/gif']),
   otpLength: getNumber('OTP_LENGTH', 6),
   otpExpiresMinutes: getNumber('OTP_EXPIRES_MINUTES', 10),
   otpMaxVerifyAttempts: getNumber('OTP_MAX_VERIFY_ATTEMPTS', 5),
