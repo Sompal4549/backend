@@ -27,10 +27,12 @@ import { errorHandler } from './middlewares/error.middleware.js';
 import { notFoundHandler } from './middlewares/not-found.middleware.js';
 import { swaggerDocument } from './config/swagger.config.js';
 import swaggerUi from 'swagger-ui-express';
+import seoRoutes from "./routes/seo.routes";
 
 export const createApp = () => {
   const app = express();
 
+  app.use(morgan('tiny'));
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -45,33 +47,46 @@ export const createApp = () => {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // Middleware to automatically map local frontend numeric product IDs (like "2") to valid MongoDB ObjectIds
+  /**
+   * Middleware to handle legacy numeric ID mapping.
+   * Automatically converts short numeric IDs (e.g., "123") into padded MongoDB-compatible Hex strings.
+   * This ensures consistency between a frontend using numeric IDs and a MongoDB backend.
+   */
   app.use((req, _res, next) => {
-    const mapToObjectId = (id: any): any => {
-      if (typeof id === 'string') {
-        const trimmed = id.trim();
-        if (/^\d+$/.test(trimmed)) {
-          return '600000000000000000000000'.substring(0, 24 - trimmed.length) + trimmed;
-        }
+    const OBJECT_ID_PAD = '600000000000000000000000';
+
+    const mapToObjectId = (id: any): string | any => {
+      if (typeof id !== 'string') return id;
+      const trimmed = id.trim();
+      
+      // Only pad if it's purely numeric and shorter than 24 characters
+      if (/^\d+$/.test(trimmed) && trimmed.length < 24) {
+        return OBJECT_ID_PAD.substring(0, 24 - trimmed.length) + trimmed;
       }
       return id;
     };
 
+    // Resolve IDs in the URL path parameters
     if (req.url) {
       req.url = req.url.replace(/\/(\d+)(\/|\?|$)/g, (_, idStr, suffix) => {
-        const pad = '600000000000000000000000';
-        const resolved = pad.substring(0, 24 - idStr.length) + idStr;
+        const resolved = mapToObjectId(idStr);
         return `/${resolved}${suffix}`;
       });
     }
 
+    // Resolve IDs in the request body for standard entity fields
     if (req.body) {
-      if (req.body.productId) req.body.productId = mapToObjectId(req.body.productId);
-      if (req.body.id) req.body.id = mapToObjectId(req.body.id);
-      if (req.body.orderId) req.body.orderId = mapToObjectId(req.body.orderId);
+      const commonIdKeys = ['productId', 'id', 'orderId', 'categoryId', 'reviewId'];
+      
+      commonIdKeys.forEach(key => {
+        if (req.body[key]) {
+          req.body[key] = mapToObjectId(req.body[key].toString());
+        }
+      });
+
       if (Array.isArray(req.body.items)) {
         req.body.items.forEach((item: any) => {
-          if (item && item.product) {
+          if (item?.product) {
             item.product = mapToObjectId(item.product.toString());
           }
         });
@@ -81,8 +96,6 @@ export const createApp = () => {
     next();
   });
 
-  app.use(morgan('tiny'));
-  app.use(limiter);
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   app.use('/uploads', express.static(path.resolve(process.cwd(), config.uploadDir)));
 
@@ -103,6 +116,7 @@ export const createApp = () => {
   app.use('/api/v1/admin', adminRouter);
   app.use('/api/otp', otpRouter);
   app.use('/api/verify', verifyRouter);
+  app.use("/api/v1/seo", seoRoutes);
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });

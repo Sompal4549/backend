@@ -16,7 +16,9 @@ adminRouter.post(
 adminRouter.post('/logout', adminLogout);
 
 adminRouter.use(authMiddleware, adminMiddleware);
+
 adminRouter.get('/dashboard', getDashboard);
+
 adminRouter.get('/users', getUsers);
 adminRouter.put(
   '/orders/:id',

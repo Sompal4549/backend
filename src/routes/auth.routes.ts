@@ -48,12 +48,34 @@ authRouter.post(
   sendEmailOtp
 );
 
+// Alias for frontend sendEmailOtp
+authRouter.post(
+  '/send-email-otp',
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('purpose').optional().isString().trim(),
+  ],
+  validateRequest,
+  sendEmailOtp
+);
+
 authRouter.post(
   '/email-otp/verify',
   [
     body('email').isEmail().withMessage('Valid email is required'),
     body('otp').isLength({ min: 4, max: 10 }).isNumeric().withMessage('Valid OTP is required'),
     body('purpose').optional().isString().trim(),
+  ],
+  validateRequest,
+  confirmEmailOtp
+);
+
+// Alias for frontend verifyEmailOtp
+authRouter.post(
+  '/verify-email-otp',
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('otp').isNumeric().withMessage('Valid OTP is required'),
   ],
   validateRequest,
   confirmEmailOtp
@@ -70,12 +92,34 @@ authRouter.post(
   sendWhatsAppOtp
 );
 
+// Alias for frontend sendPhoneOtp
+authRouter.post(
+  '/send-phone-otp',
+  [
+    body('phone').isMobilePhone('any').withMessage('Valid phone is required'),
+    body('purpose').optional().isString().trim(),
+  ],
+  validateRequest,
+  sendWhatsAppOtp
+);
+
 authRouter.post(
   '/whatsapp-otp/verify',
   [
     body('phone').isMobilePhone('any').withMessage('Valid phone is required'),
     body('otp').isLength({ min: 4, max: 10 }).isNumeric().withMessage('Valid OTP is required'),
     body('purpose').optional().isString().trim(),
+  ],
+  validateRequest,
+  confirmWhatsAppOtp
+);
+
+// Alias for frontend verifyPhoneOtp
+authRouter.post(
+  '/verify-phone-otp',
+  [
+    body('phone').isMobilePhone('any').withMessage('Valid phone is required'),
+    body('otp').isNumeric().withMessage('Valid OTP is required'),
   ],
   validateRequest,
   confirmWhatsAppOtp

@@ -85,6 +85,15 @@ const sendViaOpus = async (mobile: string, msg: string, name: string | null) => 
   console.info('OPUS_API_KEY exists:', apiKeyExists);
   console.info('Formatted WhatsApp mobile:', formattedMobile);
 
+  if (process.env.WHATSAPP_PROVIDER === 'console') {
+    console.log('--------------------------------------------------');
+    console.log('WHATSAPP MESSAGE (CONSOLE MODE)');
+    console.log(`TO: ${formattedMobile}`);
+    console.log(`MESSAGE: ${msg}`);
+    console.log('--------------------------------------------------');
+    return { success: true, data: { status: 200, body: 'Logged to console' } };
+  }
+
   if (!apiKeyExists) {
     const error = 'OPUS_API_KEY is missing';
     await logWhatsAppAttempt(formattedMobile, msg, name, 'failed', error);

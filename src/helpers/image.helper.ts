@@ -4,10 +4,20 @@ import path from 'path';
 import { config } from '../config/app.config.js';
 
 export const optimizeImage = async (buffer: Buffer, filename: string): Promise<string> => {
-  const outputName = `${Date.now()}-${filename.replace(/\.[^/.]+$/, '')}.webp`;
+  const safeName = filename
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[^a-zA-Z0-9-_]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
+  const outputName = `${Date.now()}-${safeName || 'upload'}.webp`;
   const outputPath = path.resolve(process.cwd(), config.uploadDir, outputName);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await sharp(buffer).webp({ quality: 80 }).toFile(outputPath);
+  await sharp(buffer)
+    .rotate()
+    .resize({ width: 1920, withoutEnlargement: true })
+    .webp({ quality: 72, effort: 6 })
+    .toFile(outputPath);
   return outputName;
 };
 
