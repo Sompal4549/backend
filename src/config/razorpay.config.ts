@@ -1,5 +1,5 @@
 import Razorpay from 'razorpay';
-import { config } from './app.config.js';
+import { config } from './app.config';
 
 let instance: InstanceType<typeof Razorpay> | null = null;
 

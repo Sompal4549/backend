@@ -1,7 +1,7 @@
-import { createOrder, getOrdersByUser, getOrderById } from '../repositories/order.repository.js';
-import { IOrder } from '../models/order.model.js';
-import { CartModel } from '../models/cart.model.js';
-import { UserModel } from '../models/user.model.js';
+import { createOrder, getOrdersByUser, getOrderById } from '../repositories/order.repository';
+import { IOrder } from '../models/order.model';
+import { CartModel } from '../models/cart.model';
+import { UserModel } from '../models/user.model';
 import { Types } from 'mongoose';
 
 export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {

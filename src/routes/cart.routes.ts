@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { getCart, addCartItem, updateCart, deleteCartItem } from '../controllers/cart.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { getCart, addCartItem, updateCart, deleteCartItem } from '../controllers/cart.controller';
+import { authMiddleware } from '../middlewares/auth.middleware';
 import { body } from 'express-validator';
-import { validateRequest } from '../middlewares/validate.middleware.js';
+import { validateRequest } from '../middlewares/validate.middleware';
 
 export const cartRouter = Router();
 

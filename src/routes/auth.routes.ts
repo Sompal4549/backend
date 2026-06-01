@@ -8,8 +8,8 @@ import {
   register,
   sendEmailOtp,
   sendWhatsAppOtp,
-} from '../controllers/auth.controller.js';
-import { validateRequest } from '../middlewares/validate.middleware.js';
+} from '../controllers/auth.controller';
+import { validateRequest } from '../middlewares/validate.middleware';
 import { body } from 'express-validator';
 
 export const authRouter = Router();

@@ -1,8 +1,8 @@
-import { getAllUsers } from '../repositories/user.repository.js';
-import { countProducts } from '../repositories/product.repository.js';
-import { updateOrderById } from '../repositories/order.repository.js';
-import { ReviewModel } from '../models/review.model.js';
-import { OrderModel } from '../models/order.model.js';
+import { getAllUsers } from '../repositories/user.repository';
+import { countProducts } from '../repositories/product.repository';
+import { updateOrderById } from '../repositories/order.repository';
+import { ReviewModel } from '../models/review.model';
+import { OrderModel } from '../models/order.model';
 
 export const getDashboardData = async () => {
   const totalUsers = await getAllUsers();

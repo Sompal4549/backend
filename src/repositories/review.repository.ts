@@ -1,4 +1,4 @@
-import { ReviewModel, IReview } from '../models/review.model.js';
+import { ReviewModel, IReview } from '../models/review.model';
 import { Types } from 'mongoose';
 
 export const createReview = async (payload: Partial<IReview>): Promise<IReview> => {

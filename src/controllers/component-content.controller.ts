@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { successResponse, errorResponse } from '../utils/api-response.js';
+import { successResponse, errorResponse } from '../utils/api-response';
 import {
   deleteComponentContent,
   deleteHomeComponentContent,
@@ -11,7 +11,7 @@ import {
   updateComponentContent,
   updateHomeComponentContent,
   upsertComponentContent,
-} from '../services/component-content.service.js';
+} from '../services/component-content.service';
 
 export const getComponentContents = async (req: Request, res: Response): Promise<void> => {
   try {

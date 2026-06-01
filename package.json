@@ -1,12 +1,12 @@
 {
-  "name": "ecommerce-backend",
+  "name": "ensis-backend",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Production-ready ecommerce backend with Node.js, Express, MongoDB, JWT, and TypeScript.",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon --watch src --ext ts,json --exec \"node --loader ts-node/esm src/server.ts\"",
+    "dev": "tsx watch src/server.ts",
     "clean": "tsc --build --clean",
     "build": "tsc --build",
     "prestart": "npm run build",

@@ -1,4 +1,4 @@
-import { getUserById, updateUserProfile } from '../repositories/profile.repository.js';
+import { getUserById, updateUserProfile } from '../repositories/profile.repository';
 
 export const getProfile = async (userId: string) => {
   const user = await getUserById(userId);

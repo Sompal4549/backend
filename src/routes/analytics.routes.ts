@@ -1,6 +1,6 @@
 import { Request, Response, Router } from 'express';
 import { body } from 'express-validator';
-import { validateRequest } from '../middlewares/validate.middleware.js';
+import { validateRequest } from '../middlewares/validate.middleware';
 
 export const analyticsRouter = Router();
 

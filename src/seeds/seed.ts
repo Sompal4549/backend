@@ -1,7 +1,7 @@
-import { connectDatabase } from '../config/database.config.js';
-import { UserModel } from '../models/user.model.js';
-import { CategoryModel } from '../models/category.model.js';
-import { ProductModel } from '../models/product.model.js';
+import { connectDatabase } from '../config/database.config';
+import { UserModel } from '../models/user.model';
+import { CategoryModel } from '../models/category.model';
+import { ProductModel } from '../models/product.model';
 import { Types } from 'mongoose';
 
 // Map a numeric ID (like 2) to a 24-character hex ObjectId

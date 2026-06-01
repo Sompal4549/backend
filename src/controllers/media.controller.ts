@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { saveMedia, removeMedia } from '../services/media.service.js';
-import { successResponse, errorResponse } from '../utils/api-response.js';
-import { AuthRequest } from '../middlewares/auth.middleware.js';
+import { saveMedia, removeMedia } from '../services/media.service';
+import { successResponse, errorResponse } from '../utils/api-response';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const uploadMedia = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

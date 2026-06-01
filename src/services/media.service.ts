@@ -1,5 +1,5 @@
-import { MediaModel, IMedia } from '../models/media.model.js';
-import { optimizeImage, deleteImage } from '../helpers/image.helper.js';
+import { MediaModel, IMedia } from '../models/media.model';
+import { optimizeImage, deleteImage } from '../helpers/image.helper';
 
 export const saveMedia = async (buffer: Buffer, originalName: string, mimetype: string, size: number, userId: string): Promise<IMedia> => {
   const filename = await optimizeImage(buffer, originalName);

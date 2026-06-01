@@ -1,4 +1,4 @@
-# Ecommerce Backend
+# Ensis Backend
 
 A production-ready ecommerce backend built with Node.js, Express, MongoDB, Mongoose, JWT, and TypeScript.
 

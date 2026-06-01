@@ -1,15 +1,15 @@
 import crypto from 'crypto';
 import { Types } from 'mongoose';
-import { getRazorpayInstance } from '../config/razorpay.config.js';
-import { config } from '../config/app.config.js';
-import { OrderModel } from '../models/order.model.js';
+import { getRazorpayInstance } from '../config/razorpay.config';
+import { config } from '../config/app.config';
+import { OrderModel } from '../models/order.model';
 import {
   createTransaction,
   findTransactionByRazorpayOrderId,
   findTransactionsByOrder,
   updateTransactionById,
-} from '../repositories/transaction.repository.js';
-import { updateOrderById } from '../repositories/order.repository.js';
+} from '../repositories/transaction.repository';
+import { updateOrderById } from '../repositories/order.repository';
 
 /**
  * Create a Razorpay order for an existing internal order.

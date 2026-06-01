@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import { config } from '../config/app.config.js';
-import { errorResponse } from '../utils/api-response.js';
+import { config } from '../config/app.config';
+import { errorResponse } from '../utils/api-response';
 
 const memoryStorage = multer.memoryStorage();
 

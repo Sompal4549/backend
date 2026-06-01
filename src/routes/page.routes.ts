@@ -1,9 +1,9 @@
 import { Request, Response, Router } from 'express';
 import { body, param } from 'express-validator';
-import { validateRequest } from '../middlewares/validate.middleware.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { adminMiddleware } from '../middlewares/admin.middleware.js';
-import Page from '../models/Page.model.js';
+import { validateRequest } from '../middlewares/validate.middleware';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
+import Page from "../models/page.model";
 
 export const pageRouter = Router();
 
@@ -56,8 +56,12 @@ pageRouter.post(
   ],
   validateRequest,
   async (_req: Request, res: Response) => {
-    const newPage = await Page.create(_req.body);
-    res.json({ success: true, data: newPage, message: "Page created with SEO controls" });
+    try {
+      const newPage = await Page.create(_req.body);
+      res.json({ success: true, data: newPage, message: "Page created with SEO controls" });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    }
   }
 );
 

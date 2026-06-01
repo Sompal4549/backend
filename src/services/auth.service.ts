@@ -1,9 +1,9 @@
-import { IUser } from '../models/user.model.js';
-import { createUser, findUserByEmail, updateUserRefreshToken, findUserById } from '../repositories/user.repository.js';
-import { createAccessToken, createRefreshToken, verifyRefreshToken } from '../utils/jwt.utils.js';
-import { setRefreshTokenCookie, clearRefreshTokenCookie } from '../helpers/cookie.helper.js';
+import { IUser } from '../models/user.model';
+import { createUser, findUserByEmail, updateUserRefreshToken, findUserById } from '../repositories/user.repository';
+import { createAccessToken, createRefreshToken, verifyRefreshToken } from '../utils/jwt.utils';
+import { setRefreshTokenCookie, clearRefreshTokenCookie } from '../helpers/cookie.helper';
 import bcrypt from 'bcrypt';
-import { ROLE } from '../constants/roles.constants.js';
+import { ROLE } from '../constants/roles.constants';
 
 const toAuthUser = (user: any) => {
   const plain = typeof user.toObject === 'function' ? user.toObject() : user;

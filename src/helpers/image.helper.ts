@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import fs from 'fs/promises';
 import path from 'path';
-import { config } from '../config/app.config.js';
+import { config } from '../config/app.config';
 
 export const optimizeImage = async (buffer: Buffer, filename: string): Promise<string> => {
   const safeName = filename

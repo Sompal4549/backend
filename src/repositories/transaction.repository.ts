@@ -1,4 +1,4 @@
-import { TransactionModel, ITransaction } from '../models/transaction.model.js';
+import { TransactionModel, ITransaction } from '../models/transaction.model';
 
 export const createTransaction = async (payload: Partial<ITransaction>): Promise<ITransaction> => {
   return TransactionModel.create(payload);

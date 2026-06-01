@@ -1,6 +1,6 @@
 import { Schema, model, Types, HydratedDocument } from 'mongoose';
 import bcrypt from 'bcrypt';
-import { ROLE } from '../constants/roles.constants.js';
+import { ROLE } from '../constants/roles.constants';
 
 export interface IUser {
   name: string;
