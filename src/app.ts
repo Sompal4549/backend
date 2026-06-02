@@ -48,6 +48,10 @@ export const createApp = () => {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+  // Serve static files and docs early to bypass logic middleware and prevent path mangling
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  app.use('/uploads', express.static(path.resolve(process.cwd(), config.uploadDir)));
+
   /**
    * Middleware to handle legacy numeric ID mapping.
    * Automatically converts short numeric IDs (e.g., "123") into padded MongoDB-compatible Hex strings.
@@ -97,9 +101,6 @@ export const createApp = () => {
     next();
   });
 
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-  app.use('/uploads', express.static(path.resolve(process.cwd(), config.uploadDir)));
-
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/products', productRouter);
   app.use('/api/v1/categories', categoryRouter);
@@ -115,8 +116,6 @@ export const createApp = () => {
   app.use('/api/v1/profile', profileRouter);
   app.use('/api/v1/media', mediaRouter);
   app.use('/api/v1/admin', adminRouter);
-  app.use('/api/otp', otpRouter);
-  app.use('/api/verify', verifyRouter);
   app.use("/api/v1/seo", seoRoutes);
   app.use('/api/v1/pages', pageRouter);
 

@@ -10,9 +10,28 @@ const formatAddress = (email: string, name?: string) => {
 };
 
 const buildOtpMessage = (otp: string, customMessage?: string) => {
-  const defaultMessage = `Your verification code is ${otp}. It expires in ${config.otpExpiresMinutes} minutes.`;
+  const defaultMessage = `
+Hello,
+
+Thank you for choosing Ensis.
+
+Your One-Time Password (OTP) for account verification is:
+
+${otp}
+
+This OTP is valid for ${config.otpExpiresMinutes} minutes and can only be used once.
+
+For your security, please do not share this code with anyone. If you did not request this verification, you may safely ignore this email.
+
+Regards,
+The Ensis Team
+`.trim();
+
   if (!customMessage) return defaultMessage;
-  return customMessage.includes('{{code}}') ? customMessage.split('{{code}}').join(otp) : `${customMessage}\n\nOTP: ${otp}`;
+
+  return customMessage.includes('{{code}}')
+    ? customMessage.split('{{code}}').join(otp)
+    : `${customMessage}\n\nVerification Code: ${otp}`;
 };
 
 class SmtpClient {

@@ -63,8 +63,8 @@ authRouter.post(
   '/email-otp/verify',
   [
     body('email').isEmail().withMessage('Valid email is required'),
-    body('otp').isLength({ min: 4, max: 10 }).isNumeric().withMessage('Valid OTP is required'),
-    body('purpose').optional().isString().trim(),
+    body('otp').isNumeric().isLength({ min: 4, max: 10 }).withMessage('Valid OTP is required'),
+    body('purpose').default('SPEAKER').isString().trim(),
   ],
   validateRequest,
   confirmEmailOtp
@@ -76,6 +76,7 @@ authRouter.post(
   [
     body('email').isEmail().withMessage('Valid email is required'),
     body('otp').isNumeric().withMessage('Valid OTP is required'),
+    body('purpose').default('SPEAKER').isString().trim(),
   ],
   validateRequest,
   confirmEmailOtp
@@ -120,6 +121,7 @@ authRouter.post(
   [
     body('phone').isMobilePhone('any').withMessage('Valid phone is required'),
     body('otp').isNumeric().withMessage('Valid OTP is required'),
+    body('purpose').default('CONTACT').isString().trim(),
   ],
   validateRequest,
   confirmWhatsAppOtp

@@ -43,9 +43,24 @@ const normalizeMobile = (mobile: string): string => {
   return digits.length === 10 ? `91${digits}` : digits;
 };
 
-const buildOtpMessage = (otp: string, context: WhatsAppOtpContext, name: string | null): string => {
-  const displayName = name || 'User';
-  return `Dear ${displayName}, ${otp} is your OTP for IHWE ${contextLabels[context]}. It is valid for 5 minutes. Please do not share it with anyone.`;
+const buildOtpMessage = (
+  otp: string,
+  context: WhatsAppOtpContext,
+  name: string | null
+): string => {
+  const displayName = name || "Valued User";
+
+  return `Hello ${displayName},
+
+Thank you for choosing Ensis - Premium Panchkarma & Wellness Spaces.
+
+*Your One-Time Password (OTP) for ${contextLabels[context]} is: ${otp}*
+
+This code is valid for 5 minutes and should be used only by you. For security reasons, please do not share this OTP with anyone.
+
+If you did not request this verification, please ignore this message.
+
+— Team Ensis`;
 };
 
 const readResponseBody = async (response: Response): Promise<unknown> => {

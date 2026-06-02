@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadFile } from '../controllers/upload.controller';
+import { uploadFile, listFiles } from '../controllers/upload.controller';
 import { config } from '../config/app.config';
 import { errorResponse } from '../utils/api-response';
 
@@ -29,3 +29,5 @@ uploadRouter.post('/', (req, res, next) => {
     errorResponse(res, message, 400);
   });
 }, uploadFile);
+
+uploadRouter.get('/list', listFiles);

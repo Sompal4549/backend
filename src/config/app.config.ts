@@ -34,7 +34,7 @@ export const config = {
   cookieSecure: getBoolean('COOKIE_SECURE', false),
   cookieSameSite: getString('COOKIE_SAME_SITE', 'lax'),
   corsOrigin: getList('CORS_ORIGIN', ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174']),
-  uploadDir: getString('UPLOAD_DIR', 'uploads'),
+  uploadDir: getString('UPLOAD_DIR', 'src/uploads'),
   uploadMaxFileSizeBytes: getNumber('UPLOAD_MAX_FILE_SIZE_BYTES', 5 * 1024 * 1024),
   uploadMaxFiles: getNumber('UPLOAD_MAX_FILES', 6),
   uploadAllowedMimeTypes: getList('UPLOAD_ALLOWED_MIME_TYPES', ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/svg+xml', 'image/gif']),
