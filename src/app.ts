@@ -23,6 +23,7 @@ import { uploadRouter } from './routes/upload.routes';
 import { otpRouter } from './routes/otpRoutes';
 import { verifyRouter } from './routes/verify';
 import { paymentRouter } from './routes/payment.routes';
+import { pageRouter } from './routes/page.routes';
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/not-found.middleware';
 import { swaggerDocument } from './config/swagger.config';
@@ -117,6 +118,7 @@ export const createApp = () => {
   app.use('/api/otp', otpRouter);
   app.use('/api/verify', verifyRouter);
   app.use("/api/v1/seo", seoRoutes);
+  app.use('/api/v1/pages', pageRouter);
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });

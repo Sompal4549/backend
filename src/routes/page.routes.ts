@@ -41,7 +41,7 @@ pageRouter.post(
     body('seo.canonical').optional().isString().withMessage('Canonical URL can be manual or auto-generated'),
     body('seo.ogTitle').optional().isString(),
     body('seo.ogDescription').optional().isString(),
-    body('seo.ogImage').optional().isURL(),
+    body('seo.ogImage').optional({ values: 'falsy' }).isString(),
     body('seo.schemaMarkup').optional().isString(), // Store JSON-LD as string
     body('seo.breadcrumbs').optional().isArray(),
     body('seo.internalLinks').optional().isString(),
@@ -79,7 +79,7 @@ pageRouter.put(
     body('seo.canonical').optional().isString(),
     body('seo.ogTitle').optional().isString(),
     body('seo.ogDescription').optional().isString(),
-    body('seo.ogImage').optional().isURL(),
+    body('seo.ogImage').optional({ values: 'falsy' }).isString(),
     body('seo.schemaMarkup').optional().isString(),
     body('seo.breadcrumbs').optional().isArray(),
     body('seo.internalLinks').optional().isString(),
