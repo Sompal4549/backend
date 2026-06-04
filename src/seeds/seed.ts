@@ -5,6 +5,7 @@ import { ProductModel } from '../models/product.model';
 import { ComponentContentModel } from '../models/component-content.model';
 import Page from '../models/page.model';
 import { Types } from 'mongoose';
+import { ROLE } from '../constants/roles.constants';
 
 // Map a numeric ID (like 2) to a 24-character hex ObjectId
 const getObjectIdForId = (id: number): Types.ObjectId => {
@@ -31,20 +32,28 @@ const seed = async () => {
   await Page.deleteMany({});
 
   const adminPassword = 'Admin1234';
+  const superAdminPassword = 'SuperAdmin1234';
   const userPassword = 'User1234';
 
   await UserModel.create({
     name: 'Admin User',
     email: 'admin@ecommerce.com',
     password: adminPassword,
-    role: 'admin',
+    role: ROLE.ADMIN,
+  });
+
+  await UserModel.create({
+    name: 'Super Admin User',
+    email: 'superadmin@ecommerce.com',
+    password: superAdminPassword,
+    role: ROLE.SUPERADMIN,
   });
 
   await UserModel.create({
     name: 'Regular User',
     email: 'user@ecommerce.com',
     password: userPassword,
-    role: 'user',
+    role: ROLE.USER,
   });
 
   // Create wellness categories matching the frontend
@@ -658,7 +667,7 @@ const seed = async () => {
     await ComponentContentModel.create(componentContent);
   }
 
-  console.log('Seed data created successfully with 24 wellness products, pages, and components.');
+  console.log('Seed data created successfully with superadmin, 24 wellness products, pages, and components.');
   process.exit(0);
 };
 

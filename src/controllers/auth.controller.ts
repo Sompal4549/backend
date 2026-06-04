@@ -33,8 +33,12 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       successResponse(res, null, 'Already logged out');
       return;
     }
-    await logoutUser(refreshTokenValue, res);
-    successResponse(res, null, 'Logged out successfully');
+    const result = await logoutUser(refreshTokenValue, res, ['user']);
+    if (result) {
+      successResponse(res, null, 'Logged out successfully');
+    } else {
+      errorResponse(res, 'Invalid logout context for this role', 403);
+    }
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
   }

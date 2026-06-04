@@ -44,7 +44,7 @@ export const loginUser = async (email: string, password: string) => {
 
 export const loginAdmin = async (email: string, password: string) => {
   const result = await loginUser(email, password);
-  if (result.user.role !== ROLE.ADMIN) {
+  if (result.user.role !== ROLE.ADMIN && result.user.role !== ROLE.SUPERADMIN) {
     await logoutUser(result.refreshToken, { clearCookie: () => undefined } as any);
     const error = new Error('Admin access required');
     (error as any).statusCode = 403;
@@ -75,17 +75,21 @@ export const refreshAccessToken = async (refreshToken: string, res: any) => {
   }
 };
 
-export const logoutUser = async (refreshToken: string, res: any) => {
+export const logoutUser = async (refreshToken: string, res: any, allowedRoles?: string[]) => {
   try {
-    const payload = verifyRefreshToken(refreshToken) as { userId: string };
+    const payload = verifyRefreshToken(refreshToken) as { userId: string; role: string };
+
+    // If role checking is required, ensure the token's role matches the intended context
+    if (allowedRoles && !allowedRoles.includes(payload.role) && payload.role !== ROLE.SUPERADMIN) {
+      return false;
+    }
+
     const user = await findUserById(payload.userId);
     if (user?.refreshToken && await bcrypt.compare(refreshToken, user.refreshToken)) {
       await updateUserRefreshToken(user.id, null);
     }
   } catch {
-    // The cookie is being cleared either way; invalid refresh tokens do not need to fail logout.
   }
   clearRefreshTokenCookie(res);
+  return true;
 };
-
-

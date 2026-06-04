@@ -23,8 +23,12 @@ export const adminLogout = async (req: Request, res: Response): Promise<void> =>
       successResponse(res, null, 'Already logged out');
       return;
     }
-    await logoutUser(refreshTokenValue, res);
-    successResponse(res, null, 'Admin logged out successfully');
+    const result = await logoutUser(refreshTokenValue, res, ['admin', 'superadmin']);
+    if (result) {
+      successResponse(res, null, 'Admin logged out successfully');
+    } else {
+      errorResponse(res, 'Invalid admin logout context', 403);
+    }
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
   }
