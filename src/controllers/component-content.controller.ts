@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { successResponse, errorResponse } from '../utils/api-response';
+import { ComponentContentModel } from '../models/component-content.model';
 import {
   deleteComponentContent,
   deleteHomeComponentContent,
@@ -17,6 +18,16 @@ export const getComponentContents = async (req: Request, res: Response): Promise
   try {
     const contents = await listComponentContent(req.query);
     successResponse(res, contents, 'Component contents retrieved');
+  } catch (error) {
+    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
+  }
+};
+
+export const getComponentsByPage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { page } = req.params;
+    const contents = await ComponentContentModel.find({ page, isActive: true });
+    successResponse(res, contents, `Components for page: ${page} retrieved`);
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
   }

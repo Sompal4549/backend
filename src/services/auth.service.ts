@@ -5,7 +5,7 @@ import { setRefreshTokenCookie, clearRefreshTokenCookie } from '../helpers/cooki
 import bcrypt from 'bcrypt';
 import { ROLE } from '../constants/roles.constants';
 
-const toAuthUser = (user: any) => {
+export const toAuthUser = (user: any) => {
   const plain = typeof user.toObject === 'function' ? user.toObject() : user;
   delete plain.password;
   delete plain.refreshToken;
@@ -20,6 +20,17 @@ export const registerUser = async (userData: Partial<IUser>) => {
     throw error;
   }
   const user = await createUser({ ...userData, role: ROLE.USER });
+  return toAuthUser(user);
+};
+
+export const registerUserWithRole = async (userData: Partial<IUser>) => {
+  const existing = await findUserByEmail(userData.email as string);
+  if (existing) {
+    const error = new Error('Email already registered');
+    (error as any).statusCode = 409;
+    throw error;
+  }
+  const user = await createUser(userData);
   return toAuthUser(user);
 };
 

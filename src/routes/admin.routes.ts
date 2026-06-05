@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { adminLogin, adminLogout, getDashboard, getUsers, updateOrder } from '../controllers/admin.controller';
+import { adminLogin, adminLogout, getDashboard, getUsers, updateOrder, createUserByAdmin, changeUserRole } from '../controllers/admin.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
+import { superAdminMiddleware } from '../middlewares/superadmin.middleware';
 import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
 
@@ -20,6 +21,37 @@ adminRouter.use(authMiddleware, adminMiddleware);
 adminRouter.get('/dashboard', getDashboard);
 
 adminRouter.get('/users', getUsers);
+
+/**
+ * SuperAdmin Only: Add new user and assign role
+ */
+adminRouter.post(
+  '/users',
+  superAdminMiddleware,
+  [
+    body('name').notEmpty().withMessage('Name is required'),
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('role').notEmpty().withMessage('Role is required'),
+  ],
+  validateRequest,
+  createUserByAdmin
+);
+
+/**
+ * SuperAdmin Only: Change any user's role
+ */
+adminRouter.put(
+  '/users/role',
+  superAdminMiddleware,
+  [
+    body('userId').isMongoId().withMessage('Valid user ID is required'),
+    body('role').notEmpty().withMessage('Role is required'),
+  ],
+  validateRequest,
+  changeUserRole
+);
+
 adminRouter.put(
   '/orders/:id',
   [

@@ -5,6 +5,7 @@ import {
   editHomeComponent,
   getComponentContent,
   getComponentContents,
+  getComponentsByPage,
   getHomeComponentContent,
   getHomeComponentContents,
   removeComponentContent,
@@ -18,6 +19,14 @@ export const componentContentRouter = Router();
 
 componentContentRouter.get('/', getComponentContents);
 componentContentRouter.get('/home', getHomeComponentContents);
+
+componentContentRouter.get(
+  '/page/:page',
+  [param('page').notEmpty().withMessage('Page name is required')],
+  validateRequest,
+  getComponentsByPage
+);
+
 componentContentRouter.get('/home/:key', [param('key').notEmpty().withMessage('Component key is required')], validateRequest, getHomeComponentContent);
 
 componentContentRouter.post(

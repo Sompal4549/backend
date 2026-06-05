@@ -3,6 +3,7 @@ import { countProducts } from '../repositories/product.repository';
 import { updateOrderById } from '../repositories/order.repository';
 import { ReviewModel } from '../models/review.model';
 import { OrderModel } from '../models/order.model';
+import { UserModel } from '../models/user.model';
 
 export const getDashboardData = async () => {
   const totalUsers = await getAllUsers();
@@ -31,4 +32,14 @@ export const adminUpdateOrder = async (orderId: string, payload: { orderStatus?:
     throw error;
   }
   return order;
+};
+
+export const adminUpdateUserRole = async (userId: string, role: string) => {
+  const user = await UserModel.findByIdAndUpdate(userId, { role }, { new: true, runValidators: true });
+  if (!user) {
+    const error = new Error('User not found');
+    (error as any).statusCode = 404;
+    throw error;
+  }
+  return user;
 };

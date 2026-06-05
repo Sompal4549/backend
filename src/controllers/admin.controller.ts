@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { getDashboardData, listUsers, adminUpdateOrder } from '../services/admin.service';
-import { loginAdmin, logoutUser } from '../services/auth.service';
+import { getDashboardData, listUsers, adminUpdateOrder, adminUpdateUserRole } from '../services/admin.service';
+import { loginAdmin, logoutUser, registerUserWithRole } from '../services/auth.service';
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
 import { successResponse, errorResponse } from '../utils/api-response';
 
@@ -10,6 +10,25 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     const { user, accessToken, refreshToken } = await loginAdmin(email, password);
     setRefreshTokenCookie(res, refreshToken);
     successResponse(res, { user, accessToken }, 'Admin login successful');
+  } catch (error) {
+    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
+  }
+};
+
+export const createUserByAdmin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await registerUserWithRole(req.body);
+    successResponse(res, user, 'User created and role assigned', 201);
+  } catch (error) {
+    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
+  }
+};
+
+export const changeUserRole = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, role } = req.body;
+    const user = await adminUpdateUserRole(userId, role);
+    successResponse(res, user, 'User role updated successfully');
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
   }
