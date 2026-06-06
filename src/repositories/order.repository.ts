@@ -6,7 +6,11 @@ export const createOrder = async (payload: Partial<IOrder>): Promise<IOrder> => 
 };
 
 export const getOrdersByUser = async (userId: string | Types.ObjectId) => {
-  return OrderModel.find({ user: userId }).populate('items.product').sort({ createdAt: -1 });
+  // Support both ObjectId and string-stored user references.
+  const idStr = String(userId);
+  const maybeObjectId = Types.ObjectId.isValid(idStr) ? new Types.ObjectId(idStr) : null;
+  const query = maybeObjectId ? { $or: [{ user: maybeObjectId }, { user: idStr }] } : { user: idStr };
+  return OrderModel.find(query).populate('items.product').sort({ createdAt: -1 });
 };
 
 export const getOrderById = async (id: string) => {

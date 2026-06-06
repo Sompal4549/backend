@@ -139,9 +139,8 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
 
 export const fetchUserOrders = async (userId: string) => {
   const oid = toObjectId(userId);
-  console.log(`[OrderService] Querying orders for User ID: ${userId} -> Mapped to: ${oid}`);
-  const orders = await getOrdersByUser(oid);
-  console.log(`[OrderService] Found ${orders.length} orders in database.`);
+    const orders = await getOrdersByUser(oid);
+    console.info('fetchUserOrders: userId=', userId, 'objectId=', oid.toString(), 'ordersCount=', Array.isArray(orders) ? orders.length : 0);
   return orders;
 };
 

@@ -29,3 +29,16 @@ orderRouter.post(
 orderRouter.get('/', authMiddleware, getMyOrders);
 orderRouter.get('/my-orders', authMiddleware, getMyOrders);
 orderRouter.get('/:id', authMiddleware, [param('id').isMongoId().withMessage('Valid order id is required')], validateRequest, getOrderById);
+
+// Allow user to update their own order status (limited actions, e.g., cancel)
+orderRouter.put(
+  '/:id',
+  authMiddleware,
+  [
+    param('id').isMongoId().withMessage('Valid order id is required'),
+    body('orderStatus').notEmpty().isIn(['cancelled']).withMessage('Invalid order status for user updates'),
+  ],
+  validateRequest,
+  // Controller handler
+  (req, res, next) => require('../controllers/order.controller.js').updateOrderByUser(req, res).catch(next)
+);

@@ -1,4 +1,4 @@
-import { INavigation, NavigationModel } from '../models/navigation.model';
+import { INavigation, NavigationModel } from '../models/navigation.model.js';
 
 const navigationKey = 'main';
 
