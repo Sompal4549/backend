@@ -3,10 +3,10 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const getString = (key: string, defaultValue = ''): string => process.env[key] || defaultValue;
+const getString = (key: string, defaultValue = ''): string => (process.env[key] || defaultValue).trim();
 const getFirstString = (keys: string[], defaultValue = ''): string => {
   for (const key of keys) {
-    if (process.env[key]) return process.env[key] as string;
+    if (process.env[key]) return (process.env[key] as string).trim();
   }
   return defaultValue;
 };
@@ -25,8 +25,8 @@ const getList = (key: string, defaultValue: string[]): string[] => {
 
 export const config = {
   env: getString('NODE_ENV', 'development'),
-  port: Number(getString('PORT', '4000')),
-  mongoUri: getFirstString(['MONGO_URI_MAIN', 'MONGO_URI'], 'mongodb://localhost:27017/test'),
+  port: Number(getString('PORT', '5000')),
+  mongoUri: getFirstString(['MONGO_URI_MAIN', 'MONGO_URI'], 'mongodb://localhost:27017/ensis'),
   jwtAccessSecret: getFirstString(['JWT_SECRET', 'JWT_ACCESS_SECRET'], 'access-secret'),
   jwtRefreshSecret: getFirstString(['JWT_SECRET', 'JWT_REFRESH_SECRET'], 'refresh-secret'),
   accessTokenExpires: getString('ACCESS_TOKEN_EXPIRES', '36500d'),
@@ -54,7 +54,10 @@ export const config = {
   whatsappProvider: getString('WHATSAPP_PROVIDER', process.env.OPUS_API_KEY ? 'opus' : 'console'),
   whatsappApiKey: getString('OPUS_API_KEY'),
   whatsappSender: getString('ADMIN_WHATSAPP_NUMBER'),
-  razorpayKeyId: getString('RAJORPAY_API_KEY'),
-  razorpayKeySecret: getString('RAJORPAY_TEST_SECRET'),
-  razorpayWebhookSecret: getString('RAJORPAY_WEBHOOK_SECRET'),
+  razorpayKeyId: getFirstString(['RAZORPAY_API_KEY', 'RAZORPAY_KEY_ID', 'RAJORPAY_API_KEY']),
+  razorpayKeySecret: getFirstString(['RAZORPAY_TEST_SECRET', 'RAZORPAY_KEY_SECRET', 'RAJORPAY_TEST_SECRET']),
+  razorpayWebhookSecret: getFirstString(['RAZORPAY_WEBHOOK_SECRET', 'RAJORPAY_WEBHOOK_SECRET']),
+  cloudinaryCloudName: getString('CLOUDINARY_CLOUD_NAME'),
+  cloudinaryApiKey: getString('CLOUDINARY_API_KEY'),
+  cloudinaryApiSecret: getString('CLOUDINARY_API_SECRET'),
 };

@@ -20,6 +20,10 @@ export const getDashboardData = async () => {
 
 export const listUsers = async () => getAllUsers();
 
+export const listAllOrders = async () => {
+  return OrderModel.find().populate('user', 'name email').sort({ createdAt: -1 });
+};
+
 export const adminUpdateOrder = async (orderId: string, payload: { orderStatus?: string; paymentStatus?: string }) => {
   const updatePayload: { orderStatus?: string; paymentStatus?: string } = {};
   if (payload.orderStatus) updatePayload.orderStatus = payload.orderStatus;

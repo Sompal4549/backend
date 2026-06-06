@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getDashboardData, listUsers, adminUpdateOrder, adminUpdateUserRole } from '../services/admin.service';
+import { getDashboardData, listUsers, listAllOrders, adminUpdateOrder, adminUpdateUserRole } from '../services/admin.service';
 import { loginAdmin, logoutUser, registerUserWithRole } from '../services/auth.service';
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
 import { successResponse, errorResponse } from '../utils/api-response';
@@ -66,6 +66,15 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
     const users = await listUsers();
     successResponse(res, users, 'Users retrieved');
+  } catch (error) {
+    errorResponse(res, (error as Error).message, 500);
+  }
+};
+
+export const getAllOrders = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const orders = await listAllOrders();
+    successResponse(res, orders, 'All orders retrieved');
   } catch (error) {
     errorResponse(res, (error as Error).message, 500);
   }

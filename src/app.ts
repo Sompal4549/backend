@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { config } from './config/app.config';
@@ -46,13 +47,13 @@ export const createApp = () => {
   app.set('trust proxy', 1);
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigin, credentials: true }));
+  app.use(compression());
   app.use(cookieParser());
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Serve static files and docs early to bypass logic middleware and prevent path mangling
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-  app.use('/uploads', express.static(path.resolve(process.cwd(), config.uploadDir)));
 
   /**
    * Middleware to handle legacy numeric ID mapping.

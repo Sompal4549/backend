@@ -5,7 +5,7 @@ import { successResponse, errorResponse } from '../utils/api-response';
 
 export const getCareers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const careers = await CareerModel.find().sort({ createdAt: -1 });
+    const careers = await CareerModel.find().sort({ createdAt: -1 }).lean();
     successResponse(res, careers, 'Careers retrieved');
   } catch (error) {
     errorResponse(res, (error as Error).message, 500);

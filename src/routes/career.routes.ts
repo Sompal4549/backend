@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as careerController from '../controllers/career.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
 
 const router = Router();
@@ -24,7 +24,23 @@ router.post(
   validateRequest,
   careerController.createCareer
 );
-router.put('/:id', authMiddleware, adminMiddleware, careerController.updateCareer);
-router.delete('/:id', authMiddleware, adminMiddleware, careerController.deleteCareer);
+
+router.put(
+  '/:id',
+  authMiddleware,
+  adminMiddleware,
+  [param('id').isMongoId().withMessage('Valid career id is required')],
+  validateRequest,
+  careerController.updateCareer
+);
+
+router.delete(
+  '/:id',
+  authMiddleware,
+  adminMiddleware,
+  [param('id').isMongoId().withMessage('Valid career id is required')],
+  validateRequest,
+  careerController.deleteCareer
+);
 
 export { router as careerRouter };

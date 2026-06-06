@@ -3,9 +3,12 @@ import { config } from './app.config';
 
 export const connectDatabase = async (): Promise<void> => {
   try {
+    const maskedUri = config.mongoUri.replace(/:([^@]+)@/, ':****@');
+    console.log(`Connecting to MongoDB at: ${maskedUri}`);
+    
     await mongoose.connect(config.mongoUri, {
       autoIndex: true,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 15000, // Increased for Atlas resolution
     });
     console.log('MongoDB connected successfully');
   } catch (error) {

@@ -4,7 +4,7 @@ import { CategoryModel } from '../models/category.model';
 import { ProductModel } from '../models/product.model';
 import { ComponentContentModel } from '../models/component-content.model';
 import Page from '../models/page.model';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { ROLE } from '../constants/roles.constants';
 
 // Map a numeric ID (like 2) to a 24-character hex ObjectId
@@ -18,11 +18,20 @@ const getObjectIdForId = (id: number): Types.ObjectId => {
 const seed = async () => {
   await connectDatabase();
 
+  const dbName = mongoose.connection.name;
+  console.log(`Connected to MongoDB. Active Database: ${dbName}`);
+  if (dbName !== 'ensis') {
+    console.warn('⚠️ Warning: You are not connected to the "ensis" database. Check your MONGO_URI in .env.');
+  }
+
   try {
-    await UserModel.collection.dropIndex('username_1');
-    console.log('Successfully dropped old username_1 index');
-  } catch {
-    // Ignore if it doesn't exist
+    const indexes = await UserModel.collection.listIndexes().toArray();
+    if (indexes.some(idx => idx.name === 'username_1')) {
+      await UserModel.collection.dropIndex('username_1');
+      console.log('Successfully dropped old username_1 index');
+    }
+  } catch (err) {
+    console.log('Note: UserModel index cleanup skipped (likely collection does not exist yet)');
   }
 
   await UserModel.deleteMany({});
@@ -330,6 +339,16 @@ const seed = async () => {
       }
     }
   ];
+
+  // Actually seed the wellness products mapped to their categories
+  for (const p of wellnessProducts) {
+    const category = categoriesMap[p.categoryKey as keyof typeof categoriesMap];
+    await ProductModel.create({
+      ...p,
+      _id: getObjectIdForId(p.id), // Force the ID to match our numeric mapping
+      category: category?._id,
+    });
+  }
 
   for (const pageSeo of seoPages) {
     await Page.create(pageSeo);

@@ -10,6 +10,8 @@ import {
   updateTransactionById,
 } from '../repositories/transaction.repository';
 import { updateOrderById } from '../repositories/order.repository';
+import { UserModel } from '../models/user.model';
+import { sendWhatsAppMessage } from '../utils/whatsapp';
 
 /**
  * Create a Razorpay order for an existing internal order.
@@ -125,6 +127,13 @@ export const verifyPayment = async (
     orderStatus: 'confirmed',
   });
 
+  // Send WhatsApp Notification
+  const user = await UserModel.findById(transaction.user);
+  if (user?.phone && updatedOrder) {
+    const message = `*Order Confirmed!*\n\nHello ${user.name},\n\nYour order #${updatedOrder._id} for ₹${updatedOrder.totalAmount} has been successfully placed.\n\nThank you for choosing Ensis!`;
+    await sendWhatsAppMessage(user.phone, message, user.name);
+  }
+
   return {
     transaction: {
       ...transaction.toObject(),
@@ -183,10 +192,17 @@ export const handleWebhook = async (rawBody: string, webhookSignature: string) =
         method: payment.method,
       });
 
-      await updateOrderById(transaction.order.toString(), {
+      const updatedOrder = await updateOrderById(transaction.order.toString(), {
         paymentStatus: 'paid',
         orderStatus: 'confirmed',
       });
+
+      // Send WhatsApp Notification
+      const user = await UserModel.findById(transaction.user);
+      if (user?.phone && updatedOrder) {
+        const message = `*Order Confirmed!*\n\nHello ${user.name},\n\nYour order #${updatedOrder._id} for ₹${updatedOrder.totalAmount} has been successfully placed.\n\nThank you for choosing Ensis!`;
+        await sendWhatsAppMessage(user.phone, message, user.name);
+      }
     }
   } else if (eventType === 'payment.failed') {
     if (transaction.status !== 'paid') {

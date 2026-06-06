@@ -8,7 +8,7 @@ A production-ready ecommerce backend built with Node.js, Express, MongoDB, Mongo
 - Email and WhatsApp OTP request/verification with expiry and retry limits
 - Role-based authorization (`user`, `admin`)
 - Product, wishlist, cart, order, review, address, and media management
-- Image upload and WebP optimization using Sharp
+- Image upload and optimization using Cloudinary
 - Global error handling and reusable middleware
 - Validation with `express-validator`
 - Rate limiting, Helmet, CORS, and secure cookies
@@ -29,7 +29,7 @@ A production-ready ecommerce backend built with Node.js, Express, MongoDB, Mongo
 - `src/utils` - helpers, response formatters, pagination
 - `src/docs` - Swagger documentation
 - `src/seeds` - sample seed data
-- `src/uploads` - optimized media storage
+- `src/uploads` - local upload storage (legacy)
 - `src/helpers` - shared utilities
 - `src/jobs` - future cron/task jobs
 - `src/socket` - socket server (stub)
@@ -87,6 +87,9 @@ On Windows PowerShell, if `npm run ...` is blocked by execution policy, run the 
 - `WHATSAPP_API_URL`
 - `WHATSAPP_API_KEY`
 - `WHATSAPP_SENDER`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
 
 ## API Endpoints
 - `POST /api/v1/auth/register`
@@ -151,9 +154,9 @@ Authorization: Bearer <accessToken>
 
 ## Image Upload Flow
 - Uploads use Multer memory storage.
-- Sharp converts JPG/PNG images to optimized WebP files.
-- Files are saved with unique names under `src/uploads`.
-- The API returns optimized image URLs.
+- Images are uploaded directly to Cloudinary.
+- Automatic optimization (WebP/quality) is handled via Cloudinary transformations.
+- The API returns the Cloudinary secure URL.
 - Uploads require a valid bearer access token. Deleting uploaded media requires an admin token.
 - File size, count, and MIME types are configured through environment variables.
 

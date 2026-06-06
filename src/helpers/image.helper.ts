@@ -1,32 +1,32 @@
-import sharp from 'sharp';
-import fs from 'fs/promises';
-import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
 import { config } from '../config/app.config';
 
-export const optimizeImage = async (buffer: Buffer, filename: string, subDir: string = ''): Promise<string> => {
-  const safeName = filename
-    .replace(/\.[^/.]+$/, '')
-    .replace(/[^a-zA-Z0-9-_]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase();
-  const outputName = `${Date.now()}-${safeName || 'upload'}.webp`;
-  const folderPath = path.join(config.uploadDir, subDir);
-  const outputPath = path.resolve(process.cwd(), folderPath, outputName);
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await sharp(buffer)
-    .rotate()
-    .resize({ width: 1920, withoutEnlargement: true })
-    .webp({ quality: 72, effort: 6 })
-    .toFile(outputPath);
-  return subDir ? `${subDir}/${outputName}` : outputName;
+cloudinary.config({
+  cloud_name: config.cloudinaryCloudName,
+  api_key: config.cloudinaryApiKey,
+  api_secret: config.cloudinaryApiSecret,
+});
+
+export const uploadImage = async (buffer: Buffer, subDir: string = ''): Promise<{ url: string; publicId: string }> => {
+  return new Promise<{ url: string; publicId: string }>((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `ensis/${subDir}`.replace(/\/$/, ''),
+        resource_type: 'auto',
+        transformation: [
+          { width: 1920, crop: 'limit' },
+          { quality: 'auto', fetch_format: 'auto' }
+        ]
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve({ url: result!.secure_url, publicId: result!.public_id });
+      }
+    );
+    uploadStream.end(buffer);
+  });
 };
 
-export const deleteImage = async (filename: string): Promise<void> => {
-  const target = path.resolve(process.cwd(), config.uploadDir, filename);
-  try {
-    await fs.unlink(target);
-  } catch {
-    // ignore missing files
-  }
+export const deleteImage = async (publicId: string): Promise<void> => {
+  await cloudinary.uploader.destroy(publicId);
 };
