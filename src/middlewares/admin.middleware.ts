@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { AuthRequest } from './auth.middleware';
-import { errorResponse } from '../utils/api-response';
+import { AuthRequest } from './auth.middleware.js';
+import { errorResponse } from '../utils/api-response.js';
 import { ROLE } from '../constants/roles.constants';
 
 export const adminMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {

@@ -1,4 +1,4 @@
-import { sendWhatsAppOTP, sendWhatsAppMessage } from '../utils/whatsapp';
+import { sendWhatsAppOTP, sendWhatsAppMessage } from '../utils/whatsapp.js';
 
 export const sendWhatsAppOtp = async (phone: string, otp: string, customMessage?: string): Promise<void> => {
   const result = customMessage
