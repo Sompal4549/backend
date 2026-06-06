@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
-import { WhatsAppLog } from '../models/WhatsAppLog';
+import { WhatsAppLog } from '../models/WhatsAppLog.js';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 

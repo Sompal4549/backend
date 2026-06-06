@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { createOrder, getMyOrders, getOrderById } from '../controllers/order.controller.js';
+import { createOrder, getMyOrders, getOrderById, updateOrderByUser } from '../controllers/order.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware.js';
@@ -40,5 +40,5 @@ orderRouter.put(
   ],
   validateRequest,
   // Controller handler
-  (req: Request, res: Response, next: NextFunction) => require('../controllers/order.controller.js').updateOrderByUser(req, res).catch(next)
+  (req: Request, res: Response, next: NextFunction) => updateOrderByUser(req, res).catch(next)
 );
