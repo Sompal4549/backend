@@ -18,7 +18,12 @@ const toObjectId = (id: any): Types.ObjectId => {
 
 const normalizePhone = (phone: any): string => {
   if (!phone) return '';
-  return String(phone).replace(/\D/g, '');
+  let cleaned = String(phone).replace(/\D/g, '');
+  // Ensure 10-digit Indian numbers are prefixed with country code 91
+  if (cleaned.length === 10) {
+    cleaned = '91' + cleaned;
+  }
+  return cleaned;
 };
 
 export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
@@ -115,8 +120,8 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
 };
 
 export const fetchUserOrders = async (userId: string) => {
+  // Pass the actual ObjectId instead of a string to ensure Mongoose matching
   return getOrdersByUser(toObjectId(userId).toString());
-  return getOrdersByUser(userId);
 };
 
 export const fetchOrder = async (userId: string, orderId: string) => {

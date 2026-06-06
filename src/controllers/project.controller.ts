@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { ProjectModel } from '../models/project.model';
 import { successResponse, errorResponse } from '../utils/api-response';
 
-export const getProjects = async (req: Request, res: Response): Promise<void> => {
+export const getProjects = async (_req: Request, res: Response): Promise<void> => {
   try {
     const projects = await ProjectModel.find().sort({ createdAt: -1 }).lean();
     successResponse(res, projects, 'Projects retrieved');

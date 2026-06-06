@@ -54,8 +54,8 @@ export const webhookHandler = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // req.body is the raw buffer when express.raw() middleware is used
-    const rawBody = typeof req.body === 'string' ? req.body : req.body.toString('utf-8');
+    // Use the raw body captured by the express.json verify function for accurate signature check
+    const rawBody = (req as any).rawBody?.toString('utf-8') || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
     const result = await handleWebhookService(rawBody, signature);
     successResponse(res, result, 'Webhook processed');
   } catch (error) {

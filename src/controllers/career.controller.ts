@@ -3,7 +3,7 @@ import { CareerModel } from '../models/career.model';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { successResponse, errorResponse } from '../utils/api-response';
 
-export const getCareers = async (req: Request, res: Response): Promise<void> => {
+export const getCareers = async (_req: Request, res: Response): Promise<void> => {
   try {
     const careers = await CareerModel.find().sort({ createdAt: -1 }).lean();
     successResponse(res, careers, 'Careers retrieved');

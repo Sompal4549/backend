@@ -1,7 +1,7 @@
 import { MediaModel, IMedia } from '../models/media.model';
 import { uploadImage, deleteImage } from '../helpers/image.helper';
 
-export const saveMedia = async (buffer: Buffer, originalName: string, mimetype: string, size: number, userId: string): Promise<IMedia> => {
+export const saveMedia = async (buffer: Buffer, mimetype: string, size: number, userId: string): Promise<IMedia> => {
   const { url, publicId } = await uploadImage(buffer, 'media');
   const media = await MediaModel.create({ filename: publicId, url, mimetype, size, uploadedBy: userId });
   return media;

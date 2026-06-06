@@ -4,6 +4,7 @@ import { CategoryModel } from '../models/category.model';
 import { ProductModel } from '../models/product.model';
 import { ComponentContentModel } from '../models/component-content.model';
 import Page from '../models/page.model';
+import { OrderModel } from '../models/order.model';
 import mongoose, { Types } from 'mongoose';
 import { ROLE } from '../constants/roles.constants';
 
@@ -38,6 +39,7 @@ const seed = async () => {
   await CategoryModel.deleteMany({});
   await ProductModel.deleteMany({});
   await ComponentContentModel.deleteMany({});
+  await OrderModel.deleteMany({});
   await Page.deleteMany({});
 
   const adminPassword = 'Admin1234';
@@ -60,7 +62,7 @@ const seed = async () => {
     role: ROLE.SUPERADMIN,
   });
 
-  await UserModel.create({
+  const regularUser = await UserModel.create({
     name: 'Regular User',
     email: 'user@ecommerce.com',
     password: userPassword,
@@ -343,17 +345,45 @@ const seed = async () => {
   ];
 
   // Actually seed the wellness products mapped to their categories
+  console.log(`Seeding ${wellnessProducts.length} products...`);
+  
+  let firstProduct: any = null;
+
   for (const p of wellnessProducts) {
     const category = categoriesMap[p.categoryKey as keyof typeof categoriesMap];
     
-    // Extract 'id' to prevent Mongoose from trying to cast the numeric value to _id
-    // Also extract 'categoryKey' as it's not part of the Product schema
-    const { id, categoryKey, ...productData } = p;
+    // Extract 'id' to use for ObjectId mapping
+    // categoryKey is extracted but not used further as it's not in Product schema
+    const { id, categoryKey: _, ...productData } = p;
 
-    await ProductModel.create({
+    const product = await ProductModel.create({
       ...productData,
       _id: getObjectIdForId(Number(id)),
       category: category?._id,
+    });
+
+    if (!firstProduct) firstProduct = product;
+  }
+
+  // Seed a sample order for the regular user
+  if (regularUser && firstProduct) {
+    await OrderModel.create({
+      user: regularUser._id,
+      items: [{
+        product: firstProduct._id,
+        quantity: 1,
+        price: firstProduct.price
+      }],
+      totalAmount: firstProduct.price,
+      shippingAddress: {
+        street: '123 Wellness Way',
+        city: 'Delhi',
+        state: 'Delhi',
+        zipCode: '110001',
+        phone: '910000000000'
+      },
+      paymentStatus: 'pending',
+      orderStatus: 'pending'
     });
   }
 

@@ -11,7 +11,7 @@ export const uploadMedia = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
     const uploaded = await Promise.all(
-      files.map((file) => saveMedia(file.buffer, file.originalname, file.mimetype, file.size, req.user!.id))
+      files.map((file) => saveMedia(file.buffer, file.mimetype, file.size, req.user!.id))
     );
     successResponse(res, uploaded, 'Files uploaded successfully', 201);
   } catch (error) {

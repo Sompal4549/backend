@@ -5,7 +5,6 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
 import { config } from './config/app.config';
 import { authRouter } from './routes/auth.routes';
 import { productRouter } from './routes/product.routes';
@@ -21,8 +20,6 @@ import { componentContentRouter } from './routes/component-content.routes';
 import { navigationRouter } from './routes/navigation.routes';
 import { footerRouter } from './routes/footer.routes';
 import { uploadRouter } from './routes/upload.routes';
-import { otpRouter } from './routes/otpRoutes';
-import { verifyRouter } from './routes/verify';
 import { paymentRouter } from './routes/payment.routes';
 import { pageRouter } from './routes/page.routes';
 import { projectRouter } from './routes/project.routes';
@@ -45,11 +42,18 @@ export const createApp = () => {
   });
 
   app.set('trust proxy', 1);
+  app.use(limiter);
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigin, credentials: true }));
   app.use(compression());
   app.use(cookieParser());
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ 
+    limit: '10mb',
+    verify: (req: any, _res, buf) => {
+      // Capture raw body for signature verification in webhooks
+      req.rawBody = buf;
+    }
+  }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Serve static files and docs early to bypass logic middleware and prevent path mangling

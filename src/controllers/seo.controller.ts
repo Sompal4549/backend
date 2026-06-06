@@ -16,7 +16,7 @@ export const createSeo = async (
 };
 
 export const getAllSeo = async (
-  req: Request,
+  _req: Request,
   res: Response
 ) => {
   const seo = await seoService.getAllSeo();

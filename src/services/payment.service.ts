@@ -26,7 +26,12 @@ const toObjectId = (id: any): Types.ObjectId => {
 
 const normalizePhone = (phone: any): string => {
   if (!phone) return '';
-  return String(phone).replace(/\D/g, '');
+  let cleaned = String(phone).replace(/\D/g, '');
+  // Ensure 10-digit Indian numbers are prefixed with country code 91
+  if (cleaned.length === 10) {
+    cleaned = '91' + cleaned;
+  }
+  return cleaned;
 };
 
 /**
@@ -146,6 +151,7 @@ export const verifyPayment = async (
   // Send WhatsApp Notification
   const user = await UserModel.findById(transaction.user);
   const recipientPhone = normalizePhone((updatedOrder?.shippingAddress as any)?.phone);
+  console.log(`Attempting message for Order #${updatedOrder?._id}. Phone: ${recipientPhone}`);
 
   if (recipientPhone && updatedOrder) {
     console.log(`Sending Order Confirmation WhatsApp to: ${recipientPhone} (Source: Checkout)`);
