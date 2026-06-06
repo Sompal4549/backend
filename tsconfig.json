@@ -1,10 +1,38 @@
+// {
+//   "compilerOptions": {
+//     "target": "ES2020",
+//     "module": "ESNext",
+//     "moduleResolution": "Node",
+//     "lib": ["ES2020", "DOM"],
+//     "allowJs": false,
+//     "esModuleInterop": true,
+//     "forceConsistentCasingInFileNames": true,
+//     "strict": true,
+//     "skipLibCheck": true,
+//     "outDir": "dist",
+//     "rootDir": "src",
+//     "resolveJsonModule": true,
+//     "noUnusedLocals": true,
+//     "noUnusedParameters": true,
+//     "noImplicitAny": true,
+//     "allowImportingTsExtensions": true,
+//     "noEmit": true
+//   },
+//   "include": ["src/**/*"],
+//   "exclude": ["node_modules", "dist"],
+
+//   // 👇 Add this block
+//   "ts-node": {
+//     "esm": true,
+//     "experimentalSpecifierResolution": "node"  // resolves imports WITHOUT .js extension
+//   }
+// }
 {
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "Node",
     "lib": ["ES2020", "DOM"],
-    "allowJs": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -14,16 +42,8 @@
     "resolveJsonModule": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noImplicitAny": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noImplicitAny": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-
-  // 👇 Add this block
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"  // resolves imports WITHOUT .js extension
-  }
+  "exclude": ["node_modules", "dist"]
 }
