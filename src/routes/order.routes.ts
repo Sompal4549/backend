@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { createOrder, getMyOrders, getOrderById } from '../controllers/order.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { body, param } from 'express-validator';
@@ -40,5 +40,5 @@ orderRouter.put(
   ],
   validateRequest,
   // Controller handler
-  (req, res, next) => require('../controllers/order.controller.js').updateOrderByUser(req, res).catch(next)
+  (req: Request, res: Response, next: NextFunction) => require('../controllers/order.controller.js').updateOrderByUser(req, res).catch(next)
 );
