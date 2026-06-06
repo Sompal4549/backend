@@ -1,5 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { config } from '../config/app.config';
+import { config } from '../config/app.config.ts';
 
 export const createAccessToken = (payload: object): string => {
   const options: SignOptions = { expiresIn: config.accessTokenExpires as SignOptions['expiresIn'] };

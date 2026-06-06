@@ -9,7 +9,7 @@ import {
   findTransactionsByOrder,
   updateTransactionById,
 } from '../repositories/transaction.repository.ts';
-import { updateOrderById } from '../repositories/order.repository';
+import { updateOrderById } from '../repositories/order.repository.ts';
 import { UserModel } from '../models/user.model.ts';
 import { sendWhatsAppMessage } from '../utils/whatsapp.ts';
 

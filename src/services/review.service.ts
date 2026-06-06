@@ -1,6 +1,6 @@
-import { createReview, findReviewByUserAndProduct, getReviewById, updateReviewById, deleteReviewById, calculateProductRating } from '../repositories/review.repository';
-import { updateProductById } from '../repositories/product.repository';
-import { IReview } from '../models/review.model';
+import { createReview, findReviewByUserAndProduct, getReviewById, updateReviewById, deleteReviewById, calculateProductRating } from '../repositories/review.repository.ts';
+import { updateProductById } from '../repositories/product.repository.ts';
+import { IReview } from '../models/review.model.ts';
 import { Types } from 'mongoose';
 
 export const addReview = async (userId: string, productId: string, payload: Partial<IReview>) => {

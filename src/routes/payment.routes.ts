@@ -6,7 +6,7 @@ import {
   verifyPaymentHandler,
   webhookHandler,
   getPaymentStatusHandler,
-} from '../controllers/payment.controller';
+} from '../controllers/payment.controller.ts';
 import { authMiddleware } from '../middlewares/auth.middleware.ts';
 import { validateRequest } from '../middlewares/validate.middleware.ts';
 
