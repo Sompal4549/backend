@@ -21,7 +21,7 @@ COPY package*.json ./
 RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
-RUN npm run build
+RUN npx tsc
 
 FROM node:20-alpine AS production
 WORKDIR /usr/src/app
