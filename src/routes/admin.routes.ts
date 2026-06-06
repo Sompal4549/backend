@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { adminLogin, adminLogout, getDashboard, getUsers, getAllOrders, updateOrder, createUserByAdmin, changeUserRole } from '../controllers/admin.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
-import { adminMiddleware } from '../middlewares/admin.middleware';
-import { superAdminMiddleware } from '../middlewares/superadmin.middleware';
+import { adminLogin, adminLogout, getDashboard, getUsers, getAllOrders, updateOrder, createUserByAdmin, changeUserRole } from '../controllers/admin.controller.js';
+import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { adminMiddleware } from '../middlewares/admin.middleware.js';
+import { superAdminMiddleware } from '../middlewares/superadmin.middleware.js';
 import { body, param } from 'express-validator';
-import { validateRequest } from '../middlewares/validate.middleware';
+import { validateRequest } from '../middlewares/validate.middleware.js';
 
 export const adminRouter = Router();
 

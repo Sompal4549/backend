@@ -60,8 +60,17 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
     };
 
     const order = await createOrder(orderPayload);
-    const user = await UserModel.findByIdAndUpdate(toObjectId(userId), { $push: { orders: order._id } }, { new: true });
-    
+    const user = await UserModel.findByIdAndUpdate(
+      toObjectId(userId),
+      { $addToSet: { orders: order._id } },
+      { new: true, runValidators: true }
+    );
+    if (!user) {
+      const error = new Error('User not found while updating order history');
+      (error as any).statusCode = 500;
+      throw error;
+    }
+
     // Use ONLY the phone number provided in the shipping address at checkout
     const recipientPhone = normalizePhone((shippingAddress as any)?.phone);
 
@@ -100,8 +109,17 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
     trackingNumber: payload.trackingNumber,
   };
   const order = await createOrder(orderPayload);
-  const user = await UserModel.findByIdAndUpdate(toObjectId(userId), { $push: { orders: order._id } }, { new: true });
-  
+  const user = await UserModel.findByIdAndUpdate(
+    toObjectId(userId),
+    { $addToSet: { orders: order._id } },
+    { new: true, runValidators: true }
+  );
+  if (!user) {
+    const error = new Error('User not found while updating order history');
+    (error as any).statusCode = 500;
+    throw error;
+  }
+
   // Use ONLY the phone number provided in the shipping address at checkout
   const recipientPhone = normalizePhone((shippingAddress as any)?.phone);
 
@@ -120,8 +138,8 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
 };
 
 export const fetchUserOrders = async (userId: string) => {
-  // Pass the actual ObjectId instead of a string to ensure Mongoose matching
-  return getOrdersByUser(toObjectId(userId).toString());
+  // Pass the actual ObjectId to ensure Mongoose matching
+  return getOrdersByUser(toObjectId(userId));
 };
 
 export const fetchOrder = async (userId: string, orderId: string) => {

@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { placeOrder, fetchUserOrders, fetchOrder } from '../services/order.service';
-import { successResponse, errorResponse } from '../utils/api-response';
-import { AuthRequest } from '../middlewares/auth.middleware';
+import { placeOrder, fetchUserOrders, fetchOrder } from '../services/order.service.js';
+import { successResponse, errorResponse } from '../utils/api-response.js';
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const createOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
