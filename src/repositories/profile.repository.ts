@@ -1,4 +1,4 @@
-import { UserModel, IUser } from '../models/user.model';
+import { UserModel, IUser } from '../models/user.model.js';
 
 export const getUserById = async (id: string) => {
   return UserModel.findById(id).select('-password -refreshToken');

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { getNavigation, updateNavigation } from '../services/navigation.service';
-import { errorResponse, successResponse } from '../utils/api-response';
+import { getNavigation, updateNavigation } from '../services/navigation.service.js';
+import { errorResponse, successResponse } from '../utils/api-response.js';
 
 export const getNavigationContent = async (_req: Request, res: Response): Promise<void> => {
   try {

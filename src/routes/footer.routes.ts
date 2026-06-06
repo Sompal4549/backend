@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { getFooterContent, saveFooterContent } from '../controllers/footer.controller';
-import { validateRequest } from '../middlewares/validate.middleware';
+import { getFooterContent, saveFooterContent } from '../controllers/footer.controller.js';
+import { validateRequest } from '../middlewares/validate.middleware.js';
 
 export const footerRouter = Router();
 
