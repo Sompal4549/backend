@@ -138,8 +138,11 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
 };
 
 export const fetchUserOrders = async (userId: string) => {
-  // Pass the actual ObjectId to ensure Mongoose matching
-  return getOrdersByUser(toObjectId(userId));
+  const oid = toObjectId(userId);
+  console.log(`[OrderService] Querying orders for User ID: ${userId} -> Mapped to: ${oid}`);
+  const orders = await getOrdersByUser(oid);
+  console.log(`[OrderService] Found ${orders.length} orders in database.`);
+  return orders;
 };
 
 export const fetchOrder = async (userId: string, orderId: string) => {

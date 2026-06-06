@@ -10,7 +10,7 @@ export const connectDatabase = async (): Promise<void> => {
       autoIndex: true,
       serverSelectionTimeoutMS: 15000, // Increased for Atlas resolution
     });
-    console.log('MongoDB connected successfully');
+    console.log(`MongoDB connected successfully to database: ${mongoose.connection.name}`);
   } catch (error) {
     console.error('MongoDB connection error:', error);
     process.exit(1);
