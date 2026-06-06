@@ -13,12 +13,28 @@ import { updateOrderById } from '../repositories/order.repository';
 import { UserModel } from '../models/user.model';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 
+const toObjectId = (id: any): Types.ObjectId => {
+  if (id instanceof Types.ObjectId) return id;
+  if (id && typeof id === 'object' && id._id) return toObjectId(id._id);
+  const idStr = String(id).trim();
+  if (/^\d+$/.test(idStr) && idStr.length < 24) {
+    const pad = '600000000000000000000000';
+    return new Types.ObjectId(pad.substring(0, 24 - idStr.length) + idStr);
+  }
+  return new Types.ObjectId(idStr);
+};
+
+const normalizePhone = (phone: any): string => {
+  if (!phone) return '';
+  return String(phone).replace(/\D/g, '');
+};
+
 /**
  * Create a Razorpay order for an existing internal order.
  * Called after the user places an order (order exists with paymentStatus = 'pending').
  */
 export const createRazorpayOrder = async (userId: string, orderId: string) => {
-  const order = await OrderModel.findById(orderId);
+  const order = await OrderModel.findById(toObjectId(orderId));
 
   if (!order) {
     const error = new Error('Order not found');
@@ -26,7 +42,7 @@ export const createRazorpayOrder = async (userId: string, orderId: string) => {
     throw error;
   }
 
-  if (order.user.toString() !== userId) {
+  if (toObjectId(order.user).toString() !== toObjectId(userId).toString()) {
     const error = new Error('Unauthorized');
     (error as any).statusCode = 403;
     throw error;
@@ -55,8 +71,8 @@ export const createRazorpayOrder = async (userId: string, orderId: string) => {
 
   // Create transaction record
   const transaction = await createTransaction({
-    order: new Types.ObjectId(orderId),
-    user: new Types.ObjectId(userId),
+    order: toObjectId(orderId),
+    user: toObjectId(userId),
     razorpayOrderId: razorpayOrder.id,
     amount: amountInPaise,
     currency: 'INR',
@@ -64,7 +80,7 @@ export const createRazorpayOrder = async (userId: string, orderId: string) => {
   });
 
   // Link razorpay order ID and transaction to the order
-  await updateOrderById(orderId, {
+  await updateOrderById(toObjectId(orderId).toString(), {
     razorpayOrderId: razorpayOrder.id,
     transactionId: transaction._id as Types.ObjectId,
   });
@@ -129,11 +145,16 @@ export const verifyPayment = async (
 
   // Send WhatsApp Notification
   const user = await UserModel.findById(transaction.user);
-  if (user?.phone && updatedOrder) {
-    const message = `*Order Confirmed!*\n\nHello ${user.name},\n\nYour order #${updatedOrder._id} for ₹${updatedOrder.totalAmount} has been successfully placed.\n\nThank you for choosing Ensis!`;
-    await sendWhatsAppMessage(user.phone, message, user.name);
-  }
+  // Use checkout phone, do not fallback to seed/profile if checkout phone exists
+  const recipientPhone = normalizePhone((updatedOrder?.shippingAddress as any)?.phone || (transaction as any).shippingAddress?.phone);
 
+  if (recipientPhone && updatedOrder) {
+    console.log(`Sending Order Confirmation WhatsApp to: ${recipientPhone} (Source: Checkout)`);
+    const message = `*Order Confirmed!*\n\nHello ${user?.name || 'Customer'},\n\nYour order #${updatedOrder._id} for ₹${updatedOrder.totalAmount} has been successfully placed.\n\nThank you for choosing Ensis!`;
+    await sendWhatsAppMessage(recipientPhone, message, user?.name || null);
+  } else if (!recipientPhone) {
+    console.warn(`WhatsApp confirmation skipped for Order #${transaction.order}: No phone number found in checkout.`);
+  }
   return {
     transaction: {
       ...transaction.toObject(),
@@ -199,9 +220,14 @@ export const handleWebhook = async (rawBody: string, webhookSignature: string) =
 
       // Send WhatsApp Notification
       const user = await UserModel.findById(transaction.user);
-      if (user?.phone && updatedOrder) {
-        const message = `*Order Confirmed!*\n\nHello ${user.name},\n\nYour order #${updatedOrder._id} for ₹${updatedOrder.totalAmount} has been successfully placed.\n\nThank you for choosing Ensis!`;
-        await sendWhatsAppMessage(user.phone, message, user.name);
+      const recipientPhone = normalizePhone((updatedOrder?.shippingAddress as any)?.phone);
+
+      if (recipientPhone && updatedOrder) {
+        console.log(`Sending Order Confirmation WhatsApp to: ${recipientPhone} (Source: Webhook Checkout)`);
+        const message = `*Order Confirmed!*\n\nHello ${user?.name || 'Customer'},\n\nYour order #${updatedOrder._id} for ₹${updatedOrder.totalAmount} has been successfully placed.\n\nThank you for choosing Ensis!`;
+        await sendWhatsAppMessage(recipientPhone, message, user?.name || null);
+      } else if (!recipientPhone) {
+        console.warn(`WhatsApp webhook confirmation skipped: No phone number found.`);
       }
     }
   } else if (eventType === 'payment.failed') {

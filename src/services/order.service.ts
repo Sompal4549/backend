@@ -3,15 +3,22 @@ import { IOrder } from '../models/order.model';
 import { CartModel } from '../models/cart.model';
 import { UserModel } from '../models/user.model';
 import { Types } from 'mongoose';
+import { sendWhatsAppMessage } from '../utils/whatsapp';
 
 const toObjectId = (id: any): Types.ObjectId => {
   if (id instanceof Types.ObjectId) return id;
+  if (id && typeof id === 'object' && id._id) return toObjectId(id._id);
   const idStr = String(id).trim();
   if (/^\d+$/.test(idStr) && idStr.length < 24) {
     const pad = '600000000000000000000000';
     return new Types.ObjectId(pad.substring(0, 24 - idStr.length) + idStr);
   }
   return new Types.ObjectId(idStr);
+};
+
+const normalizePhone = (phone: any): string => {
+  if (!phone) return '';
+  return String(phone).replace(/\D/g, '');
 };
 
 export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
@@ -48,7 +55,19 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
     };
 
     const order = await createOrder(orderPayload);
-    await UserModel.findByIdAndUpdate(toObjectId(userId), { $push: { orders: order._id } });
+    const user = await UserModel.findByIdAndUpdate(toObjectId(userId), { $push: { orders: order._id } }, { new: true });
+    
+    // Use ONLY the phone number provided in the shipping address at checkout
+    const recipientPhone = normalizePhone((shippingAddress as any)?.phone);
+
+    if (recipientPhone) {
+      console.log(`Sending Order Received WhatsApp to: ${recipientPhone} (Source: Checkout)`);
+      const message = `*Order Received!*\n\nHello ${user?.name || 'Customer'},\n\nWe have received your order #${order._id} for ₹${order.totalAmount}. Status: ${order.paymentStatus}.\n\nThank you for choosing Ensis!`;
+      await sendWhatsAppMessage(recipientPhone, message, user?.name || null);
+    } else {
+      console.warn(`WhatsApp notification skipped for Order #${order._id}: No phone number found.`);
+    }
+    
     return order;
   }
 
@@ -76,7 +95,19 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
     trackingNumber: payload.trackingNumber,
   };
   const order = await createOrder(orderPayload);
-  await UserModel.findByIdAndUpdate(toObjectId(userId), { $push: { orders: order._id } });
+  const user = await UserModel.findByIdAndUpdate(toObjectId(userId), { $push: { orders: order._id } }, { new: true });
+  
+  // Use ONLY the phone number provided in the shipping address at checkout
+  const recipientPhone = normalizePhone((shippingAddress as any)?.phone);
+
+  if (recipientPhone) {
+    console.log(`Sending Order Received WhatsApp to: ${recipientPhone} (Source: Cart Checkout)`);
+    const message = `*Order Received!*\n\nHello ${user?.name || 'Customer'},\n\nYour order #${order._id} for ₹${order.totalAmount} has been received via your cart.\n\nThank you!`;
+    await sendWhatsAppMessage(recipientPhone, message, user?.name || null);
+  } else {
+    console.warn(`WhatsApp notification skipped for Order #${order._id}: No phone number found.`);
+  }
+
   cart.items = [];
   cart.totalAmount = 0;
   await cart.save();
@@ -89,7 +120,8 @@ export const fetchUserOrders = async (userId: string) => {
 
 export const fetchOrder = async (userId: string, orderId: string) => {
   const order = await getOrderById(orderId);
-  if (!order || toObjectId(order.user).toString() !== toObjectId(userId).toString()) {
+  const orderUserId = order?.user?._id || order?.user;
+  if (!order || toObjectId(orderUserId).toString() !== toObjectId(userId).toString()) {
     const error = new Error('Order not found');
     (error as any).statusCode = 404;
     throw error;

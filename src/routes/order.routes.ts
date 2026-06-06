@@ -16,6 +16,7 @@ orderRouter.post(
     body('shippingAddress.state').notEmpty().withMessage('State is required'),
     body('shippingAddress.postalCode').notEmpty().withMessage('Postal code is required'),
     body('shippingAddress.country').notEmpty().withMessage('Country is required'),
+    body('shippingAddress.phone').notEmpty().withMessage('Phone number for delivery is required'),
     body('paymentStatus').optional().isIn(['pending', 'paid', 'failed']).withMessage('Invalid payment status'),
     body('orderStatus')
       .optional()
@@ -25,5 +26,6 @@ orderRouter.post(
   validateRequest,
   createOrder
 );
+orderRouter.get('/', authMiddleware, getMyOrders);
 orderRouter.get('/my-orders', authMiddleware, getMyOrders);
 orderRouter.get('/:id', authMiddleware, [param('id').isMongoId().withMessage('Valid order id is required')], validateRequest, getOrderById);

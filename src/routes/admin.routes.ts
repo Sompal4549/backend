@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { adminLogin, adminLogout, getDashboard, getUsers, updateOrder, createUserByAdmin, changeUserRole } from '../controllers/admin.controller';
+import { adminLogin, adminLogout, getDashboard, getUsers, getAllOrders, updateOrder, createUserByAdmin, changeUserRole } from '../controllers/admin.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
 import { superAdminMiddleware } from '../middlewares/superadmin.middleware';
@@ -21,6 +21,8 @@ adminRouter.use(authMiddleware, adminMiddleware);
 adminRouter.get('/dashboard', getDashboard);
 
 adminRouter.get('/users', getUsers);
+
+adminRouter.get('/orders', getAllOrders);
 
 /**
  * SuperAdmin Only: Add new user and assign role

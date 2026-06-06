@@ -1,4 +1,4 @@
-import { IUser } from '../models/user.model';
+import { IUser, UserModel } from '../models/user.model';
 import { createUser, findUserByEmail, updateUserRefreshToken, findUserById } from '../repositories/user.repository';
 import { createAccessToken, createRefreshToken, verifyRefreshToken } from '../utils/jwt.utils';
 import { setRefreshTokenCookie, clearRefreshTokenCookie } from '../helpers/cookie.helper';
@@ -13,29 +13,52 @@ export const toAuthUser = (user: any) => {
 };
 
 export const registerUser = async (userData: Partial<IUser>) => {
-  const existing = await findUserByEmail(userData.email as string);
-  if (existing) {
+  const { email, phone } = userData;
+  const existingEmail = await findUserByEmail(email as string);
+  if (existingEmail) {
     const error = new Error('Email already registered');
     (error as any).statusCode = 409;
     throw error;
   }
+
+  const existingPhone = await UserModel.findOne({ phone });
+  if (existingPhone) {
+    const error = new Error('Phone number already registered');
+    (error as any).statusCode = 409;
+    throw error;
+  }
+
   const user = await createUser({ ...userData, role: ROLE.USER });
   return toAuthUser(user);
 };
 
 export const registerUserWithRole = async (userData: Partial<IUser>) => {
-  const existing = await findUserByEmail(userData.email as string);
-  if (existing) {
+  const { email, phone } = userData;
+  const existingEmail = await findUserByEmail(email as string);
+  if (existingEmail) {
     const error = new Error('Email already registered');
     (error as any).statusCode = 409;
     throw error;
   }
+
+  const existingPhone = await UserModel.findOne({ phone });
+  if (existingPhone) {
+    const error = new Error('Phone number already registered');
+    (error as any).statusCode = 409;
+    throw error;
+  }
+
   const user = await createUser(userData);
   return toAuthUser(user);
 };
 
-export const loginUser = async (email: string, password: string) => {
-  const user = await findUserByEmail(email);
+export const loginUser = async (emailOrPhone: string, password: string) => {
+  // Try to find user by email first, then by phone
+  let user = await findUserByEmail(emailOrPhone);
+  if (!user) {
+    user = await UserModel.findOne({ phone: emailOrPhone });
+  }
+
   if (!user) {
     const error = new Error('Invalid credentials');
     (error as any).statusCode = 401;
