@@ -145,15 +145,14 @@ export const verifyPayment = async (
 
   // Send WhatsApp Notification
   const user = await UserModel.findById(transaction.user);
-  // Use checkout phone, do not fallback to seed/profile if checkout phone exists
-  const recipientPhone = normalizePhone((updatedOrder?.shippingAddress as any)?.phone || (transaction as any).shippingAddress?.phone);
+  const recipientPhone = normalizePhone((updatedOrder?.shippingAddress as any)?.phone);
 
   if (recipientPhone && updatedOrder) {
     console.log(`Sending Order Confirmation WhatsApp to: ${recipientPhone} (Source: Checkout)`);
     const message = `*Order Confirmed!*\n\nHello ${user?.name || 'Customer'},\n\nYour order #${updatedOrder._id} for ₹${updatedOrder.totalAmount} has been successfully placed.\n\nThank you for choosing Ensis!`;
     await sendWhatsAppMessage(recipientPhone, message, user?.name || null);
   } else if (!recipientPhone) {
-    console.warn(`WhatsApp confirmation skipped for Order #${transaction.order}: No phone number found in checkout.`);
+    console.warn(`WhatsApp confirmation skipped for Order #${transaction.order}: No phone number found in shipping address.`);
   }
   return {
     transaction: {

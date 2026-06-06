@@ -116,6 +116,7 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
 
 export const fetchUserOrders = async (userId: string) => {
   return getOrdersByUser(toObjectId(userId).toString());
+  return getOrdersByUser(userId);
 };
 
 export const fetchOrder = async (userId: string, orderId: string) => {
