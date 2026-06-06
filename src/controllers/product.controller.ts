@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { successResponse, errorResponse } from '../utils/api-response.ts';
-import { listProducts, getProduct, createNewProduct, updateProduct, removeProduct } from '../services/product.service.ts';
+import { successResponse, errorResponse } from '../utils/api-response';
+import { listProducts, getProduct, createNewProduct, updateProduct, removeProduct } from '../services/product.service';
 
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {

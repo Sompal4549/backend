@@ -1,5 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
-import { generateSlug } from '../utils/generate-slug.ts';
+import { generateSlug } from '../utils/generate-slug';
 
 export interface IProductVariant {
   color?: string;

@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { fetchCart, addItemToCart, updateCartItem, removeCartItem } from '../services/cart.service.ts';
-import { successResponse, errorResponse } from '../utils/api-response.ts';
-import { AuthRequest } from '../middlewares/auth.middleware.ts';
+import { fetchCart, addItemToCart, updateCartItem, removeCartItem } from '../services/cart.service';
+import { successResponse, errorResponse } from '../utils/api-response';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const getCart = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

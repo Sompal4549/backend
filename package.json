@@ -6,13 +6,13 @@
   "description": "Production-ready ecommerce backend with Node.js, Express, MongoDB, JWT, and TypeScript.",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/server",
     "clean": "tsc --build --clean",
       "build": "tsc",
     "prestart": "npm run build",
     "start": "node dist/server.js",
-    "lint": "eslint . --ext .ts",
-    "seed": "tsx src/seeds/seed.ts"
+    "lint": "eslint . --ext ",
+    "seed": "tsx src/seeds/seed"
   },
   "keywords": [
     "ecommerce",

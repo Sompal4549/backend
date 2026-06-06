@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { config } from '../config/app.config.ts';
+import { config } from '../config/app.config';
 
 export const setRefreshTokenCookie = (res: Response, token: string) => {
   res.cookie('refreshToken', token, {

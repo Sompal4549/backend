@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { addWishlistItem, deleteWishlistItem, fetchWishlist } from '../services/wishlist.service.ts';
-import { successResponse, errorResponse } from '../utils/api-response.ts';
-import { AuthRequest } from '../middlewares/auth.middleware.ts';
+import { addWishlistItem, deleteWishlistItem, fetchWishlist } from '../services/wishlist.service';
+import { successResponse, errorResponse } from '../utils/api-response';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const getWishlist = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

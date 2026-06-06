@@ -1,4 +1,4 @@
-import { CartModel, ICart } from '../models/cart.model.ts';
+import { CartModel, ICart } from '../models/cart.model';
 import { Types } from 'mongoose';
 
 export const getCartByUser = async (userId: string | Types.ObjectId): Promise<ICart | null> => {

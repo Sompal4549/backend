@@ -1,7 +1,7 @@
-// controllers/seo.controller.ts
+// controllers/seo.controller
 
 import { Request, Response } from "express";
-import * as seoService from "../services/seo.service.ts";
+import * as seoService from "../services/seo.service";
 
 export const createSeo = async (
   req: Request,

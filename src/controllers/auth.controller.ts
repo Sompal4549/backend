@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { registerUser, loginUser, refreshAccessToken, logoutUser } from '../services/auth.service.ts';
-import { requestEmailOtp, requestWhatsAppOtp, verifyEmailOtp, verifyWhatsAppOtp } from '../services/otp.service.ts';
-import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper.ts';
-import { successResponse, errorResponse } from '../utils/api-response.ts';
+import { registerUser, loginUser, refreshAccessToken, logoutUser } from '../services/auth.service';
+import { requestEmailOtp, requestWhatsAppOtp, verifyEmailOtp, verifyWhatsAppOtp } from '../services/otp.service';
+import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
+import { successResponse, errorResponse } from '../utils/api-response';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {

@@ -6,9 +6,9 @@ import {
   verifyPaymentHandler,
   webhookHandler,
   getPaymentStatusHandler,
-} from '../controllers/payment.controller.ts';
-import { authMiddleware } from '../middlewares/auth.middleware.ts';
-import { validateRequest } from '../middlewares/validate.middleware.ts';
+} from '../controllers/payment.controller';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { validateRequest } from '../middlewares/validate.middleware';
 
 export const paymentRouter = Router();
 

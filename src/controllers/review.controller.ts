@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { addReview, editReview, removeReview } from '../services/review.service.ts';
-import { successResponse, errorResponse } from '../utils/api-response.ts';
-import { AuthRequest } from '../middlewares/auth.middleware.ts';
+import { addReview, editReview, removeReview } from '../services/review.service';
+import { successResponse, errorResponse } from '../utils/api-response';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const createReview = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

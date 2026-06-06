@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { getProfile, updateProfile } from '../services/profile.service.ts';
-import { successResponse, errorResponse } from '../utils/api-response.ts';
-import { AuthRequest } from '../middlewares/auth.middleware.ts';
+import { getProfile, updateProfile } from '../services/profile.service';
+import { successResponse, errorResponse } from '../utils/api-response';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const getUserProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

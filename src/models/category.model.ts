@@ -1,5 +1,5 @@
 import { Schema, model, Document } from 'mongoose';
-import { generateSlug } from '../utils/generate-slug.ts';
+import { generateSlug } from '../utils/generate-slug';
 
 export interface ICategory extends Document {
   name: string;

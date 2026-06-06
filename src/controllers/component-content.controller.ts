@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { successResponse, errorResponse } from '../utils/api-response.ts';
-import { ComponentContentModel } from '../models/component-content.model.ts';
+import { successResponse, errorResponse } from '../utils/api-response';
+import { ComponentContentModel } from '../models/component-content.model';
 import {
   deleteComponentContent,
   deleteHomeComponentContent,
@@ -12,7 +12,7 @@ import {
   updateComponentContent,
   updateHomeComponentContent,
   upsertComponentContent,
-} from '../services/component-content.service.ts';
+} from '../services/component-content.service';
 
 export const getComponentContents = async (req: Request, res: Response): Promise<void> => {
   try {

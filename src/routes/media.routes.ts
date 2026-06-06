@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { uploadMedia, deleteMediaById } from '../controllers/media.controller.ts';
-import { authMiddleware } from '../middlewares/auth.middleware.ts';
-import { adminMiddleware } from '../middlewares/admin.middleware.ts';
-import { uploadHandler } from '../middlewares/upload.middleware.ts';
+import { uploadMedia, deleteMediaById } from '../controllers/media.controller';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
+import { uploadHandler } from '../middlewares/upload.middleware';
 
 export const mediaRouter = Router();
 

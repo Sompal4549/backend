@@ -1,7 +1,7 @@
-// routes/seo.routes.ts
+// routes/seo.routes
 
 import { Router } from "express";
-import * as seoController from "../controllers/seo.controller.ts";
+import * as seoController from "../controllers/seo.controller";
 
 const router = Router();
 

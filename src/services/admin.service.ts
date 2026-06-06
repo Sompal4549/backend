@@ -1,9 +1,9 @@
-import { getAllUsers } from '../repositories/user.repository.ts';
-import { countProducts } from '../repositories/product.repository.ts';
-import { updateOrderById } from '../repositories/order.repository.ts';
-import { ReviewModel } from '../models/review.model.ts';
-import { OrderModel } from '../models/order.model.ts';
-import { UserModel } from '../models/user.model.ts';
+import { getAllUsers } from '../repositories/user.repository';
+import { countProducts } from '../repositories/product.repository';
+import { updateOrderById } from '../repositories/order.repository';
+import { ReviewModel } from '../models/review.model';
+import { OrderModel } from '../models/order.model';
+import { UserModel } from '../models/user.model';
 
 export const getDashboardData = async () => {
   const totalUsers = await getAllUsers();

@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { UserModel } from '../models/user.model.ts';
-import { config } from '../config/app.config.ts';
-import { errorResponse } from '../utils/api-response.ts';
-import { UserDocument } from '../models/user.model.ts';
+import { UserModel } from '../models/user.model';
+import { config } from '../config/app.config';
+import { errorResponse } from '../utils/api-response';
+import { UserDocument } from '../models/user.model';
 
 export interface AuthRequest extends Request {
   user?: UserDocument;

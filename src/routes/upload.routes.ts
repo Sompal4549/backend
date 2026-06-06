@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadFile, listFiles } from '../controllers/upload.controller.ts';
-import { config } from '../config/app.config.ts';
-import { errorResponse } from '../utils/api-response.ts';
+import { uploadFile, listFiles } from '../controllers/upload.controller';
+import { config } from '../config/app.config';
+import { errorResponse } from '../utils/api-response';
 
 export const uploadRouter = Router();
 

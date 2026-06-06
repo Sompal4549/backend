@@ -1,4 +1,4 @@
-import { addProductToWishlist, getWishlistByUser, removeProductFromWishlist } from '../repositories/wishlist.repository.ts';
+import { addProductToWishlist, getWishlistByUser, removeProductFromWishlist } from '../repositories/wishlist.repository';
 
 export const fetchWishlist = async (userId: string) => {
   const wishlist = await getWishlistByUser(userId);

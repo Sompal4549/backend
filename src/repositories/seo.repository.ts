@@ -1,6 +1,6 @@
-// repositories/seo.repository.ts
+// repositories/seo.repository
 
-import Seo from "../models/seo.models.ts";
+import Seo from "../models/seo.models";
 
 export const createSeo = (payload: any) => {
   return Seo.create(payload);

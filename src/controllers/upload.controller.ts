@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { errorResponse, successResponse } from '../utils/api-response.ts';
-import { uploadImage } from '../helpers/image.helper.ts';
+import { errorResponse, successResponse } from '../utils/api-response';
+import { uploadImage } from '../helpers/image.helper';
 
 export const uploadFile = async (req: Request, res: Response): Promise<void> => {
   try {

@@ -1,4 +1,4 @@
-// models/seo.model.ts
+// models/seo.model
 
 import { Schema, model } from "mongoose";
 

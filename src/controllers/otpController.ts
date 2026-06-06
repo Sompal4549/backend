@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { GenericOtpModel } from '../models/Otp.ts';
-import { sendEmailOtp } from '../services/email.service.ts';
-import { generateOTP } from '../services/verifyService.ts';
-import * as whatsapp from '../utils/whatsapp.ts';
+import { GenericOtpModel } from '../models/Otp';
+import { sendEmailOtp } from '../services/email.service';
+import { generateOTP } from '../services/verifyService';
+import * as whatsapp from '../utils/whatsapp';
 
 const normalizeIdentifier = (identifier: string, type: 'email' | 'phone') => {
   return type === 'email' ? identifier.trim().toLowerCase() : identifier.replace(/\D/g, '');

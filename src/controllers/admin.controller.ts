@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { getDashboardData, listUsers, listAllOrders, adminUpdateOrder, adminUpdateUserRole } from '../services/admin.service.ts';
-import { loginAdmin, logoutUser, registerUserWithRole } from '../services/auth.service.ts';
-import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper.ts';
-import { successResponse, errorResponse } from '../utils/api-response.ts';
+import { getDashboardData, listUsers, listAllOrders, adminUpdateOrder, adminUpdateUserRole } from '../services/admin.service';
+import { loginAdmin, logoutUser, registerUserWithRole } from '../services/auth.service';
+import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
+import { successResponse, errorResponse } from '../utils/api-response';
 
 export const adminLogin = async (req: Request, res: Response): Promise<void> => {
   try {

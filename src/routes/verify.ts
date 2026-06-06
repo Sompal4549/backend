@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { sendEmailOtpCode, sendPhoneOtp, verifyEmailOtpCode, verifyPhoneOtp } from '../services/verifyService.ts';
-import { WhatsAppOtpContext } from '../utils/whatsapp.ts';
+import { sendEmailOtpCode, sendPhoneOtp, verifyEmailOtpCode, verifyPhoneOtp } from '../services/verifyService';
+import { WhatsAppOtpContext } from '../utils/whatsapp';
 
 export const verifyRouter = Router();
 

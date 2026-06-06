@@ -12,7 +12,7 @@ Error: listen EADDRINUSE: address already in use :::5000
     at listenInCluster (node:net:2065:12)
     at Server.listen (node:net:2170:7)
     at app.listen (C:\Users\sompa\Desktop\namo-gange\ensis\backend\node_modules\express\lib\application.js:635:24)
-    at startServer (file:///C:/Users/sompa/Desktop/namo-gange/ensis/backend/src/server.ts:7:9)
+    at startServer (file:///C:/Users/sompa/Desktop/namo-gange/ensis/backend/src/server:7:9)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 Emitted 'error' event on Server instance at:
     at emitErrorNT (node:net:2044:8)

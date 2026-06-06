@@ -1,6 +1,6 @@
-// services/seo.service.ts
+// services/seo.service
 
-import * as seoRepo from "../repositories/seo.repository.ts";
+import * as seoRepo from "../repositories/seo.repository";
 
 export const createSeo = async (payload: any) => {
   return seoRepo.createSeo(payload);
