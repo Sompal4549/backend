@@ -1,4 +1,4 @@
-import { UserModel, IUser, UserDocument } from '../models/user.model';
+import { UserModel, IUser, UserDocument } from '../models/user.model.js';
 import { Types } from 'mongoose';
 
 export const findUserByEmail = async (email: string): Promise<UserDocument | null> => {

@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { body, param } from 'express-validator';
-import { addCategory, editCategory, getCategories, removeCategory } from '../controllers/category.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
-import { adminMiddleware } from '../middlewares/admin.middleware';
-import { validateRequest } from '../middlewares/validate.middleware';
+import { addCategory, editCategory, getCategories, removeCategory } from '../controllers/category.controller.js';
+import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { adminMiddleware } from '../middlewares/admin.middleware.js';
+import { validateRequest } from '../middlewares/validate.middleware.js';
 
 export const categoryRouter = Router();
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { getNavigationContent, saveNavigationContent } from '../controllers/navigation.controller';
-import { validateRequest } from '../middlewares/validate.middleware';
+import { getNavigationContent, saveNavigationContent } from '../controllers/navigation.controller.js';
+import { validateRequest } from '../middlewares/validate.middleware.js';
 
 export const navigationRouter = Router();
 

@@ -1,5 +1,5 @@
-import { getCartByUser, createCartForUser, upsertCart } from '../repositories/cart.repository';
-import { ProductModel } from '../models/product.model';
+import { getCartByUser, createCartForUser, upsertCart } from '../repositories/cart.repository.js';
+import { ProductModel } from '../models/product.model.js';
 
 export const fetchCart = async (userId: string) => {
   const cart = await getCartByUser(userId);
