@@ -1,11 +1,11 @@
 import { Response } from 'express';
-import { placeOrder, fetchUserOrders, fetchOrder } from '../services/order.service.js';
-import { listAllOrders } from '../services/admin.service.js';
-import { ROLE } from '../constants/roles.constants.js';
-import { successResponse, errorResponse } from '../utils/api-response.js';
-import { AuthRequest } from '../middlewares/auth.middleware.js';
-import { updateOrderById } from '../repositories/order.repository.js';
-import { sendWhatsAppMessage } from '../utils/whatsapp.js';
+import { placeOrder, fetchUserOrders, fetchOrder } from '../services/order.service.ts';
+import { listAllOrders } from '../services/admin.service.ts';
+import { ROLE } from '../constants/roles.constants.ts';
+import { successResponse, errorResponse } from '../utils/api-response.ts';
+import { AuthRequest } from '../middlewares/auth.middleware.ts';
+import { updateOrderById } from '../repositories/order.repository.ts';
+import { sendWhatsAppMessage } from '../utils/whatsapp.ts';
 
 export const createOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

@@ -12,8 +12,8 @@ import {
   removeHomeComponent,
   saveHomeComponent,
   saveComponentContent,
-} from '../controllers/component-content.controller.js';
-import { validateRequest } from '../middlewares/validate.middleware.js';
+} from '../controllers/component-content.controller.ts';
+import { validateRequest } from '../middlewares/validate.middleware.ts';
 
 export const componentContentRouter = Router();
 

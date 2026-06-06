@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { OrderModel, IOrder } from '../models/order.model.js';
+import { OrderModel, IOrder } from '../models/order.model.ts';
 
 export const createOrder = async (payload: Partial<IOrder>): Promise<IOrder> => {
   return OrderModel.create(payload);

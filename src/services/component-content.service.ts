@@ -1,4 +1,4 @@
-import { ComponentContentModel, IComponentContent } from '../models/component-content.model.js';
+import { ComponentContentModel, IComponentContent } from '../models/component-content.model.ts';
 
 const HOME_COMPONENT_KEYS = [
   'home.hero',

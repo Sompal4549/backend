@@ -1,6 +1,6 @@
-import { createProduct, getActiveProductByIdOrSlug, updateProductById, deleteProductById, getProducts, countProducts, searchProducts } from '../repositories/product.repository.js';
-import { getPagination } from '../utils/pagination.js';
-import { IProduct } from '../models/product.model.js';
+import { createProduct, getActiveProductByIdOrSlug, updateProductById, deleteProductById, getProducts, countProducts, searchProducts } from '../repositories/product.repository.ts';
+import { getPagination } from '../utils/pagination.ts';
+import { IProduct } from '../models/product.model.ts';
 
 export const listProducts = async (query: any) => {
   const { page, limit, sortBy, order, search, category, minPrice, maxPrice } = query;

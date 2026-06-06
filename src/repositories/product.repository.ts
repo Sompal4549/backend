@@ -1,4 +1,4 @@
-import { ProductModel, IProduct } from '../models/product.model.js';
+import { ProductModel, IProduct } from '../models/product.model.ts';
 import { FilterQuery, SortOrder, Types } from 'mongoose';
 
 type ProductSort = string | { [key: string]: SortOrder | { $meta: any } } | [string, SortOrder][];

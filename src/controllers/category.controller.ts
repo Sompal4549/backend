@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { successResponse, errorResponse } from '../utils/api-response.js';
-import { createCategory, deleteCategory, listCategories, updateCategory } from '../services/category.service.js';
+import { successResponse, errorResponse } from '../utils/api-response.ts';
+import { createCategory, deleteCategory, listCategories, updateCategory } from '../services/category.service.ts';
 
 export const getCategories = async (_req: Request, res: Response): Promise<void> => {
   try {

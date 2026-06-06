@@ -1,9 +1,9 @@
 import { Request, Response, Router } from 'express';
 import { body, param } from 'express-validator';
-import { validateRequest } from '../middlewares/validate.middleware.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { adminMiddleware } from '../middlewares/admin.middleware.js';
-import Page from "../models/page.model.js";
+import { validateRequest } from '../middlewares/validate.middleware.ts';
+import { authMiddleware } from '../middlewares/auth.middleware.ts';
+import { adminMiddleware } from '../middlewares/admin.middleware.ts';
+import Page from "../models/page.model.ts";
 
 export const pageRouter = Router();
 

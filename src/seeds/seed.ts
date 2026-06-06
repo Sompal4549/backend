@@ -1,12 +1,12 @@
-import { connectDatabase } from '../config/database.config.js';
-import { UserModel } from '../models/user.model.js';
-import { CategoryModel } from '../models/category.model.js';
-import { ProductModel } from '../models/product.model.js';
-import { ComponentContentModel } from '../models/component-content.model.js';
-import Page from '../models/page.model.js';
-import { OrderModel } from '../models/order.model.js';
+import { connectDatabase } from '../config/database.config.ts';
+import { UserModel } from '../models/user.model.ts';
+import { CategoryModel } from '../models/category.model.ts';
+import { ProductModel } from '../models/product.model.ts';
+import { ComponentContentModel } from '../models/component-content.model.ts';
+import Page from '../models/page.model.ts';
+import { OrderModel } from '../models/order.model.ts';
 import mongoose, { Types } from 'mongoose';
-import { ROLE } from '../constants/roles.constants.js';
+import { ROLE } from '../constants/roles.constants.ts';
 
 // Map a numeric ID (like 2) to a 24-character hex ObjectId
 const getObjectIdForId = (id: number): Types.ObjectId => {

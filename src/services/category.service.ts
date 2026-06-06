@@ -1,5 +1,5 @@
-import { CategoryModel, ICategory } from '../models/category.model.js';
-import { generateSlug } from '../utils/generate-slug.js';
+import { CategoryModel, ICategory } from '../models/category.model.ts';
+import { generateSlug } from '../utils/generate-slug.ts';
 
 export const listCategories = async () => {
   return CategoryModel.find().sort({ name: 1 });

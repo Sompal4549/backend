@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { getUserProfile, updateUserProfile } from '../controllers/profile.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { getUserProfile, updateUserProfile } from '../controllers/profile.controller.ts';
+import { authMiddleware } from '../middlewares/auth.middleware.ts';
 import { body } from 'express-validator';
-import { validateRequest } from '../middlewares/validate.middleware.js';
+import { validateRequest } from '../middlewares/validate.middleware.ts';
 
 export const profileRouter = Router();
 

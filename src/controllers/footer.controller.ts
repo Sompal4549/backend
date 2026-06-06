@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { getFooter, updateFooter } from '../services/footer.service.js';
-import { errorResponse, successResponse } from '../utils/api-response.js';
+import { getFooter, updateFooter } from '../services/footer.service.ts';
+import { errorResponse, successResponse } from '../utils/api-response.ts';
 
 export const getFooterContent = async (_req: Request, res: Response): Promise<void> => {
   try {

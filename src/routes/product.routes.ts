@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { getProducts, getProductById, createProduct, updateProductHandler, deleteProductHandler } from '../controllers/product.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { adminMiddleware } from '../middlewares/admin.middleware.js';
+import { getProducts, getProductById, createProduct, updateProductHandler, deleteProductHandler } from '../controllers/product.controller.ts';
+import { authMiddleware } from '../middlewares/auth.middleware.ts';
+import { adminMiddleware } from '../middlewares/admin.middleware.ts';
 import { body, param, query } from 'express-validator';
-import { validateRequest } from '../middlewares/validate.middleware.js';
+import { validateRequest } from '../middlewares/validate.middleware.ts';
 
 export const productRouter = Router();
 

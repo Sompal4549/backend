@@ -1,10 +1,10 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { config } from '../config/app.config.js';
-import { OtpModel, OTP_CHANNEL } from '../models/otp.model.js';
-import { sendEmailOtp } from './email.service.js';
-import { sendWhatsAppOtp } from './whatsapp.service.js';
-import { markUserEmailVerified, markUserPhoneVerified } from '../repositories/user.repository.js';
+import { config } from '../config/app.config.ts';
+import { OtpModel, OTP_CHANNEL } from '../models/otp.model.ts';
+import { sendEmailOtp } from './email.service.ts';
+import { sendWhatsAppOtp } from './whatsapp.service.ts';
+import { markUserEmailVerified, markUserPhoneVerified } from '../repositories/user.repository.ts';
 
 type OtpChannel = typeof OTP_CHANNEL[keyof typeof OTP_CHANNEL];
 

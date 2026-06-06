@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import * as projectController from '../controllers/project.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { adminMiddleware } from '../middlewares/admin.middleware.js';
+import * as projectController from '../controllers/project.controller.ts';
+import { authMiddleware } from '../middlewares/auth.middleware.ts';
+import { adminMiddleware } from '../middlewares/admin.middleware.ts';
 import { param } from 'express-validator';
-import { validateRequest } from '../middlewares/validate.middleware.js';
+import { validateRequest } from '../middlewares/validate.middleware.ts';
 
 const router = Router();
 

@@ -1,8 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { createOrder, getMyOrders, getOrderById, updateOrderByUser } from '../controllers/order.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { createOrder, getMyOrders, getOrderById, updateOrderByUser } from '../controllers/order.controller.ts';
+import { authMiddleware } from '../middlewares/auth.middleware.ts';
 import { body, param } from 'express-validator';
-import { validateRequest } from '../middlewares/validate.middleware.js';
+import { validateRequest } from '../middlewares/validate.middleware.ts';
 
 export const orderRouter = Router();
 

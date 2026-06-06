@@ -4,9 +4,9 @@ import {
   verifyPayment as verifyPaymentService,
   handleWebhook as handleWebhookService,
   getPaymentStatus,
-} from '../services/payment.service.js';
-import { successResponse, errorResponse } from '../utils/api-response.js';
-import { AuthRequest } from '../middlewares/auth.middleware.js';
+} from '../services/payment.service.ts';
+import { successResponse, errorResponse } from '../utils/api-response.ts';
+import { AuthRequest } from '../middlewares/auth.middleware.ts';
 
 /**
  * POST /api/v1/payments/create-order

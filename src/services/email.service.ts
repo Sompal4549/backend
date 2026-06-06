@@ -1,6 +1,6 @@
 import net from 'net';
 import tls from 'tls';
-import { config } from '../config/app.config.js';
+import { config } from '../config/app.config.ts';
 
 const encodeBase64 = (value: string) => Buffer.from(value).toString('base64');
 

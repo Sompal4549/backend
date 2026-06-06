@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { CareerModel } from '../models/career.model.js';
-import { AuthRequest } from '../middlewares/auth.middleware.js';
-import { successResponse, errorResponse } from '../utils/api-response.js';
+import { CareerModel } from '../models/career.model.ts';
+import { AuthRequest } from '../middlewares/auth.middleware.ts';
+import { successResponse, errorResponse } from '../utils/api-response.ts';
 
 export const getCareers = async (_req: Request, res: Response): Promise<void> => {
   try {

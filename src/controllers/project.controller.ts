@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { ProjectModel } from '../models/project.model.js';
-import { successResponse, errorResponse } from '../utils/api-response.js';
+import { ProjectModel } from '../models/project.model.ts';
+import { successResponse, errorResponse } from '../utils/api-response.ts';
 
 export const getProjects = async (_req: Request, res: Response): Promise<void> => {
   try {

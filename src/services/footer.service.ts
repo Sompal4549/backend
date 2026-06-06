@@ -1,4 +1,4 @@
-import { FooterModel, IFooter } from '../models/footer.model.js';
+import { FooterModel, IFooter } from '../models/footer.model.ts';
 
 const footerKey = 'main';
 

@@ -1,4 +1,4 @@
-import { WishlistModel, IWishlist } from '../models/wishlist.model.js';
+import { WishlistModel, IWishlist } from '../models/wishlist.model.ts';
 import { Types } from 'mongoose';
 
 export const getWishlistByUser = async (userId: string | Types.ObjectId): Promise<IWishlist | null> => {
