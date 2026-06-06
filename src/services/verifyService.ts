@@ -1,7 +1,7 @@
 import crypto from 'crypto';
-import { GenericOtpModel } from '../models/Otp';
-import { sendEmailOtp } from './email.service';
-import { sendWhatsAppOTP, WhatsAppOtpContext } from '../utils/whatsapp';
+import { GenericOtpModel } from '../models/Otp.js';
+import { sendEmailOtp } from './email.service.js';
+import { sendWhatsAppOTP, WhatsAppOtpContext } from '../utils/whatsapp.js';
 
 const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
 const normalizeEmail = (email: string) => email.trim().toLowerCase();

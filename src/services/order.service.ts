@@ -1,9 +1,9 @@
-import { createOrder, getOrdersByUser, getOrderById } from '../repositories/order.repository';
-import { IOrder } from '../models/order.model';
-import { CartModel } from '../models/cart.model';
-import { UserModel } from '../models/user.model';
+import { createOrder, getOrdersByUser, getOrderById } from '../repositories/order.repository.js';
+import { IOrder } from '../models/order.model.js';
+import { CartModel } from '../models/cart.model.js';
+import { UserModel } from '../models/user.model.js';
 import { Types } from 'mongoose';
-import { sendWhatsAppMessage } from '../utils/whatsapp';
+import { sendWhatsAppMessage } from '../utils/whatsapp.js';
 
 const toObjectId = (id: any): Types.ObjectId => {
   if (id instanceof Types.ObjectId) return id;

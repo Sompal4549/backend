@@ -1,17 +1,17 @@
 import crypto from 'crypto';
 import { Types } from 'mongoose';
-import { getRazorpayInstance } from '../config/razorpay.config';
-import { config } from '../config/app.config';
-import { OrderModel } from '../models/order.model';
+import { getRazorpayInstance } from '../config/razorpay.config.js';
+import { config } from '../config/app.config.js';
+import { OrderModel } from '../models/order.model.js';
 import {
   createTransaction,
   findTransactionByRazorpayOrderId,
   findTransactionsByOrder,
   updateTransactionById,
-} from '../repositories/transaction.repository';
-import { updateOrderById } from '../repositories/order.repository';
-import { UserModel } from '../models/user.model';
-import { sendWhatsAppMessage } from '../utils/whatsapp';
+} from '../repositories/transaction.repository.js';
+import { updateOrderById } from '../repositories/order.repository.js';
+import { UserModel } from '../models/user.model.js';
+import { sendWhatsAppMessage } from '../utils/whatsapp.js';
 
 const toObjectId = (id: any): Types.ObjectId => {
   if (id instanceof Types.ObjectId) return id;
