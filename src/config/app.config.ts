@@ -33,7 +33,7 @@ export const config = {
   refreshTokenExpires: getString('REFRESH_TOKEN_EXPIRES', '36500d'),
   cookieSecure: getBoolean('COOKIE_SECURE', false),
   cookieSameSite: getString('COOKIE_SAME_SITE', 'lax'),
-  corsOrigin: getList('CORS_ORIGIN', ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174']),
+  corsOrigin: getList('CORS_ORIGIN', ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174','https://ensis-admin-omak.vercel.app','https://ensis-frontend-jtom.vercel.app']),
   uploadDir: getString('UPLOAD_DIR', 'src/uploads'),
   uploadMaxFileSizeBytes: getNumber('UPLOAD_MAX_FILE_SIZE_BYTES', 5 * 1024 * 1024),
   uploadMaxFiles: getNumber('UPLOAD_MAX_FILES', 6),

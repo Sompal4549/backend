@@ -44,7 +44,14 @@ export const createApp = () => {
   app.set('trust proxy', 1);
   app.use(limiter);
   app.use(helmet());
-  app.use(cors({ origin: config.corsOrigin, credentials: true }));
+
+  // Parse comma-separated origins from config into an array
+  const corsOriginValue: any = config.corsOrigin;
+  const allowedOrigins = typeof corsOriginValue === 'string' 
+    ? corsOriginValue.split(',').map((origin: string) => origin.trim()) 
+    : corsOriginValue;
+
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
   app.use(compression());
   app.use(cookieParser());
   app.use(express.json({ 
