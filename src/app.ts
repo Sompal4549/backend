@@ -45,11 +45,11 @@ export const createApp = () => {
   app.use(limiter);
   app.use(helmet());
 
-  // Parse comma-separated origins from config into an array
-  const corsOriginValue: any = config.corsOrigin;
-  const allowedOrigins = typeof corsOriginValue === 'string' 
-    ? corsOriginValue.split(',').map((origin: string) => origin.trim()) 
-    : corsOriginValue;
+  // Parse comma-separated origins from config into an array and handle potential type narrowing issues
+  const rawOrigin = config.corsOrigin as string | string[];
+  const allowedOrigins = typeof rawOrigin === 'string'
+    ? rawOrigin.split(',').map((origin: string) => origin.trim()).filter((origin) => origin !== '')
+    : rawOrigin;
 
   app.use(cors({ origin: allowedOrigins, credentials: true }));
   app.use(compression());
