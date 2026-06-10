@@ -6,6 +6,7 @@ export interface IComponentContent extends Document {
   page: string;
   description?: string;
   data: Record<string, unknown>;
+  index?: number;
   isActive: boolean;
 }
 
@@ -16,6 +17,7 @@ const componentContentSchema = new Schema<IComponentContent>(
     page: { type: String, required: true, trim: true },
     description: { type: String },
     data: { type: Schema.Types.Mixed, default: {} },
+    index: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

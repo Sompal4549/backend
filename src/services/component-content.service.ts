@@ -23,11 +23,11 @@ export const listComponentContent = async (query: { page?: string; includeInacti
   const filter: Record<string, unknown> = {};
   if (query.page) filter.page = query.page;
   if (!query.includeInactive) filter.isActive = true;
-  return ComponentContentModel.find(filter).sort({ page: 1, label: 1 });
+  return ComponentContentModel.find(filter).sort({ page: 1, index: 1, label: 1 });
 };
 
 export const getComponentContentByKey = async (key: string) => {
-  const content = await ComponentContentModel.findOne({ key, isActive: true });
+  const content = await ComponentContentModel.findOne({ key });
   if (!content) {
     const error = new Error('Component content not found');
     (error as any).statusCode = 404;
@@ -70,7 +70,7 @@ export const listHomeComponentContent = async (query: { includeInactive?: string
     key: { $in: HOME_COMPONENT_KEYS },
   };
   if (!query.includeInactive) filter.isActive = true;
-  return ComponentContentModel.find(filter).sort({ label: 1 });
+  return ComponentContentModel.find(filter).sort({ index: 1, label: 1 });
 };
 
 export const getHomeComponentContentByKey = async (key: string) => {
@@ -80,7 +80,7 @@ export const getHomeComponentContentByKey = async (key: string) => {
     throw error;
   }
 
-  const content = await ComponentContentModel.findOne({ key, page: 'home', isActive: true });
+  const content = await ComponentContentModel.findOne({ key, page: 'home' });
   if (!content) {
     const error = new Error('Home component content not found');
     (error as any).statusCode = 404;

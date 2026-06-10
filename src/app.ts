@@ -36,7 +36,7 @@ export const createApp = () => {
   app.use(morgan('tiny'));
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 10000, // Increased limit to 10000 to prevent 429 errors during development
     standardHeaders: true,
     legacyHeaders: false,
   });

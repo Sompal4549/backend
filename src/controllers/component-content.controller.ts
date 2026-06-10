@@ -26,7 +26,14 @@ export const getComponentContents = async (req: Request, res: Response): Promise
 export const getComponentsByPage = async (req: Request, res: Response): Promise<void> => {
   try {
     const { page } = req.params;
-    const contents = await ComponentContentModel.find({ page, isActive: true }).lean();
+    const { includeInactive } = req.query;
+
+    const filter: any = { page };
+    if (includeInactive !== 'true') {
+      filter.isActive = true;
+    }
+
+    const contents = await ComponentContentModel.find(filter).sort({ index: 1 }).lean();
     successResponse(res, contents, `Components for page: ${page} retrieved`);
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
