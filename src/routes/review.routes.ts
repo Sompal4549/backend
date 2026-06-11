@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { createReview, updateReview, deleteReview } from '../controllers/review.controller';
+import { createReview, updateReview, deleteReview, getReviews } from '../controllers/review.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { body } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
 
 export const reviewRouter = Router();
 
+reviewRouter.get('/:productId', getReviews);
 reviewRouter.post(
   '/:productId',
   authMiddleware,
@@ -16,7 +17,10 @@ reviewRouter.post(
 reviewRouter.put(
   '/:id',
   authMiddleware,
-  [body('rating').optional().isInt({ min: 1, max: 5 }).withMessage('Rating must be 1-5')],
+  [
+    body('rating').optional().isInt({ min: 1, max: 5 }).withMessage('Rating must be 1-5'),
+    body('comment').optional().isString().withMessage('Comment must be a string')
+  ],
   validateRequest,
   updateReview
 );

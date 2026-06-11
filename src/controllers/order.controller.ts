@@ -18,8 +18,7 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
 
 export const getMyOrders = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    console.info('getMyOrders: authenticated user', (req.user as any)?._id, 'id', (req.user as any)?.id);
-    const role = (req.user as any)?.role;
+    const role = req.user?.role;
     if (role === ROLE.ADMIN || role === ROLE.SUPERADMIN) {
       const orders = await listAllOrders();
       console.info('getMyOrders: admin fetched orders count', Array.isArray(orders) ? orders.length : 0);
@@ -27,7 +26,7 @@ export const getMyOrders = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const orders = await fetchUserOrders((req.user as any)?.id || (req.user as any)?._id);
+    const orders = await fetchUserOrders(req.user!.id);
     console.info('getMyOrders: fetched orders count', Array.isArray(orders) ? orders.length : 0);
     successResponse(res, orders, 'User orders retrieved');
   } catch (error) {

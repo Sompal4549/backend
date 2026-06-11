@@ -1,4 +1,12 @@
-import { createReview, findReviewByUserAndProduct, getReviewById, updateReviewById, deleteReviewById, calculateProductRating } from '../repositories/review.repository';
+import { 
+  createReview, 
+  findReviewByUserAndProduct, 
+  getReviewById, 
+  updateReviewById, 
+  deleteReviewById, 
+  calculateProductRating,
+  getReviewsForProduct 
+} from '../repositories/review.repository';
 import { updateProductById } from '../repositories/product.repository';
 import { IReview } from '../models/review.model';
 import { Types } from 'mongoose';
@@ -37,6 +45,32 @@ export const removeReview = async (userId: string, reviewId: string) => {
   await deleteReviewById(reviewId);
   await recalculateRating(review.product.toString());
   return review;
+};
+
+export const getProductReviews = async (productId: string) => {
+  const reviews = await getReviewsForProduct(productId) || [];
+  const ratingStats = await calculateProductRating(productId);
+  const averageRating = ratingStats?.[0]?.averageRating || 0;
+
+  const formattedReviews = reviews.map((rev: any) => ({
+    _id: rev._id.toString(),
+    user: rev.user?.name || 'Anonymous',
+    userId: rev.user?._id?.toString() || rev.user?.toString() || '',
+    rating: rev.rating,
+    comment: rev.comment || '',
+    createdAt: rev.createdAt,
+  }));
+
+  return {
+    rating: averageRating,
+    averageRating: averageRating,
+    reviews: formattedReviews,
+    userReviews: reviews.map((rev: any) => ({
+      userName: rev.user?.name || 'Anonymous',
+      rating: rev.rating,
+      reviewDescription: rev.comment || rev.description || "",
+    })),
+  };
 };
 
 const recalculateRating = async (productId: string) => {
