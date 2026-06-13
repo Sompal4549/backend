@@ -100,8 +100,10 @@ export const verifyOtp = async (channel: OtpChannel, rawTarget: string, code: st
 
   otp.consumedAt = new Date();
   await otp.save();
-  const user =
-    channel === OTP_CHANNEL.EMAIL ? await markUserEmailVerified(target) : await markUserPhoneVerified(target);
+  let user = null;
+  if (purpose === 'verification') {
+    user = channel === OTP_CHANNEL.EMAIL ? await markUserEmailVerified(target) : await markUserPhoneVerified(target);
+  }
   return { channel, target, verified: true, user };
 };
 
