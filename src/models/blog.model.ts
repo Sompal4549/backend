@@ -6,6 +6,7 @@ export interface IBlog extends Document {
   content: string;
   author: string;
   image?: string;
+  featureImage?: string; // Added featureImage field
   tags?: string[];
   isActive: boolean;
   isFeatured: boolean;
@@ -30,6 +31,7 @@ const BlogSchema: Schema = new Schema({
   content: { type: String, required: true },
   author: { type: String, required: true },
   image: { type: String },
+  featureImage: { type: String }, // Added featureImage field to schema
   tags: [{ type: String }],
   isActive: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },

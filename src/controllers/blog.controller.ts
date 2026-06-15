@@ -16,8 +16,8 @@ export const getAllBlogs = async (_req: Request, res: Response): Promise<void> =
 
 export const getPopularBlogs = async (_req: Request, res: Response): Promise<void> => {
   try {
-    // Top 5 popular blogs based on viewCount
-    const blogs = await BlogModel.find({ isActive: true }).sort({ viewCount: -1 }).limit(5);
+    // Priority: isPopular manually marked first, then highest viewCount
+    const blogs = await BlogModel.find({ isActive: true }).sort({ isPopular: -1, viewCount: -1 }).limit(5);
     successResponse(res, blogs, 'Popular blogs retrieved successfully');
   } catch (error) {
     errorResponse(res, (error as Error).message, 500);
@@ -50,23 +50,12 @@ export const getBlogBySlug = async (req: Request, res: Response): Promise<void> 
   try {
     const { slug } = req.params;
     
-    // Optional: Check if user is logged in to track unique read
-    let userId: string | null = null;
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, config.jwtAccessSecret) as { userId: string };
-        userId = decoded.userId;
-      } catch (e) {}
-    }
-
-    const update: any = { $inc: { viewCount: 1 } };
-    if (userId) {
-      update.$addToSet = { readBy: userId }; // Only adds if not already present
-    }
-
-    const blog = await BlogModel.findOneAndUpdate({ slug, isActive: true }, update, { new: true });
+    // Simple View Count: Increment viewCount by 1 every time the blog is fetched
+    const blog = await BlogModel.findOneAndUpdate(
+      { slug, isActive: true }, 
+      { $inc: { viewCount: 1 } }, 
+      { new: true }
+    );
 
     if (!blog) {
       errorResponse(res, 'Blog not found', 404);
