@@ -64,7 +64,10 @@ class SmtpClient {
     return new Promise((resolve, reject) => {
       const onData = (chunk: Buffer) => {
         this.buffer += chunk.toString('utf8');
-        const lines = this.buffer.split(/\r?\n/).filter(Boolean);
+        // Split lines and filter out empty strings caused by trailing newlines
+        const lines = this.buffer.split(/\r?\n/).filter(line => line.trim() !== '');
+        if (lines.length === 0) return;
+
         const lastLine = lines[lines.length - 1];
         if (lastLine && /^\d{3} /.test(lastLine)) {
           const response = this.buffer;
@@ -86,7 +89,7 @@ class SmtpClient {
     return this.readResponse();
   }
 
-  async send(to: string, subject: string, text: string): Promise<void> {
+  async send(to: string, subject: string, text: string, html?: string): Promise<void> {
     await this.connect();
     await this.command(`EHLO ${config.smtpHost || 'localhost'}`);
     if (!config.smtpSecure) {
@@ -102,21 +105,42 @@ class SmtpClient {
     await this.command(`MAIL FROM:<${config.emailFrom}>`);
     await this.command(`RCPT TO:<${to}>`);
     await this.command('DATA');
-    const safeText = text.replace(/^\./gm, '..');
+
+    let messageContent: string;
+    let contentType: string;
+
+    if (html) {
+      contentType = 'Content-Type: text/html; charset=utf-8';
+      messageContent = html;
+    } else {
+      contentType = 'Content-Type: text/plain; charset=utf-8';
+      messageContent = text.replace(/^\./gm, '..'); // Escape dots for plain text
+    }
+
     const message = [
       `From: ${formatAddress(config.emailFrom, config.emailFromName)}`,
       `To: ${to}`,
       `Subject: ${subject}`,
       'MIME-Version: 1.0',
-      'Content-Type: text/plain; charset=utf-8',
+      contentType,
       '',
-      safeText,
+      messageContent,
       '.',
     ].join('\r\n');
     await this.command(message);
     await this.command('QUIT');
   }
 }
+
+export const sendEmail = async (to: string, subject: string, text: string, html?: string): Promise<void> => {
+  if (config.emailProvider === 'console') {
+    console.info(`[Console Email] To: ${to} | Subject: ${subject}`);
+    console.info(`Content (Text): ${text}`);
+    if (html) console.info(`Content (HTML): ${html}`);
+    return;
+  }
+  await new SmtpClient().send(to, subject, text, html);
+};
 
 export const sendEmailOtp = async (email: string, otp: string, customMessage?: string): Promise<void> => {
   const message = buildOtpMessage(otp, customMessage);
@@ -131,5 +155,5 @@ export const sendEmailOtp = async (email: string, otp: string, customMessage?: s
   if (!config.smtpHost || !config.emailFrom || !config.smtpUser || !config.smtpPass) {
     throw new Error('SMTP email configuration is incomplete');
   }
-  await new SmtpClient().send(email, 'Your verification code', message);
+  await new SmtpClient().send(email, 'Your verification code', message); // OTP emails are typically plain text
 };

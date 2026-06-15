@@ -120,6 +120,7 @@ On Windows PowerShell, if `npm run ...` is blocked by execution policy, run the 
 - `GET /api/v1/admin/users`
 - `PUT /api/v1/admin/orders/:id`
 - `POST /api/v1/media`
+- `POST /api/v1/newsletter/subscribe`
 - `DELETE /api/v1/media/:id`
 
 ## Swagger

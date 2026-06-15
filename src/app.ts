@@ -21,6 +21,8 @@ import { navigationRouter } from './routes/navigation.routes';
 import { footerRouter } from './routes/footer.routes';
 import { uploadRouter } from './routes/upload.routes';
 import { paymentRouter } from './routes/payment.routes';
+import { blogRouter } from './routes/blog.routes';
+import { newsletterRouter } from './routes/newsletter.routes';
 import { pageRouter } from './routes/page.routes';
 import { projectRouter } from './routes/project.routes';
 import { careerRouter } from './routes/career.routes';
@@ -126,6 +128,8 @@ export const createApp = () => {
   app.use('/api/v1/reviews', reviewRouter);
   app.use('/api/v1/orders', orderRouter);
   app.use('/api/v1/payments', paymentRouter);
+  app.use('/api/v1/blogs', blogRouter);
+  app.use('/api/v1/newsletter', newsletterRouter);
   app.use('/api/v1/cart', cartRouter);
   app.use('/api/v1/profile', profileRouter);
   app.use('/api/v1/media', mediaRouter);
