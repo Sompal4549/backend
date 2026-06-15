@@ -2,8 +2,6 @@ import { Request, Response } from 'express';
 import { BlogModel } from '../models/blog.model';
 import { successResponse, errorResponse } from '../utils/api-response';
 import { notifySubscribers } from '../services/newsletter.service';
-import jwt from 'jsonwebtoken';
-import { config } from '../config/app.config';
 
 export const getAllBlogs = async (_req: Request, res: Response): Promise<void> => {
   try {
