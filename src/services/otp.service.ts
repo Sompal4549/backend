@@ -9,7 +9,7 @@ import { markUserEmailVerified, markUserPhoneVerified } from '../repositories/us
 type OtpChannel = typeof OTP_CHANNEL[keyof typeof OTP_CHANNEL];
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
-const normalizePhone = (phone: string) => phone.replace(/[^\d+]/g, '');
+const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
 
 const generateOtp = () => {
   const length = Math.max(config.otpLength, 4);

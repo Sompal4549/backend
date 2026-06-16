@@ -21,13 +21,6 @@ export const registerUser = async (userData: Partial<IUser>) => {
     throw error;
   }
 
-  const existingPhone = await UserModel.findOne({ phone });
-  if (existingPhone) {
-    const error = new Error('Phone number already registered');
-    (error as any).statusCode = 409;
-    throw error;
-  }
-
   const user = await createUser({ ...userData, role: ROLE.USER });
   return toAuthUser(user);
 };
@@ -41,50 +34,8 @@ export const registerUserWithRole = async (userData: Partial<IUser>) => {
     throw error;
   }
 
-  const existingPhone = await UserModel.findOne({ phone });
-  if (existingPhone) {
-    const error = new Error('Phone number already registered');
-    (error as any).statusCode = 409;
-    throw error;
-  }
-
   const user = await createUser(userData);
   return toAuthUser(user);
-};
-
-export const loginUser = async (emailOrPhone: string, password: string) => {
-  // Try to find user by email first, then by phone
-  let user = await findUserByEmail(emailOrPhone);
-  if (!user) {
-    user = await UserModel.findOne({ phone: emailOrPhone });
-  }
-
-  if (!user) {
-    const error = new Error('Invalid credentials');
-    (error as any).statusCode = 401;
-    throw error;
-  }
-  const isValid = await user.comparePassword(password);
-  if (!isValid) {
-    const error = new Error('Invalid credentials');
-    (error as any).statusCode = 401;
-    throw error;
-  }
-  const accessToken = createAccessToken({ userId: user.id, role: user.role });
-  const refreshToken = createRefreshToken({ userId: user.id, role: user.role });
-  await updateUserRefreshToken(user.id, await bcrypt.hash(refreshToken, 10));
-  return { user: toAuthUser(user), accessToken, refreshToken };
-};
-
-export const loginAdmin = async (email: string, password: string) => {
-  const result = await loginUser(email, password);
-  if (result.user.role !== ROLE.ADMIN && result.user.role !== ROLE.SUPERADMIN) {
-    await logoutUser(result.refreshToken, { clearCookie: () => undefined } as any);
-    const error = new Error('Admin access required');
-    (error as any).statusCode = 403;
-    throw error;
-  }
-  return result;
 };
 
 export const refreshAccessToken = async (refreshToken: string, res: any) => {

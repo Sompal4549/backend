@@ -1,13 +1,34 @@
 import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { UserModel } from '../models/user.model';
+import { ROLE } from '../constants/roles.constants';
+import { verifyWhatsAppOtp } from '../services/otp.service';
+import { config } from '../config/app.config';
 import { getDashboardData, listUsers, listAllOrders, adminUpdateOrder, adminUpdateUserRole } from '../services/admin.service';
-import { loginAdmin, logoutUser, registerUserWithRole } from '../services/auth.service';
+import { logoutUser, registerUserWithRole } from '../services/auth.service';
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
 import { successResponse, errorResponse } from '../utils/api-response';
 
 export const adminLogin = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
-    const { user, accessToken, refreshToken } = await loginAdmin(email, password);
+    const { phone, otp } = req.body;
+    if (!phone || !otp) {
+      errorResponse(res, 'Phone and OTP are required', 400);
+      return;
+    }
+
+    // Verify OTP specifically for admin login purpose
+    await verifyWhatsAppOtp(phone, otp, 'admin-login');
+
+    const user = await UserModel.findOne({ phone, role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] } });
+    if (!user) {
+      errorResponse(res, 'Access denied. You are not an admin or credentials do not match.', 403);
+      return;
+    }
+
+    const accessToken = jwt.sign({ id: user._id, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
+    const refreshToken = jwt.sign({ id: user._id }, config.jwtAccessSecret, { expiresIn: '7d' });
+
     setRefreshTokenCookie(res, refreshToken);
     successResponse(res, { user, accessToken }, 'Admin login successful');
   } catch (error) {

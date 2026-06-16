@@ -6,7 +6,7 @@ export interface IUser {
   name: string;
   email: string;
   phone?: string;
-  password: string;
+  password?: string;
   role: typeof ROLE[keyof typeof ROLE];
   avatar?: string;
   emailVerified: boolean;
@@ -23,8 +23,8 @@ const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    phone: { type: String, trim: true, sparse: true, unique: true },
-    password: { type: String, required: true, select: false },
+    phone: { type: String, trim: true, sparse: true },
+    password: { type: String, select: false },
     role: { type: String, enum: Object.values(ROLE), default: ROLE.USER },
     avatar: { type: String },
     emailVerified: { type: Boolean, default: false },
@@ -37,13 +37,14 @@ const userSchema = new Schema<IUser>(
 );
 
 userSchema.pre('save', async function (this: UserDocument, next) {
-  if (!this.isModified('password')) return next();
+  if (!this.password || !this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword: string) {
+  if (!this.password) return false;
   return bcrypt.compare(candidatePassword, this.password);
 };
 

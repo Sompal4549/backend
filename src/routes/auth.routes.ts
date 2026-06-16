@@ -2,15 +2,12 @@ import { Router } from 'express';
 import {
   confirmEmailOtp,
   confirmWhatsAppOtp,
-  forgotPassword,
   login,
   logout,
   refreshToken,
   register,
-  resetPassword,
   sendEmailOtp,
   sendWhatsAppOtp,
-  verifyResetCode,
 } from '../controllers/auth.controller';
 import { validateRequest } from '../middlewares/validate.middleware';
 import { body } from 'express-validator';
@@ -23,7 +20,6 @@ authRouter.post(
     body('name').notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Valid email is required'),
     body('phone').notEmpty().isMobilePhone('any').withMessage('Valid phone is required'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   ],
   validateRequest,
   register
@@ -31,39 +27,15 @@ authRouter.post(
 
 authRouter.post(
   '/login',
-  [body('email').notEmpty().withMessage('Email or phone is required'), body('password').notEmpty().withMessage('Password is required')],
+  [
+    body('phone').notEmpty().isMobilePhone('any').withMessage('Valid phone is required'),
+    body('otp').notEmpty().withMessage('OTP is required')
+  ],
   validateRequest,
   login
 );
 
 authRouter.post('/logout', logout);
-
-authRouter.post(
-  '/forgot-password',
-  [body('email').isEmail().withMessage('Valid email is required')],
-  validateRequest,
-  forgotPassword
-);
-
-authRouter.post(
-  '/verify-reset-otp',
-  [
-    body('email').isEmail().withMessage('Valid email is required'),
-    body('otp').notEmpty().withMessage('OTP is required'),
-  ],
-  validateRequest,
-  verifyResetCode
-);
-
-authRouter.post(
-  '/reset-password',
-  [
-    body('resetToken').notEmpty().withMessage('Reset token is required'),
-    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  ],
-  validateRequest,
-  resetPassword
-);
 
 authRouter.post('/refresh-token', refreshToken);
 

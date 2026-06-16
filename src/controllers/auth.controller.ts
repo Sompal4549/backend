@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserModel } from '../models/user.model';
-import { registerUser, loginUser, refreshAccessToken, logoutUser } from '../services/auth.service';
+import { ROLE } from '../constants/roles.constants';
+import { registerUser, refreshAccessToken, logoutUser } from '../services/auth.service';
 import { requestEmailOtp, requestWhatsAppOtp, verifyEmailOtp, verifyWhatsAppOtp } from '../services/otp.service';
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
 import { successResponse, errorResponse } from '../utils/api-response';
@@ -16,78 +17,26 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      errorResponse(res, 'Email is required', 400);
-      return;
-    }
-    const user = await UserModel.findOne({ email: email.toLowerCase().trim() });
-    if (!user) {
-      errorResponse(res, 'User with this email does not exist', 404);
-      return;
-    }
-    await requestEmailOtp(email, 'password-reset', 'Your password reset code is: {{code}}');
-    successResponse(res, null, 'Reset code sent to email');
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
-  }
-};
-
-export const verifyResetCode = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, otp } = req.body;
-    if (!email || !otp) {
-      errorResponse(res, 'Email and OTP are required', 400);
-      return;
-    }
-    await verifyEmailOtp(email, otp, 'password-reset');
-    
-    // OTP sahi hai, ab ek temporary reset token generate karo (valid for 1 hour)
-    const resetToken = jwt.sign({ email: email.toLowerCase().trim(), type: 'password-reset' }, config.jwtAccessSecret, { expiresIn: '1h' });
-    
-    successResponse(res, { resetToken }, 'OTP verified. You can now reset your password.');
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
-  }
-};
-
-export const resetPassword = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { resetToken, newPassword } = req.body;
-    if (!resetToken || !newPassword) {
-      errorResponse(res, 'Reset token and new password are required', 400);
-      return;
-    }
-
-    // Token verify karo
-    const decoded = jwt.verify(resetToken, config.jwtAccessSecret) as { email: string; type: string };
-    if (decoded.type !== 'password-reset') {
-      errorResponse(res, 'Invalid reset token', 400);
-      return;
-    }
-
-    const user = await UserModel.findOne({ email: decoded.email });
-    if (!user) {
-      errorResponse(res, 'User not found', 404);
-      return;
-    }
-
-    user.password = newPassword; // Pre-save hook will hash this
-    await user.save();
-    successResponse(res, null, 'Password reset successful');
-  } catch (error) {
-    const message = error instanceof jwt.JsonWebTokenError ? 'Reset token expired or invalid' : (error as Error).message;
-    errorResponse(res, message, 400);
-  }
-};
-
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
-    const { user, accessToken, refreshToken } = await loginUser(email, password);
-    console.log('Generated refresh token:', refreshToken, accessToken);
+    const { phone, otp } = req.body;
+    if (!phone || !otp) {
+      errorResponse(res, 'Phone and OTP are required', 400);
+      return;
+    }
+
+    // Unified purpose for authentication
+    await verifyWhatsAppOtp(phone, otp, 'login');
+
+    const user = await UserModel.findOne({ phone });
+    if (!user) {
+      errorResponse(res, 'User not found with this mobile number. Please register.', 404);
+      return;
+    }
+
+    const accessToken = jwt.sign({ id: user._id, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
+    const refreshToken = jwt.sign({ id: user._id }, config.jwtAccessSecret, { expiresIn: '7d' });
+
     setRefreshTokenCookie(res, refreshToken);
     successResponse(res, { user, accessToken }, 'Login successful');
   } catch (error) {
@@ -148,7 +97,22 @@ export const confirmEmailOtp = async (req: Request, res: Response): Promise<void
 
 export const sendWhatsAppOtp = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await requestWhatsAppOtp(req.body.phone, req.body.purpose, req.body.message);
+    const { phone, purpose, message } = req.body;
+
+    let effectivePurpose = purpose || 'login';
+
+    // Agar admin-login hai, toh role check karo aur purpose 'admin-login' hi rehne do
+    if (purpose === 'admin-login') {
+      const user = await UserModel.findOne({ phone, role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] } });
+      if (!user) {
+        errorResponse(res, 'Access denied. You are not an admin or credentials do not match.', 403);
+        return;
+      }
+      effectivePurpose = 'admin-login';
+    }
+
+    // Use the effective purpose for the actual OTP generation
+    const result = await requestWhatsAppOtp(phone, effectivePurpose, message);
     successResponse(res, result, 'WhatsApp OTP sent');
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
@@ -157,7 +121,10 @@ export const sendWhatsAppOtp = async (req: Request, res: Response): Promise<void
 
 export const confirmWhatsAppOtp = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await verifyWhatsAppOtp(req.body.phone, req.body.otp, req.body.purpose);
+    const { phone, otp, purpose } = req.body;
+
+    // Use the provided purpose directly for verification
+    const result = await verifyWhatsAppOtp(phone, otp, purpose || 'verification');
     successResponse(res, result, 'WhatsApp phone verified');
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
