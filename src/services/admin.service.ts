@@ -4,6 +4,7 @@ import { updateOrderById } from '../repositories/order.repository';
 import { ReviewModel } from '../models/review.model';
 import { OrderModel } from '../models/order.model';
 import { UserModel } from '../models/user.model';
+import { findAllEnquiries, updateEnquiryById } from '../repositories/enquiry.repository';
 
 export const getDashboardData = async () => {
   const totalUsers = await getAllUsers();
@@ -46,4 +47,16 @@ export const adminUpdateUserRole = async (userId: string, role: string) => {
     throw error;
   }
   return user;
+};
+
+export const listAllEnquiries = async () => findAllEnquiries();
+
+export const adminUpdateEnquiryStatus = async (enquiryId: string, status: string) => {
+  const enquiry = await updateEnquiryById(enquiryId, { status } as any);
+  if (!enquiry) {
+    const error = new Error('Enquiry not found');
+    (error as any).statusCode = 404;
+    throw error;
+  }
+  return enquiry;
 };

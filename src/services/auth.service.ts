@@ -1,4 +1,4 @@
-import { IUser, UserModel } from '../models/user.model';
+import { IUser } from '../models/user.model';
 import { createUser, findUserByEmail, updateUserRefreshToken, findUserById } from '../repositories/user.repository';
 import { createAccessToken, createRefreshToken, verifyRefreshToken } from '../utils/jwt.utils';
 import { setRefreshTokenCookie, clearRefreshTokenCookie } from '../helpers/cookie.helper';
@@ -13,7 +13,7 @@ export const toAuthUser = (user: any) => {
 };
 
 export const registerUser = async (userData: Partial<IUser>) => {
-  const { email, phone } = userData;
+  const { email } = userData;
   const existingEmail = await findUserByEmail(email as string);
   if (existingEmail) {
     const error = new Error('Email already registered');
@@ -26,7 +26,7 @@ export const registerUser = async (userData: Partial<IUser>) => {
 };
 
 export const registerUserWithRole = async (userData: Partial<IUser>) => {
-  const { email, phone } = userData;
+  const { email } = userData;
   const existingEmail = await findUserByEmail(email as string);
   if (existingEmail) {
     const error = new Error('Email already registered');

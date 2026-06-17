@@ -4,7 +4,7 @@ import { UserModel } from '../models/user.model';
 import { ROLE } from '../constants/roles.constants';
 import { verifyWhatsAppOtp } from '../services/otp.service';
 import { config } from '../config/app.config';
-import { getDashboardData, listUsers, listAllOrders, adminUpdateOrder, adminUpdateUserRole } from '../services/admin.service';
+import { getDashboardData, listUsers, listAllOrders, adminUpdateOrder, adminUpdateUserRole, listAllEnquiries, adminUpdateEnquiryStatus } from '../services/admin.service';
 import { logoutUser, registerUserWithRole } from '../services/auth.service';
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
 import { successResponse, errorResponse } from '../utils/api-response';
@@ -26,11 +26,32 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const accessToken = jwt.sign({ id: user._id, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
-    const refreshToken = jwt.sign({ id: user._id }, config.jwtAccessSecret, { expiresIn: '7d' });
+    // Ensure payload uses 'userId' and proper secrets for access vs refresh
+    const userIdStr = user._id.toString();
+    const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
+    const refreshToken = jwt.sign({ userId: userIdStr }, config.jwtRefreshSecret, { expiresIn: '7d' });
 
     setRefreshTokenCookie(res, refreshToken);
     successResponse(res, { user, accessToken }, 'Admin login successful');
+  } catch (error) {
+    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
+  }
+};
+
+export const getEnquiries = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const enquiries = await listAllEnquiries();
+    successResponse(res, enquiries, 'Enquiries retrieved');
+  } catch (error) {
+    errorResponse(res, (error as Error).message, 500);
+  }
+};
+
+export const updateEnquiry = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { status } = req.body;
+    const enquiry = await adminUpdateEnquiryStatus(req.params.id, status);
+    successResponse(res, enquiry, 'Enquiry status updated');
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
   }

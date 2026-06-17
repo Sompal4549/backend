@@ -34,8 +34,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const accessToken = jwt.sign({ id: user._id, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
-    const refreshToken = jwt.sign({ id: user._id }, config.jwtAccessSecret, { expiresIn: '7d' });
+    // Maintain consistency with userId and separate secrets
+    const userIdStr = user._id.toString();
+    const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
+    const refreshToken = jwt.sign({ userId: userIdStr }, config.jwtRefreshSecret, { expiresIn: '7d' });
 
     setRefreshTokenCookie(res, refreshToken);
     successResponse(res, { user, accessToken }, 'Login successful');

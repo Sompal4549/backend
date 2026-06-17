@@ -26,6 +26,7 @@ import { newsletterRouter } from './routes/newsletter.routes';
 import { pageRouter } from './routes/page.routes';
 import { projectRouter } from './routes/project.routes';
 import { careerRouter } from './routes/career.routes';
+import { enquiryRouter } from './routes/enquiry.routes';
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/not-found.middleware';
 import { swaggerDocument } from './config/swagger.config';
@@ -136,6 +137,7 @@ export const createApp = () => {
   app.use('/api/v1/admin', adminRouter);
   app.use('/api/v1/projects', projectRouter);
   app.use('/api/v1/careers', careerRouter);
+  app.use('/api/v1/enquiry', enquiryRouter);
   app.use("/api/v1/seo", seoRoutes);
   app.use('/api/v1/pages', pageRouter);
 
