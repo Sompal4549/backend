@@ -33,7 +33,7 @@ const PageSchema: Schema = new Schema(
       metaTitle: { type: String, required: true },
       metaDescription: { type: String, required: true },
       metaKeywords: { type: String },
-      h1: { type: String, required: true },
+      h1: { type: String },
       canonical: { type: String },
       ogTitle: { type: String },
       ogDescription: { type: String },

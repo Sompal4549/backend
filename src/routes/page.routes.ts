@@ -37,7 +37,7 @@ pageRouter.post(
       .isLength({ max: 155 })
       .withMessage('Meta Description should not exceed 155 characters'),
     body('seo.metaKeywords').optional().isString(),
-    body('seo.h1').notEmpty().withMessage('One H1 tag per page is required'),
+    body('seo.h1').optional({ values: 'falsy' }).isString(),
     body('seo.canonical').optional().isString().withMessage('Canonical URL can be manual or auto-generated'),
     body('seo.ogTitle').optional().isString(),
     body('seo.ogDescription').optional().isString(),
@@ -75,7 +75,7 @@ pageRouter.put(
     body('seo.metaTitle').optional().isLength({ max: 65 }),
     body('seo.metaDescription').optional().isLength({ max: 155 }),
     body('seo.metaKeywords').optional().isString(),
-    body('seo.h1').optional().notEmpty(),
+    body('seo.h1').optional({ values: 'falsy' }).isString(),
     body('seo.canonical').optional().isString(),
     body('seo.ogTitle').optional().isString(),
     body('seo.ogDescription').optional().isString(),
