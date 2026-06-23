@@ -1,5 +1,4 @@
 import { CategoryModel, ICategory } from '../models/category.model';
-import { generateSlug } from '../utils/generate-slug';
 
 export const listCategories = async () => {
   return CategoryModel.find().sort({ name: 1 });
@@ -12,12 +11,7 @@ export const createCategory = async (payload: Partial<ICategory>) => {
 };
 
 export const updateCategory = async (categoryId: string, payload: Partial<ICategory>) => {
-  const update: Partial<ICategory> = { ...payload };
-  if (payload.name) {
-    update.slug = generateSlug(payload.name);
-  }
-
-  const category = await CategoryModel.findByIdAndUpdate(categoryId, update, { new: true, runValidators: true });
+  const category = await CategoryModel.findByIdAndUpdate(categoryId, payload, { new: true, runValidators: true });
   if (!category) {
     const error = new Error('Category not found');
     (error as any).statusCode = 404;
