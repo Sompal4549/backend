@@ -7,22 +7,31 @@ cloudinary.config({
   api_secret: config.cloudinaryApiSecret,
 });
 
-export const uploadImage = async (buffer: Buffer, subDir: string = ''): Promise<{ url: string; publicId: string }> => {
-  return new Promise<{ url: string; publicId: string }>((resolve, reject) => {
+export const uploadImage = async (
+  buffer: Buffer,
+  subDir: string = ''
+): Promise<{ url: string; publicId: string }> => {
+  return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: `ensis/${subDir}`.replace(/\/$/, ''),
-        resource_type: 'auto',
+        resource_type: 'image',
+        format: 'webp',
         transformation: [
           { width: 1920, crop: 'limit' },
-          { quality: 'auto', fetch_format: 'auto' }
+          { quality: 'auto' }
         ]
       },
       (error, result) => {
         if (error) return reject(error);
-        resolve({ url: result!.secure_url, publicId: result!.public_id });
+
+        resolve({
+          url: result!.secure_url,
+          publicId: result!.public_id,
+        });
       }
     );
+
     uploadStream.end(buffer);
   });
 };

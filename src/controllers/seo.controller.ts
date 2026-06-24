@@ -66,3 +66,21 @@ export const deleteSeo = async (
     success: true,
   });
 };
+
+export const getAdvancedSeo = async (_req: Request, res: Response) => {
+  const seo = await seoService.getSeoBySlug("advanced-seo");
+  res.json({ success: true, data: seo?.advanced || null });
+};
+
+export const upsertAdvancedSeo = async (req: Request, res: Response) => {
+  const { sitemap, robots, searchConsole, analytics } = req.body;
+  const seo = await seoService.upsertSeoBySlug("advanced-seo", {
+    "advanced.sitemap": sitemap,
+    "advanced.robotsTxt": robots,
+    "advanced.searchConsole": searchConsole,
+    "advanced.analytics": analytics,
+    title: "Advanced SEO",
+    description: "Advanced SEO Settings",
+  });
+  res.json({ success: true, data: seo });
+};

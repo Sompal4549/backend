@@ -20,6 +20,14 @@ export const updateSeo = (id: string, payload: any) => {
   });
 };
 
+export const upsertSeoBySlug = (slug: string, payload: any) => {
+  return Seo.findOneAndUpdate(
+    { pageSlug: slug },
+    { $set: payload },
+    { new: true, upsert: true }
+  );
+};
+
 export const deleteSeo = (id: string) => {
   return Seo.findByIdAndDelete(id);
 };
