@@ -8,18 +8,29 @@ export const createProduct = async (payload: Partial<IProduct>): Promise<IProduc
 };
 
 export const getProductById = async (id: string) => {
-  return ProductModel.findById(id).populate('category subCategory reviews');
+  return ProductModel.findById(id).populate('category reviews');
 };
 
 export const getActiveProductById = async (id: string) => {
-  return ProductModel.findOne({ _id: id, isActive: true }).populate('category subCategory reviews');
+  return ProductModel.findOne({ _id: id, isActive: true }).populate('category reviews');
 };
 
 export const getActiveProductByIdOrSlug = async (idOrSlug: string) => {
-  const query = Types.ObjectId.isValid(idOrSlug)
-    ? { _id: idOrSlug, isActive: true }
-    : { slug: idOrSlug, isActive: true };
-  return ProductModel.findOne(query).populate('category subCategory reviews');
+  try {
+    const query = Types.ObjectId.isValid(idOrSlug)
+      ? { _id: idOrSlug, isActive: true }
+      : { slug: idOrSlug, isActive: true };
+
+    const product = await ProductModel.findOne(query)
+      .populate('category reviews');
+
+    console.log(product);
+
+    return product;
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
 };
 
 export const updateProductById = async (id: string, payload: Partial<IProduct>) => {
