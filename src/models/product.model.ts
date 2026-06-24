@@ -1,53 +1,89 @@
 import { Schema, model, Document, Types } from 'mongoose';
 import { generateSlug } from '../utils/generate-slug';
 
-export interface IProductVariant {
-  color?: string;
-  size?: string;
-  sku?: string;
-  stock: number;
-  price: number;
-}
-
 export interface IProduct extends Document {
   title: string;
   slug: string;
+  code?: string;
   description: string;
+  shortDescription?: string;
   price: number;
   discountPrice?: number;
   category: Types.ObjectId;
-  subCategory?: Types.ObjectId;
+  subcategory?: string;
+  material?: string;
+  weight?: string;
   images: string[];
   stock: number;
+  tags: string[];
   averageRating: number;
   reviews: Types.ObjectId[];
-  variants: IProductVariant[];
   isActive: boolean;
+  isFeatured: boolean;
+  overview?: {
+    title?: string;
+    description?: string;
+    overviewList?: string[];
+    specifications?: { title: string; specificationsList: { title: string; description: string }[] }[];
+    keyFeatures?: { title: string; keyFeaturesList: string[] };
+    dimensions?: { title: string; dimensionsList: { title: string; description: string }[] }[];
+    materialAndCare?: { title: string; description: string };
+    productSpecifications?: { highlight: string; title: string; image: string; specifications: { title: string; description: string }[] }[];
+    whatisInclueded?: string[];
+    items?: { image: string; title: string; description: string }[];
+    smartDesignAppearance?: {
+      highlight?: string;
+      title?: string;
+      woodFinish?: string[];
+      sizeOptions?: { title: string; description: string }[];
+    };
+    faqs?: { question: string; description: string }[];
+  };
 }
 
-const variantSchema = new Schema<IProductVariant>({
-  color: { type: String },
-  size: { type: String },
-  sku: { type: String },
-  stock: { type: Number, default: 0 },
-  price: { type: Number, required: true },
-});
+const listItemSchema = new Schema({ title: String, description: String }, { _id: false });
 
 const productSchema = new Schema<IProduct>(
   {
     title: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, trim: true },
+    code: { type: String, trim: true },
     description: { type: String, required: true },
+    shortDescription: { type: String },
     price: { type: Number, required: true },
     discountPrice: { type: Number },
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
-    subCategory: { type: Schema.Types.ObjectId, ref: 'Category' },
+    subcategory: { type: String },
+    material: { type: String },
+    weight: { type: String },
     images: [{ type: String }],
     stock: { type: Number, default: 0 },
+    tags: [{ type: String }],
     averageRating: { type: Number, default: 0 },
     reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
-    variants: [variantSchema],
     isActive: { type: Boolean, default: true },
+    isFeatured: { type: Boolean, default: false },
+    overview: {
+      title: String,
+      description: String,
+      overviewList: [String],
+      specifications: [new Schema({ title: String, specificationsList: [listItemSchema] }, { _id: false })],
+      keyFeatures: new Schema({ title: String, keyFeaturesList: [listItemSchema] }, { _id: false }),
+      dimensions: [new Schema({ title: String, dimensionsList: [listItemSchema] }, { _id: false })],
+      materialAndCare: new Schema({ title: String, description: String }, { _id: false }),
+      productSpecifications: [new Schema({
+        highlight: String, title: String, image: String,
+        specifications: [listItemSchema]
+      }, { _id: false })],
+      whatisInclueded: [String],
+      items: [new Schema({ image: String, title: String, description: String }, { _id: false })],
+      smartDesignAppearance: new Schema({
+        highlight: String, title: String,
+        woodFinish: [String],
+        sizeOptions: [listItemSchema]
+      }, { _id: false }),
+      faqs: [new Schema({ question: String, description: String }, { _id: false })],
+    },
   },
   { timestamps: true }
 );
