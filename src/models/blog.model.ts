@@ -25,33 +25,78 @@ export interface IBlog extends Document {
   readBy: Types.ObjectId[];
 }
 
-const BlogSchema: Schema = new Schema({
-  title: { type: String, required: true },
-  slug: { type: String, required: true, unique: true },
-  content: { type: String, required: true },
-  author: { type: String, required: true },
-  image: { type: String },
-  featureImage: { type: String }, // Added featureImage field to schema
-  tags: [{ type: String }],
-  isActive: { type: Boolean, default: true },
-  isFeatured: { type: Boolean, default: false },
-  seo: {
-    metaTitle: { type: String },
-    metaDescription: { type: String },
-    metaKeywords: { type: String },
-    h1: { type: String },
-    canonical: { type: String },
-    ogTitle: { type: String },
-    ogDescription: { type: String },
-    ogImage: { type: String },
+const BlogSchema: Schema = new Schema(
+  {
+    title: { type: String, required: true },
+    slug: { type: String, required: true, unique: true },
+    content: { type: String, required: true },
+    author: { type: String, required: true },
+
+    image: { type: String },
+    featureImage: { type: String },
+    featuredImage: { type: String },
+
+    subtitle: { type: String },
+    description: { type: String },
+
+    tags: [{ type: String }],
+    readingTime: { type: Number },
+
+    isActive: { type: Boolean, default: true },
+    isFeatured: { type: Boolean, default: false },
+
+    seo: {
+      metaTitle: { type: String },
+      metaDescription: { type: String },
+      metaKeywords: { type: String },
+      h1: { type: String },
+      canonical: { type: String },
+      ogTitle: { type: String },
+      ogDescription: { type: String },
+      ogImage: { type: String },
+    },
+
+    robots: {
+      type: String,
+      enum: [
+        'index, follow',
+        'noindex, nofollow',
+        'index, nofollow',
+        'noindex, follow',
+      ],
+      default: 'index, follow',
+    },
+
+    banner: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+
+    article: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+
+    newsletter: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+
+    viewCount: {
+      type: Number,
+      default: 0,
+    },
+
+    readBy: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
-  robots: {
-    type: String,
-    enum: ['index, follow', 'noindex, nofollow', 'index, nofollow', 'noindex, follow'],
-    default: 'index, follow',
-  },
-  viewCount: { type: Number, default: 0 },
-  readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-}, { timestamps: true });
+  {
+    timestamps: true,
+  }
+);
 
 export const BlogModel = mongoose.model<IBlog>('Blog', BlogSchema);
