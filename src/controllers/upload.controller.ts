@@ -1,22 +1,44 @@
 import { Request, Response } from 'express';
+import sharp from 'sharp';
 import { errorResponse, successResponse } from '../utils/api-response';
 import { uploadImage } from '../helpers/image.helper';
 
-export const uploadFile = async (req: Request, res: Response): Promise<void> => {
+export const uploadFile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const file = req.file;
+
     if (!file) {
       errorResponse(res, 'No file uploaded', 400);
       return;
     }
 
     const subDir = req.body.subDir || '';
-    const result = await uploadImage(file.buffer, subDir);
-    successResponse(res, { url: result.url }, 'File uploaded', 201);
+
+    // Convert image to webp
+    const webpBuffer = await sharp(file.buffer)
+      .webp({ quality: 80 })
+      .toBuffer();
+
+    const result = await uploadImage(webpBuffer, subDir);
+
+    successResponse(
+      res,
+      { url: result.url },
+      'File uploaded',
+      201
+    );
   } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
+    errorResponse(
+      res,
+      (error as Error).message,
+      (error as any).statusCode || 500
+    );
   }
 };
+
 
 /**
  * Fetch all images from the uploads directory or a specific subdirectory.

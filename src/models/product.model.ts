@@ -24,9 +24,15 @@ export interface IProduct extends Document {
     title?: string;
     description?: string;
     overviewList?: string[];
-    specifications?: { title: string; specificationsList: { title: string; description: string }[] }[];
-    keyFeatures?: { title: string; keyFeaturesList: string[] };
-    dimensions?: { title: string; dimensionsList: { title: string; description: string }[] }[];
+    specifications?: {
+      title?: string;
+      specificationsList?: { title: string; description: string }[];
+    };
+    keyFeatures?: {
+      title?: string;
+      keyFeaturesList?: string[];
+    };
+    dimensions?: { title: string; dimensionsList: { title: string; description: string }[] };
     materialAndCare?: { title: string; description: string };
     productSpecifications?: { highlight: string; title: string; image: string; specifications: { title: string; description: string }[] }[];
     whatisInclueded?: string[];
@@ -67,9 +73,25 @@ const productSchema = new Schema<IProduct>(
       title: String,
       description: String,
       overviewList: [String],
-      specifications: [new Schema({ title: String, specificationsList: [listItemSchema] }, { _id: false })],
-      keyFeatures: new Schema({ title: String, keyFeaturesList: [listItemSchema] }, { _id: false }),
-      dimensions: [new Schema({ title: String, dimensionsList: [listItemSchema] }, { _id: false })],
+      specifications: new Schema({
+        title: String,
+        specificationsList: [listItemSchema]
+      }, { _id: false }),
+      keyFeatures: new Schema({
+        title: String,
+        keyFeaturesList: [String]
+      }, { _id: false }),
+      dimensions:
+        new Schema(
+          {
+            title: { type: String, default: "" },
+            dimensionsList: {
+              type: [listItemSchema],
+              default: [{ title: "", description: "" }],
+            },
+          },
+          { _id: false }
+        ),
       materialAndCare: new Schema({ title: String, description: String }, { _id: false }),
       productSpecifications: [new Schema({
         highlight: String, title: String, image: String,

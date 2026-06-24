@@ -24,3 +24,6 @@ export const updateSeo = async (
 export const deleteSeo = async (id: string) => {
   return seoRepo.deleteSeo(id);
 };
+export const upsertSeoBySlug = (slug: string, payload: any) => {
+  return seoRepo.upsertSeoBySlug(slug, payload);
+};
