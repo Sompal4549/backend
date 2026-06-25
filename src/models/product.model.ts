@@ -28,6 +28,10 @@ export interface IProduct extends Document {
       title?: string;
       specificationsList?: { title: string; description: string }[];
     };
+    seeItInRealSpaces:{title:string; images:{image:string; imageAlt:string}[]};
+    productPricingFeatures:{title:string; image:string}[];
+    emiOptions:boolean;
+    customSize:boolean;
     keyFeatures?: {
       title?: string;
       keyFeaturesList?: string[];
@@ -40,7 +44,7 @@ export interface IProduct extends Document {
     smartDesignAppearance?: {
       highlight?: string;
       title?: string;
-      woodFinish?: string[];
+      woodFinish?: {image:string; title:string}[];
       sizeOptions?: { title: string; description: string }[];
     };
     faqs?: { question: string; description: string }[];
@@ -73,38 +77,130 @@ const productSchema = new Schema<IProduct>(
       title: String,
       description: String,
       overviewList: [String],
-      specifications: new Schema({
-        title: String,
-        specificationsList: [listItemSchema]
-      }, { _id: false }),
-      keyFeatures: new Schema({
-        title: String,
-        keyFeaturesList: [String]
-      }, { _id: false }),
-      dimensions:
+
+      specifications: new Schema(
+        {
+          title: String,
+          specificationsList: [listItemSchema],
+        },
+        { _id: false }
+      ),
+
+  seeItInRealSpaces: new Schema(
+        {
+          title: String,
+          images: [
+            new Schema(
+              {
+                image: String,
+                imageAlt: String,
+              },
+              { _id: false }
+            ),
+          ],
+        },
+        { _id: false }
+      ),
+ 
+      productPricingFeatures: [
         new Schema(
           {
-            title: { type: String, default: "" },
-            dimensionsList: {
-              type: [listItemSchema],
-              default: [{ title: "", description: "" }],
-            },
+            title: String,
+            image: String,
           },
           { _id: false }
         ),
-      materialAndCare: new Schema({ title: String, description: String }, { _id: false }),
-      productSpecifications: [new Schema({
-        highlight: String, title: String, image: String,
-        specifications: [listItemSchema]
-      }, { _id: false })],
+      ],
+
+      emiOptions: {
+        type: Boolean,
+        default: false,
+      },
+
+      customSize: {
+        type: Boolean,
+        default: false,
+      },
+
+      keyFeatures: new Schema(
+        {
+          title: String,
+          keyFeaturesList: [String],
+        },
+        { _id: false }
+      ),
+
+      dimensions: new Schema(
+        {
+          title: { type: String, default: '' },
+          dimensionsList: {
+            type: [listItemSchema],
+            default: [{ title: '', description: '' }],
+          },
+        },
+        { _id: false }
+      ),
+
+      materialAndCare: new Schema(
+        {
+          title: String,
+          description: String,
+        },
+        { _id: false }
+      ),
+
+      productSpecifications: [
+        new Schema(
+          {
+            highlight: String,
+            title: String,
+            image: String,
+            specifications: [listItemSchema],
+          },
+          { _id: false }
+        ),
+      ],
+
       whatisInclueded: [String],
-      items: [new Schema({ image: String, title: String, description: String }, { _id: false })],
-      smartDesignAppearance: new Schema({
-        highlight: String, title: String,
-        woodFinish: [String],
-        sizeOptions: [listItemSchema]
-      }, { _id: false }),
-      faqs: [new Schema({ question: String, description: String }, { _id: false })],
+
+      items: [
+        new Schema(
+          {
+            image: String,
+            title: String,
+            description: String,
+          },
+          { _id: false }
+        ),
+      ],
+
+      smartDesignAppearance: new Schema(
+        {
+          highlight: String,
+          title: String,
+          woodFinish: [
+            new Schema(
+              {
+                image: String,
+                title: String,
+              },
+              { _id: false }
+            ),
+          ],
+          sizeOptions: [listItemSchema],
+        },
+        { _id: false }
+      ),
+
+      faqs: [
+        new Schema(
+          {
+            question: String,
+            description: String,
+          },
+          { _id: false }
+        ),
+      ],
     },
   },
   { timestamps: true }
