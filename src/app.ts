@@ -32,6 +32,7 @@ import { notFoundHandler } from './middlewares/not-found.middleware';
 import { swaggerDocument } from './config/swagger.config';
 import swaggerUi from 'swagger-ui-express';
 import seoRoutes from "./routes/seo.routes";
+import { socialRouter } from './routes/sociallink.routes';
 
 export const createApp = () => {
   const app = express();
@@ -140,6 +141,8 @@ export const createApp = () => {
   app.use('/api/v1/enquiry', enquiryRouter);
   app.use("/api/v1/seo", seoRoutes);
   app.use('/api/v1/pages', pageRouter);
+app.use("/api/v1/social-clicks",socialRouter );
+
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
