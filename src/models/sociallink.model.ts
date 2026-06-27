@@ -5,6 +5,9 @@ export interface ISocialClick extends Document {
   ip: string;
   userAgent?: string;
   country?: string;
+  city?: string;
+  region?: string;
+  timezone?: string;
   createdAt: Date;
 }
 
@@ -25,6 +28,19 @@ const socialClickSchema = new Schema<ISocialClick>(
     },
     country: {
       type: String,
+      default: null,
+    },
+    city: {
+      type: String,
+      default: null,
+    },
+    region: {
+      type: String,
+      default: null,
+    },
+    timezone: {
+      type: String,
+      default: null,
     },
   },
   {
@@ -32,19 +48,16 @@ const socialClickSchema = new Schema<ISocialClick>(
   }
 );
 
-export const SocialClick = model<ISocialClick>(
-  "SocialClick",
-  socialClickSchema
-);
+export const SocialClick = model<ISocialClick>("SocialClick", socialClickSchema);
 
 export interface ISocialLink extends Document {
   platform: string;
   url: string;
-  icon?: string;      // uploaded image URL
+  icon?: string;
   isActive: boolean;
   order: number;
 }
- 
+
 const socialLinkSchema = new Schema<ISocialLink>(
   {
     platform: { type: String, required: true, unique: true, trim: true, lowercase: true },
@@ -55,6 +68,5 @@ const socialLinkSchema = new Schema<ISocialLink>(
   },
   { timestamps: true }
 );
- 
+
 export const SocialLink = model<ISocialLink>("SocialLink", socialLinkSchema);
- 

@@ -39,3 +39,24 @@ export const uploadImage = async (
 export const deleteImage = async (publicId: string): Promise<void> => {
   await cloudinary.uploader.destroy(publicId);
 };
+
+
+export const uploadResume = async (
+  buffer: Buffer,
+  originalName: string
+): Promise<{ url: string; publicId: string }> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'ensis/resumes',
+        resource_type: 'raw',
+        public_id: `${Date.now()}-${originalName.replace(/\s+/g, '_')}`,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve({ url: result!.secure_url, publicId: result!.public_id });
+      }
+    );
+    uploadStream.end(buffer);
+  });
+};

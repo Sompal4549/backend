@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { adminLogin, adminLogout, getDashboard, getUsers, getAllOrders, updateOrder, createUserByAdmin, changeUserRole, getEnquiries, updateEnquiry } from '../controllers/admin.controller';
+import { adminLogin, adminLoginDev, adminLogout, getDashboard, getUsers, getAllOrders, updateOrder, createUserByAdmin, changeUserRole, getEnquiries, updateEnquiry, updateUserByAdmin, deleteUserByAdmin } from '../controllers/admin.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
 import { superAdminMiddleware } from '../middlewares/superadmin.middleware';
@@ -17,6 +17,17 @@ adminRouter.post(
   validateRequest,
   adminLogin
 );
+
+// Development endpoint - no OTP required
+adminRouter.post(
+  '/login/dev',
+  [
+    body('phone').notEmpty().isMobilePhone('any').withMessage('Valid phone is required')
+  ],
+  validateRequest,
+  adminLoginDev
+);
+
 adminRouter.post('/logout', adminLogout);
 
 adminRouter.use(authMiddleware, adminMiddleware);
@@ -37,6 +48,41 @@ adminRouter.put(
   updateEnquiry
 );
 
+/**
+ * SuperAdmin Only: Change any user's role
+ * NOTE: Must be BEFORE /users/:id — otherwise Express treats 'role' as :id → isMongoId() fails → 400
+ */
+adminRouter.put(
+  '/users/role',
+  superAdminMiddleware,
+  [
+    body('userId').isMongoId().withMessage('Valid user ID is required'),
+    body('role').notEmpty().withMessage('Role is required'),
+  ],
+  validateRequest,
+  changeUserRole
+);
+
+adminRouter.put(
+  '/users/:id',
+  superAdminMiddleware,
+  [
+    param('id').isMongoId(),
+  ],
+  validateRequest,
+  updateUserByAdmin
+);
+
+adminRouter.delete(
+  '/users/:id',
+  superAdminMiddleware,
+  [
+    param('id').isMongoId(),
+  ],
+  validateRequest,
+  deleteUserByAdmin
+);
+
 adminRouter.get('/orders', getAllOrders);
 
 /**
@@ -53,20 +99,6 @@ adminRouter.post(
   ],
   validateRequest,
   createUserByAdmin
-);
-
-/**
- * SuperAdmin Only: Change any user's role
- */
-adminRouter.put(
-  '/users/role',
-  superAdminMiddleware,
-  [
-    body('userId').isMongoId().withMessage('Valid user ID is required'),
-    body('role').notEmpty().withMessage('Role is required'),
-  ],
-  validateRequest,
-  changeUserRole
 );
 
 adminRouter.put(

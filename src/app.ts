@@ -33,6 +33,7 @@ import { swaggerDocument } from './config/swagger.config';
 import swaggerUi from 'swagger-ui-express';
 import seoRoutes from "./routes/seo.routes";
 import { socialRouter } from './routes/sociallink.routes';
+import { applicationRouter } from './routes/application.routes';
 
 export const createApp = () => {
   const app = express();
@@ -142,6 +143,7 @@ export const createApp = () => {
   app.use("/api/v1/seo", seoRoutes);
   app.use('/api/v1/pages', pageRouter);
 app.use("/api/v1/social-clicks",socialRouter );
+app.use("/api/v1/applications", applicationRouter);
 
 
   app.get('/health', (_req, res) => {

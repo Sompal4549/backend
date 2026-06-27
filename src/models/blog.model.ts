@@ -3,83 +3,169 @@ import mongoose, { Schema, Document, Types } from 'mongoose';
 export interface IBlog extends Document {
   title: string;
   slug: string;
-  content: string;
   author: string;
-  image?: string;
-  featureImage?: string; // Added featureImage field
-  tags?: string[];
   isActive: boolean;
   isFeatured: boolean;
+  viewCount: number;
+  readBy: Types.ObjectId[];
+
+  banner?: {
+    title: string;
+    highlight: string;
+    date: string | Date;
+    readingTime: string;
+    category: string;
+    backgroundImage: string;
+    backgroundImageAlt: string;
+  };
+
+  blogImage?: {
+    image: string;
+    alt: string;
+  };
+
+  article?: {
+    content: string;
+  };
+
+  aboutTheAuthor?: {
+    title: string;
+    name: string;
+    description: string;
+    socialLinks: {
+      iconImage: string;
+      title: string;
+      link: string;
+    }[];
+  };
+
+  onThisPage?: {
+    title: string;
+  };
+
+  downloadMedia?: {
+    title: string;
+    image: string;
+    description: string;
+    link: string;
+  };
+
   seo?: {
     metaTitle: string;
     metaDescription: string;
-    metaKeywords?: string;
-    h1?: string;
-    canonical?: string;
-    ogTitle?: string;
-    ogDescription?: string;
-    ogImage?: string;
+    metaKeywords: string;
+    h1: string;
+    canonical: string;
+    ogJson: string;
+    schema: string;
   };
-  robots?: string;
-  viewCount: number;
-  readBy: Types.ObjectId[];
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-const BlogSchema: Schema = new Schema(
+const BlogSchema = new Schema<IBlog>(
   {
-    title: { type: String, required: true },
-    slug: { type: String, required: true, unique: true },
-    content: { type: String, required: true },
-    author: { type: String, required: true },
-
-    image: { type: String },
-    featureImage: { type: String },
-    featuredImage: { type: String },
-
-    subtitle: { type: String },
-    description: { type: String },
-
-    tags: [{ type: String }],
-    readingTime: { type: Number },
-
-    isActive: { type: Boolean, default: true },
-    isFeatured: { type: Boolean, default: false },
-
-    seo: {
-      metaTitle: { type: String },
-      metaDescription: { type: String },
-      metaKeywords: { type: String },
-      h1: { type: String },
-      canonical: { type: String },
-      ogTitle: { type: String },
-      ogDescription: { type: String },
-      ogImage: { type: String },
+    title: {
+      type: String,
+      required: true,
     },
 
-    robots: {
+    slug: {
       type: String,
-      enum: [
-        'index, follow',
-        'noindex, nofollow',
-        'index, nofollow',
-        'noindex, follow',
-      ],
-      default: 'index, follow',
+      required: true,
+      unique: true,
+    },
+
+    author: {
+      type: String,
+      required: true,
     },
 
     banner: {
-      type: Schema.Types.Mixed,
-      default: null,
+      title: String,
+      highlight: String,
+      date: Date,
+      readingTime: String,
+      category: String,
+      backgroundImage: String,
+      backgroundImageAlt: String,
+    },
+
+    blogImage: {
+      image: String,
+      alt: String,
     },
 
     article: {
-      type: Schema.Types.Mixed,
-      default: null,
+      content: {
+        type: String,
+      },
     },
 
-    newsletter: {
-      type: Schema.Types.Mixed,
-      default: null,
+    aboutTheAuthor: {
+      title: String,
+      name: String,
+      description: String,
+      socialLinks: [
+        {
+          iconImage: String,
+          title: String,
+          link: String,
+        },
+      ],
+    },
+
+    onThisPage: {
+      title: String,
+    },
+
+    downloadMedia: {
+      title: String,
+      image: String,
+      description: String,
+      link: String,
+    },
+
+    seo: {
+      metaTitle: {
+        type: String,
+        default: "",
+      },
+      metaDescription: {
+        type: String,
+        default: "",
+      },
+      metaKeywords: {
+        type: String,
+        default: "",
+      },
+      h1: {
+        type: String,
+        default: "",
+      },
+      canonical: {
+        type: String,
+        default: "",
+      },
+      ogJson: {
+        type: String,
+        default: "",
+      },
+      schema: {
+        type: String,
+        default: "",
+      },
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+
+    isFeatured: {
+      type: Boolean,
+      default: false,
     },
 
     viewCount: {
@@ -90,7 +176,7 @@ const BlogSchema: Schema = new Schema(
     readBy: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'User',
+        ref: "User",
       },
     ],
   },

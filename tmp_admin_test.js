@@ -1,9 +1,9 @@
 (async () => {
   try {
-    const loginRes = await fetch('http://localhost:5000/api/v1/admin/login', {
+    const loginRes = await fetch('http://localhost:5000/api/v1/admin/login/dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'admin@ecommerce.com', password: 'Admin1234' })
+      body: JSON.stringify({ phone: '9876543210' })
     });
     const loginJson = await loginRes.json();
     console.log('LOGIN STATUS', loginRes.status);

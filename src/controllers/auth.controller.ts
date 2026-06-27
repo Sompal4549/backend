@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import { UserModel } from '../models/user.model';
 import { ROLE } from '../constants/roles.constants';
 import { registerUser, refreshAccessToken, logoutUser } from '../services/auth.service';
@@ -7,6 +8,7 @@ import { requestEmailOtp, requestWhatsAppOtp, verifyEmailOtp, verifyWhatsAppOtp 
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
 import { successResponse, errorResponse } from '../utils/api-response';
 import { config } from '../config/app.config';
+import { updateUserRefreshToken } from '../repositories/user.repository';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -17,6 +19,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// Phone number normalize helper (same as otp.service)
+const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
+
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { phone, otp } = req.body;
@@ -25,19 +30,27 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Unified purpose for authentication
-    await verifyWhatsAppOtp(phone, otp, 'login');
+    const normalizedPhone = normalizePhone(phone);
 
-    const user = await UserModel.findOne({ phone });
+    // Verify OTP with 'login' purpose
+    await verifyWhatsAppOtp(normalizedPhone, otp, 'login');
+
+    // DB mein phone kisi bhi format mein ho sakta hai — last 10 digits se match
+    const last10 = normalizedPhone.slice(-10);
+    const phoneRegex = new RegExp(`${last10}$`);
+    const user = await UserModel.findOne({ phone: { $regex: phoneRegex } });
     if (!user) {
       errorResponse(res, 'User not found with this mobile number. Please register.', 404);
       return;
     }
 
-    // Maintain consistency with userId and separate secrets
     const userIdStr = user._id.toString();
     const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
-    const refreshToken = jwt.sign({ userId: userIdStr }, config.jwtRefreshSecret, { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtRefreshSecret, { expiresIn: '7d' });
+
+    // ✅ FIX: refreshToken ko DB mein save karo (bcrypt hash)
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await updateUserRefreshToken(userIdStr, hashedRefreshToken);
 
     setRefreshTokenCookie(res, refreshToken);
     successResponse(res, { user, accessToken }, 'Login successful');
@@ -101,11 +114,22 @@ export const sendWhatsAppOtp = async (req: Request, res: Response): Promise<void
   try {
     const { phone, purpose, message } = req.body;
 
+    // ✅ FIX: Phone normalize karo - OTP service bhi yahi karta hai internally
+    const normalizedPhone = normalizePhone(phone);
     let effectivePurpose = purpose || 'login';
 
-    // Agar admin-login hai, toh role check karo aur purpose 'admin-login' hi rehne do
+    // Agar admin-login hai, toh role check karo with flexible phone matching
     if (purpose === 'admin-login') {
-      const user = await UserModel.findOne({ phone, role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] } });
+      // DB mein phone kisi bhi format mein ho sakta hai (+91xxx, 91xxx, 0xxx)
+      // Last 10 digits se match karte hain — ye India ke liye safest approach hai
+      const last10 = normalizedPhone.slice(-10);
+      const phoneRegex = new RegExp(`${last10}$`);
+
+      const user = await UserModel.findOne({
+        phone: { $regex: phoneRegex },
+        role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] },
+      });
+
       if (!user) {
         errorResponse(res, 'Access denied. You are not an admin or credentials do not match.', 403);
         return;
@@ -113,8 +137,8 @@ export const sendWhatsAppOtp = async (req: Request, res: Response): Promise<void
       effectivePurpose = 'admin-login';
     }
 
-    // Use the effective purpose for the actual OTP generation
-    const result = await requestWhatsAppOtp(phone, effectivePurpose, message);
+    // Normalized phone pass karo OTP service ko
+    const result = await requestWhatsAppOtp(normalizedPhone, effectivePurpose, message);
     successResponse(res, result, 'WhatsApp OTP sent');
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);

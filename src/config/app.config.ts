@@ -27,8 +27,8 @@ export const config = {
   env: getString('NODE_ENV', 'development'),
   port: Number(getString('PORT', '5000')),
   mongoUri: getFirstString(['MONGO_URI_MAIN', 'MONGO_URI'], 'mongodb://localhost:27017/ensis'),
-  jwtAccessSecret: getFirstString(['JWT_SECRET', 'JWT_ACCESS_SECRET'], 'access-secret'),
-  jwtRefreshSecret: getFirstString(['JWT_SECRET', 'JWT_REFRESH_SECRET'], 'refresh-secret'),
+  jwtAccessSecret: getFirstString(['JWT_ACCESS_SECRET', 'JWT_SECRET'], 'access-secret-change-me'),
+  jwtRefreshSecret: getFirstString(['JWT_REFRESH_SECRET'], 'refresh-secret-change-me'),
   accessTokenExpires: getString('ACCESS_TOKEN_EXPIRES', '36500d'),
   refreshTokenExpires: getString('REFRESH_TOKEN_EXPIRES', '36500d'),
   cookieSecure: getBoolean('COOKIE_SECURE', false),
@@ -37,7 +37,10 @@ export const config = {
   uploadDir: getString('UPLOAD_DIR', 'src/uploads'),
   uploadMaxFileSizeBytes: getNumber('UPLOAD_MAX_FILE_SIZE_BYTES', 5 * 1024 * 1024),
   uploadMaxFiles: getNumber('UPLOAD_MAX_FILES', 6),
-  uploadAllowedMimeTypes: getList('UPLOAD_ALLOWED_MIME_TYPES', ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/svg+xml', 'image/gif']),
+uploadAllowedMimeTypes: getList('UPLOAD_ALLOWED_MIME_TYPES', [
+  'image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/svg+xml', 'image/gif',
+  'application/pdf', // ← add karo
+]),
   otpLength: getNumber('OTP_LENGTH', 6),
   otpExpiresMinutes: getNumber('OTP_EXPIRES_MINUTES', 10),
   otpMaxVerifyAttempts: getNumber('OTP_MAX_VERIFY_ATTEMPTS', 10),
