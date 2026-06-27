@@ -27,3 +27,15 @@ export const uploadHandler = (fieldName: string) => (req: Request, res: Response
     errorResponse(res, message, 400);
   });
 };
+
+export const resumeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: config.uploadMaxFileSizeBytes },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype !== 'application/pdf') {
+      cb(new Error('Only PDF files are allowed'));
+      return;
+    }
+    cb(null, true);
+  },
+});

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import { UserModel } from '../models/user.model';
 import { ROLE } from '../constants/roles.constants';
 import { verifyWhatsAppOtp } from '../services/otp.service';
@@ -8,6 +9,10 @@ import { getDashboardData, listUsers, listAllOrders, adminUpdateOrder, adminUpda
 import { logoutUser, registerUserWithRole } from '../services/auth.service';
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
 import { successResponse, errorResponse } from '../utils/api-response';
+import { updateUserRefreshToken } from '../repositories/user.repository';
+
+// Phone normalize helper
+const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
 
 export const adminLogin = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -17,19 +22,31 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Verify OTP specifically for admin login purpose
-    await verifyWhatsAppOtp(phone, otp, 'admin-login');
+    // ✅ FIX: Phone normalize karo
+    const normalizedPhone = normalizePhone(phone);
 
-    const user = await UserModel.findOne({ phone, role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] } });
+    // Verify OTP specifically for admin login purpose (normalized phone)
+    await verifyWhatsAppOtp(normalizedPhone, otp, 'admin-login');
+
+    // DB mein phone kisi bhi format mein ho sakta hai — last 10 digits se match
+    const last10 = normalizedPhone.slice(-10);
+    const phoneRegex = new RegExp(`${last10}$`);
+    const user = await UserModel.findOne({
+      phone: { $regex: phoneRegex },
+      role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] },
+    });
     if (!user) {
       errorResponse(res, 'Access denied. You are not an admin or credentials do not match.', 403);
       return;
     }
 
-    // Ensure payload uses 'userId' and proper secrets for access vs refresh
     const userIdStr = user._id.toString();
     const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
-    const refreshToken = jwt.sign({ userId: userIdStr }, config.jwtRefreshSecret, { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtRefreshSecret, { expiresIn: '7d' });
+
+    // ✅ FIX: refreshToken ko DB mein save karo (bcrypt hash)
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await updateUserRefreshToken(userIdStr, hashedRefreshToken);
 
     setRefreshTokenCookie(res, refreshToken);
     successResponse(res, { user, accessToken }, 'Admin login successful');
@@ -38,6 +55,91 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
+// Development endpoint - bypass OTP for testing
+export const adminLoginDev = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (config.env !== 'development') {
+      errorResponse(res, 'Dev endpoint only available in development mode', 403);
+      return;
+    }
+
+    const { phone } = req.body;
+    if (!phone) {
+      errorResponse(res, 'Phone is required', 400);
+      return;
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    const last10 = normalizedPhone.slice(-10);
+    const phoneRegex = new RegExp(`${last10}$`);
+    
+    const user = await UserModel.findOne({
+      phone: { $regex: phoneRegex },
+      role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] },
+    });
+    
+    if (!user) {
+      errorResponse(res, 'Admin user not found with this phone number', 404);
+      return;
+    }
+
+    const userIdStr = user._id.toString();
+    const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
+    const refreshToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtRefreshSecret, { expiresIn: '7d' });
+
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await updateUserRefreshToken(userIdStr, hashedRefreshToken);
+
+    setRefreshTokenCookie(res, refreshToken);
+    successResponse(res, { user, accessToken }, 'Admin login successful (dev mode)');
+  } catch (error) {
+    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
+  }
+};
+export const deleteUserByAdmin = async (
+  req: Request,
+  res: Response
+) => {
+  const { id } = req.params;
+
+  const user = await UserModel.findByIdAndDelete(id);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'User deleted successfully',
+  });
+};
+export const updateUserByAdmin = async (
+  req: Request,
+  res: Response
+) => {
+  const { id } = req.params;
+
+  const user = await UserModel.findByIdAndUpdate(
+    id,
+    req.body,
+    { new: true }
+  );
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  res.json({
+    success: true,
+    user,
+  });
+};
 export const getEnquiries = async (_req: Request, res: Response): Promise<void> => {
   try {
     const enquiries = await listAllEnquiries();

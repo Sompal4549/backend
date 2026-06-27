@@ -23,7 +23,7 @@ const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    phone: { type: String, trim: true, sparse: true },
+    phone: { type: String, trim: true, sparse: true, set: (v: string) => v ? v.replace(/\D/g, '') : v },
     password: { type: String, select: false },
     role: { type: String, enum: Object.values(ROLE), default: ROLE.USER },
     avatar: { type: String },
