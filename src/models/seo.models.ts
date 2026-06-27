@@ -1,44 +1,39 @@
-// models/seo.model
-
 import { Schema, model } from "mongoose";
 
 const seoSchema = new Schema(
   {
-    pageSlug: {
+    slug: {
       type: String,
       required: true,
       unique: true,
     },
-    title: {
+    pageName: {
       type: String,
       required: true,
     },
-    description: {
-      type: String,
-      required: true,
+    seo: {
+      metaTitle: String,
+      metaDescription: String,
+      metaKeywords: String,
+      canonical: String,
+      ogJson: String,
+      schema: String,
     },
-    keywords: [String],
-    canonicalUrl: String,
-    ogTitle: String,
-    ogDescription: String,
-    ogImage: String,
-
-    // Robots
     robots: {
       type: String,
       default: "index, follow",
     },
+    faqs: [{ question: String, answer: String }],
+    breadcrumbs: [{ label: String, href: String }],
 
-    // Advanced SEO
+    // Advanced SEO — yeh apna rakho as is
     advanced: {
       sitemap: {
         url: String,
         autoGenerate: { type: Boolean, default: true },
         excludePaths: String,
       },
-      robotsTxt: {
-        content: String,
-      },
+      robotsTxt: { content: String },
       searchConsole: {
         googleVerification: String,
         bingVerification: String,
@@ -51,9 +46,7 @@ const seoSchema = new Schema(
       },
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 export default model("Seo", seoSchema);
