@@ -5,7 +5,9 @@ import Seo from "../models/seo.models";
 export const createSeo = (payload: any) => {
   return Seo.create(payload);
 };
-
+export const getAllSeo = () => {
+  return Seo.find();
+};
 export const getSeoBySlug = (slug: string) => {
   return Seo.findOne({ slug });
 };
