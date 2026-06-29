@@ -5,16 +5,16 @@ export interface IEnquiry extends Document {
   mobileNumber: string;
   email: string;
   companyOrganization?: string;
-  state: string;
-  city: string;
-  projectType: string;
-  projectSize: string;
-  budgetRange: string;
-  servicesRequired: string[];
-  timeline: string;
+  state?: string;
+  city?: string;
+  projectType?: string;
+  projectSize?: string;
+  budgetRange?: string;
+  servicesRequired?: string[];
+  timeline?: string;
   message: string;
   attachmentUrl?: string;
-  preferredContact: string;
+  preferredContact?: string;
   agreeToContact: boolean;
   status: 'pending' | 'contacted' | 'resolved' | 'cancelled' | 'closed';
   createdAt: Date;
@@ -27,16 +27,16 @@ const EnquirySchema: Schema = new Schema(
     mobileNumber: { type: String, required: true },
     email: { type: String, required: true },
     companyOrganization: { type: String },
-    state: { type: String, required: true },
-    city: { type: String, required: true },
-    projectType: { type: String, required: true },
-    projectSize: { type: String, required: true },
-    budgetRange: { type: String, required: true },
+    state: { type: String },
+    city: { type: String },
+    projectType: { type: String },
+    projectSize: { type: String },
+    budgetRange: { type: String },
     servicesRequired: [{ type: String }],
-    timeline: { type: String, required: true },
+    timeline: { type: String },
     message: { type: String, required: true },
     attachmentUrl: { type: String },
-    preferredContact: { type: String, required: true },
+    preferredContact: { type: String },
     agreeToContact: { type: Boolean, default: false },
     status: {
       type: String,
