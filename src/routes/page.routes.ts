@@ -7,10 +7,6 @@ import Page from "../models/page.model";
 
 export const pageRouter = Router();
 
-/**
- * Public Route: Get Page SEO and structure by Slug
- * This is used by the frontend to fetch Meta tags and H1 content
- */
 pageRouter.get('/:slug', async (req: Request, res: Response) => {
   try {
     const slug = req.params.slug === 'home' ? '/' : req.params.slug;
@@ -29,27 +25,15 @@ pageRouter.post(
   [
     body('pageName').notEmpty().withMessage('Page name is required'),
     body('slug').notEmpty().withMessage('URL Slug is required'),
-    // SEO Validations
-    body('seo.metaTitle')
-      .isLength({ max: 65 })
-      .withMessage('Meta Title should not exceed 65 characters'),
-    body('seo.metaDescription')
-      .isLength({ max: 155 })
-      .withMessage('Meta Description should not exceed 155 characters'),
+    body('seo.metaTitle').isLength({ max: 65 }).withMessage('Meta Title should not exceed 65 characters'),
+    body('seo.metaDescription').isLength({ max: 155 }).withMessage('Meta Description should not exceed 155 characters'),
     body('seo.metaKeywords').optional().isString(),
-    body('seo.h1').optional({ values: 'falsy' }).isString(),
-    body('seo.canonical').optional().isString().withMessage('Canonical URL can be manual or auto-generated'),
-    body('seo.ogTitle').optional().isString(),
-    body('seo.ogDescription').optional().isString(),
-    body('seo.ogImage').optional({ values: 'falsy' }).isString(),
-    body('seo.schemaMarkup').optional().isString(), // Store JSON-LD as string
-    body('seo.breadcrumbs').optional().isArray(),
-    body('seo.internalLinks').optional().isString(),
-    body('bannerSize').optional().isString().withMessage('Mention banner size (e.g. 1920x600)'),
+    body('seo.canonical').optional().isString(),
+    body('seo.ogJson').optional().isString(),
+    body('seo.schema').optional().isString(),
     body('advanceSeo.headCode').optional().isString(),
     body('advanceSeo.bodyCode').optional().isString(),
     body('robots').optional().isIn(['index, follow', 'noindex, nofollow', 'index, nofollow', 'noindex, follow']),
-    // FAQs for Home/Services
     body('faqs').optional().isArray(),
     body('faqs.*.question').notEmpty(),
     body('faqs.*.answer').notEmpty(),
@@ -65,7 +49,6 @@ pageRouter.post(
   }
 );
 
-// Update Page Settings and SEO
 pageRouter.put(
   '/:pageId',
   [
@@ -75,15 +58,9 @@ pageRouter.put(
     body('seo.metaTitle').optional().isLength({ max: 65 }),
     body('seo.metaDescription').optional().isLength({ max: 155 }),
     body('seo.metaKeywords').optional().isString(),
-    body('seo.h1').optional({ values: 'falsy' }).isString(),
     body('seo.canonical').optional().isString(),
-    body('seo.ogTitle').optional().isString(),
-    body('seo.ogDescription').optional().isString(),
-    body('seo.ogImage').optional({ values: 'falsy' }).isString(),
-    body('seo.schemaMarkup').optional().isString(),
-    body('seo.breadcrumbs').optional().isArray(),
-    body('seo.internalLinks').optional().isString(),
-    body('bannerSize').optional().isString(),
+    body('seo.ogJson').optional().isString(),
+    body('seo.schema').optional().isString(),
     body('advanceSeo.headCode').optional().isString(),
     body('advanceSeo.bodyCode').optional().isString(),
     body('robots').optional().isIn(['index, follow', 'noindex, nofollow', 'index, nofollow', 'noindex, follow']),
@@ -93,8 +70,9 @@ pageRouter.put(
   ],
   validateRequest,
   async (_req: Request, res: Response) => {
+     console.log("PUT BODY:", JSON.stringify(_req.body, null, 2));
     try {
-      const updatedPage = await Page.findByIdAndUpdate(_req.params.pageId, _req.body, { new: true });
+      const updatedPage = await Page.findByIdAndUpdate(_req.params.pageId, { $set: _req.body }, { new: true });
       res.json({ success: true, data: updatedPage, message: "Page settings updated" });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -102,7 +80,6 @@ pageRouter.put(
   }
 );
 
-// Update components inside a specific page
 pageRouter.put(
   '/:pageId/components',
   [
@@ -110,16 +87,14 @@ pageRouter.put(
     body('components').isArray(),
     body('components.*.key').notEmpty(),
     body('components.*.data').isObject(),
-    body('components.*.imageAlt').optional().isString(), // Editable Alt Text
+    body('components.*.imageAlt').optional().isString(),
   ],
   validateRequest,
   async (_req: Request, res: Response) => {
-    // TODO: Implement pageService.updatePageComponents(req.params.pageId, _req.body.components)
     res.json({ success: true, message: "Components updated" });
   }
 );
 
-// 301 Redirect Management
 pageRouter.post(
   '/redirects',
   [
@@ -129,7 +104,6 @@ pageRouter.post(
   ],
   validateRequest,
   async (_req: Request, res: Response) => {
-    // TODO: Implement redirectService.createRedirect(_req.body)
     res.json({ success: true });
   }
 );

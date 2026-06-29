@@ -6,6 +6,8 @@ export interface IBlog extends Document {
   author: string;
   isActive: boolean;
   isFeatured: boolean;
+  isVoiceOfExperts: boolean;
+  isPopular: boolean;
   viewCount: number;
   readBy: Types.ObjectId[];
 
@@ -66,21 +68,9 @@ export interface IBlog extends Document {
 
 const BlogSchema = new Schema<IBlog>(
   {
-    title: {
-      type: String,
-      required: true,
-    },
-
-    slug: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-
-    author: {
-      type: String,
-      required: true,
-    },
+    title: { type: String, required: true },
+    slug: { type: String, required: true, unique: true },
+    author: { type: String, required: true },
 
     banner: {
       title: String,
@@ -98,27 +88,17 @@ const BlogSchema = new Schema<IBlog>(
     },
 
     article: {
-      content: {
-        type: String,
-      },
+      content: { type: String },
     },
 
     aboutTheAuthor: {
       title: String,
       name: String,
       description: String,
-      socialLinks: [
-        {
-          iconImage: String,
-          title: String,
-          link: String,
-        },
-      ],
+      socialLinks: [{ iconImage: String, title: String, link: String }],
     },
 
-    onThisPage: {
-      title: String,
-    },
+    onThisPage: { title: String },
 
     downloadMedia: {
       title: String,
@@ -128,61 +108,25 @@ const BlogSchema = new Schema<IBlog>(
     },
 
     seo: {
-      metaTitle: {
-        type: String,
-        default: "",
-      },
-      metaDescription: {
-        type: String,
-        default: "",
-      },
-      metaKeywords: {
-        type: String,
-        default: "",
-      },
-      h1: {
-        type: String,
-        default: "",
-      },
-      canonical: {
-        type: String,
-        default: "",
-      },
-      ogJson: {
-        type: String,
-        default: "",
-      },
-      schema: {
-        type: String,
-        default: "",
-      },
+      metaTitle: { type: String, default: "" },
+      metaDescription: { type: String, default: "" },
+      metaKeywords: { type: String, default: "" },
+      h1: { type: String, default: "" },
+      canonical: { type: String, default: "" },
+      ogJson: { type: String, default: "" },
+      schema: { type: String, default: "" },
     },
 
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+    isActive: { type: Boolean, default: true },
+    isFeatured: { type: Boolean, default: false },
+    isVoiceOfExperts: { type: Boolean, default: false },
+    isPopular: { type: Boolean, default: false },
 
-    isFeatured: {
-      type: Boolean,
-      default: false,
-    },
+    viewCount: { type: Number, default: 0 },
 
-    viewCount: {
-      type: Number,
-      default: 0,
-    },
-
-    readBy: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    readBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 export const BlogModel = mongoose.model<IBlog>('Blog', BlogSchema);

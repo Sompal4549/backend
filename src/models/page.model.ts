@@ -2,24 +2,19 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPage extends Document {
   pageName: string;
-  slug: string; // The URL path, e.g., '/' for home
+  slug: string;
   seo: {
     metaTitle: string;
     metaDescription: string;
     metaKeywords?: string;
-    h1: string;
     canonical?: string;
-    ogTitle?: string;
-    ogDescription?: string;
-    ogImage?: string;
-    schemaMarkup?: string;
-    breadcrumbs?: any[];
-    internalLinks?: string;
+    ogJson?: string;    // 👈 add
+    schema?: string;    // 👈 add
+    // purane fields hata do ya rakho — but admin inhi 2 ko use karta hai
   };
-  bannerSize?: string;
   advanceSeo?: {
-    headCode?: string; // For GA, GTM, or custom scripts in <head>
-    bodyCode?: string; // For custom scripts after <body>
+    headCode?: string;
+    bodyCode?: string;
   };
   robots?: string;
   faqs?: Array<{ question: string; answer: string }>;
@@ -33,16 +28,10 @@ const PageSchema: Schema = new Schema(
       metaTitle: { type: String, required: true },
       metaDescription: { type: String, required: true },
       metaKeywords: { type: String },
-      h1: { type: String },
       canonical: { type: String },
-      ogTitle: { type: String },
-      ogDescription: { type: String },
-      ogImage: { type: String },
-      schemaMarkup: { type: String },
-      breadcrumbs: { type: [Schema.Types.Mixed] },
-      internalLinks: { type: String },
+      ogJson: { type: String },    // 👈 add
+      schema: { type: String },    // 👈 add
     },
-    bannerSize: { type: String },
     advanceSeo: {
       headCode: { type: String },
       bodyCode: { type: String },
