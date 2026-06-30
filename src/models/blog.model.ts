@@ -10,6 +10,7 @@ export interface IBlog extends Document {
   isPopular: boolean;
   viewCount: number;
   readBy: Types.ObjectId[];
+  category?: string;
 
   banner?: {
     title: string;
@@ -44,7 +45,12 @@ export interface IBlog extends Document {
   onThisPage?: {
     title: string;
   };
-
+ expert?: {
+    image: string;
+    name: string;
+    quote: string;
+    role: string;
+  };
   downloadMedia?: {
     title: string;
     image: string;
@@ -71,7 +77,7 @@ const BlogSchema = new Schema<IBlog>(
     title: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
     author: { type: String, required: true },
-
+category: { type: String, default: "" },
     banner: {
       title: String,
       highlight: String,
@@ -99,7 +105,12 @@ const BlogSchema = new Schema<IBlog>(
     },
 
     onThisPage: { title: String },
-
+ expert: {
+      image: String,
+      name: String,
+      quote: String,
+      role: String,
+    },
     downloadMedia: {
       title: String,
       image: String,
