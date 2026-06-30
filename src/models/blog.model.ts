@@ -11,6 +11,7 @@ export interface IBlog extends Document {
   viewCount: number;
   readBy: Types.ObjectId[];
   category?: string;
+  robots?: string;
 
   banner?: {
     title: string;
@@ -25,6 +26,15 @@ export interface IBlog extends Document {
   blogImage?: {
     image: string;
     alt: string;
+  };
+
+  ctaBanner?: {
+    title: string;
+    lotusImage: string;
+    description: string;
+    buttonText: string;
+    buttonLink: string;
+    bannerImage:string;
   };
 
   article?: {
@@ -45,12 +55,28 @@ export interface IBlog extends Document {
   onThisPage?: {
     title: string;
   };
- expert?: {
+
+  expert?: {
     image: string;
     name: string;
     quote: string;
     role: string;
   };
+
+  newsletter?: {
+    lotusImage: {
+      image: string;
+      alt: string;
+    };
+    title: string;
+    description: string;
+    followText: string;
+    followLinks: {
+      image: string;
+      path: string;
+    }[];
+  };
+
   downloadMedia?: {
     title: string;
     image: string;
@@ -62,7 +88,6 @@ export interface IBlog extends Document {
     metaTitle: string;
     metaDescription: string;
     metaKeywords: string;
-    h1: string;
     canonical: string;
     ogJson: string;
     schema: string;
@@ -77,7 +102,9 @@ const BlogSchema = new Schema<IBlog>(
     title: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
     author: { type: String, required: true },
-category: { type: String, default: "" },
+    category: { type: String, default: "" },
+    robots: { type: String, default: "index, follow" },
+
     banner: {
       title: String,
       highlight: String,
@@ -93,6 +120,15 @@ category: { type: String, default: "" },
       alt: String,
     },
 
+    ctaBanner: {
+      title: String,
+      lotusImage: String,
+      description: String,
+      buttonText: String,
+      buttonLink: String,
+      bannerImage: String,
+    },
+
     article: {
       content: { type: String },
     },
@@ -105,12 +141,25 @@ category: { type: String, default: "" },
     },
 
     onThisPage: { title: String },
- expert: {
+
+    expert: {
       image: String,
       name: String,
       quote: String,
       role: String,
     },
+
+    newsletter: {
+      lotusImage: {
+        image: String,
+        alt: String,
+      },
+      title: String,
+      description: String,
+      followText: String,
+      followLinks: [{ image: String, path: String }],
+    },
+
     downloadMedia: {
       title: String,
       image: String,
@@ -122,7 +171,6 @@ category: { type: String, default: "" },
       metaTitle: { type: String, default: "" },
       metaDescription: { type: String, default: "" },
       metaKeywords: { type: String, default: "" },
-      h1: { type: String, default: "" },
       canonical: { type: String, default: "" },
       ogJson: { type: String, default: "" },
       schema: { type: String, default: "" },
