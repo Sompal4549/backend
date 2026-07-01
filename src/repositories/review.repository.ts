@@ -25,6 +25,33 @@ export const getReviewsForProduct = async (productId: string) => {
   return ReviewModel.find({ product: productId }).populate('user');
 };
 
+// New function: fetch paginated reviews with optional rating filter
+export const getPaginatedReviewsForProduct = async (
+  productId: string,
+  page: number = 1,
+  limit: number = 50,
+  rating?: number
+) => {
+  const query: any = { product: productId };
+  if (rating !== undefined) {
+    query.rating = rating;
+  }
+  const skip = (page - 1) * limit;
+  return ReviewModel.find(query)
+    .populate('user')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+};
+
+// Count total reviews for a product (optional rating filter)
+export const countReviewsForProduct = async (productId: string, rating?: number) => {
+  const query: any = { product: productId };
+  if (rating !== undefined) {
+    query.rating = rating;
+  }
+  return ReviewModel.countDocuments(query);
+};
 export const calculateProductRating = async (productId: string) => {
   return ReviewModel.aggregate([
     { $match: { product: new Types.ObjectId(productId) } },
