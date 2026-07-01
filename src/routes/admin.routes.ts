@@ -5,6 +5,7 @@ import { adminMiddleware } from '../middlewares/admin.middleware';
 import { superAdminMiddleware } from '../middlewares/superadmin.middleware';
 import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
+import { createReview } from '../controllers/review.controller';
 
 export const adminRouter = Router();
 
@@ -31,6 +32,17 @@ adminRouter.post(
 adminRouter.post('/logout', adminLogout);
 
 adminRouter.use(authMiddleware, adminMiddleware);
+
+// Admin and SuperAdmin can add reviews for products
+adminRouter.post(
+  '/reviews/:productId',
+  [
+    body('rating').isInt({ min: 1, max: 5 }).withMessage('Rating must be 1-5'),
+    body('comment').notEmpty().withMessage('Comment is required')
+  ],
+  validateRequest,
+  createReview
+);
 
 adminRouter.get('/dashboard', getDashboard);
 

@@ -17,7 +17,10 @@ export const createReview = async (req: AuthRequest, res: Response): Promise<voi
 export const getReviews = async (req: Request, res: Response): Promise<void> => {
   try {
     const { productId } = req.params;
-    const result = await getProductReviews(productId);
+const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
+const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+const rating = req.query.rating ? parseInt(req.query.rating as string, 10) : undefined;
+const result = await getProductReviews(productId, page, limit, rating);
 
     // Optional user authentication to determine which review is "mine"
     let currentUserId: string | null = null;
@@ -32,7 +35,16 @@ export const getReviews = async (req: Request, res: Response): Promise<void> => 
       }
     }
 
-    const reviewsWithMine = result.reviews.map((rev) => ({
+    type ReviewResponseItem = {
+      _id: string;
+      user: string;
+      userId: string;
+      rating: number;
+      comment: string;
+      createdAt: string | Date;
+    };
+
+    const reviewsWithMine = (result.reviews as ReviewResponseItem[]).map((rev) => ({
       ...rev,
       isMine: currentUserId ? rev.userId === currentUserId : false,
     }));
@@ -41,6 +53,7 @@ export const getReviews = async (req: Request, res: Response): Promise<void> => 
       success: true,
       averageRating: result.averageRating,
       reviews: reviewsWithMine,
+      ...(result.pagination && { pagination: result.pagination })
     });
   } catch (error) {
     res.status((error as any).statusCode || 500).json({
