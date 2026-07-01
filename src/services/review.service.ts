@@ -12,6 +12,7 @@ import {
 import { updateProductById } from '../repositories/product.repository';
 import { IReview } from '../models/review.model';
 import { Types } from 'mongoose';
+import { UserModel } from '../models/user.model';
 
 export const addReview = async (userId: string, productId: string, payload: Partial<IReview>) => {
   const existing = await findReviewByUserAndProduct(userId, productId);
@@ -21,6 +22,27 @@ export const addReview = async (userId: string, productId: string, payload: Part
     throw error;
   }
   const review = await createReview({ user: new Types.ObjectId(userId), product: new Types.ObjectId(productId), ...payload });
+  await recalculateRating(productId);
+  return review;
+};
+
+export const addReviewForCustomer = async (productId: string, customerId: string, payload: Partial<IReview>) => {
+  const customer = await UserModel.findById(customerId);
+  if (!customer) {
+    const error = new Error('Target customer not found');
+    (error as any).statusCode = 404;
+    throw error;
+  }
+
+  const existing = await findReviewByUserAndProduct(customerId, productId);
+  if (existing) {
+    const error = new Error('This customer has already reviewed the product');
+    (error as any).statusCode = 409;
+    throw error;
+  }
+
+  const { userId, ...reviewPayload } = payload as any;
+  const review = await createReview({ user: new Types.ObjectId(customerId), product: new Types.ObjectId(productId), ...reviewPayload });
   await recalculateRating(productId);
   return review;
 };

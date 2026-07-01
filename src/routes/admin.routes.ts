@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { adminLogin, adminLoginDev, adminLogout, getDashboard, getUsers, getAllOrders, updateOrder, createUserByAdmin, changeUserRole, getEnquiries, updateEnquiry, updateUserByAdmin, deleteUserByAdmin } from '../controllers/admin.controller';
+import { createReviewForCustomer } from '../controllers/review.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
 import { superAdminMiddleware } from '../middlewares/superadmin.middleware';
 import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
-import { createReview } from '../controllers/review.controller';
 
 export const adminRouter = Router();
 
@@ -37,11 +37,12 @@ adminRouter.use(authMiddleware, adminMiddleware);
 adminRouter.post(
   '/reviews/:productId',
   [
+    body('customerId').isMongoId().withMessage('Valid customer ID is required'),
     body('rating').isInt({ min: 1, max: 5 }).withMessage('Rating must be 1-5'),
     body('comment').notEmpty().withMessage('Comment is required')
   ],
   validateRequest,
-  createReview
+  createReviewForCustomer
 );
 
 adminRouter.get('/dashboard', getDashboard);

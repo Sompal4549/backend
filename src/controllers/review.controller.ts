@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { addReview, editReview, removeReview, getProductReviews } from '../services/review.service';
+import { addReview, addReviewForCustomer, editReview, removeReview, getProductReviews } from '../services/review.service';
 import { successResponse, errorResponse } from '../utils/api-response';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import jwt from 'jsonwebtoken';
@@ -7,8 +7,19 @@ import { config } from '../config/app.config';
 
 export const createReview = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Admin route: create review for current admin user
     const review = await addReview(req.user!.id, req.params.productId, req.body);
     successResponse(res, review, 'Review added', 201);
+  } catch (error) {
+    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
+  }
+};
+
+export const createReviewForCustomer = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { customerId } = req.body;
+    const review = await addReviewForCustomer(req.params.productId, customerId, req.body);
+    successResponse(res, review, 'Review added for customer', 201);
   } catch (error) {
     errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
   }
