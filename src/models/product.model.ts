@@ -36,6 +36,7 @@ export interface IProduct extends Document {
       title?: string;
       keyFeaturesList?: string[];
     };
+    idealFor?: string;
     dimensions?: { title: string; dimensionsList: { title: string; description: string }[] };
     materialAndCare?: { title: string; description: string };
     productSpecifications?: { highlight: string; title: string; image: string; specifications: { title: string; description: string }[] }[];
@@ -129,6 +130,8 @@ const productSchema = new Schema<IProduct>(
         },
         { _id: false }
       ),
+
+      idealFor: String,
 
       dimensions: new Schema(
         {
