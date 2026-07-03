@@ -41,9 +41,13 @@ export const createApp = () => {
   app.use(morgan('tiny'));
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10000, // Increased limit to 10000 to prevent 429 errors during development
+    max: config.env === 'development' ? 100000 : 10000,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => {
+      const ip = req.ip || '';
+      return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+    },
   });
 
   app.set('trust proxy', 1);
