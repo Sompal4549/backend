@@ -13,6 +13,7 @@ const blogs = [
     slug: "benefits-of-regular-sauna-therapy",
     author: "Dr. Ananya Rao",
     category: "Wellness",
+    isActive: true,
     isFeatured: true,
     isVoiceOfExperts: false,
     isPopular: true,
@@ -82,6 +83,7 @@ const blogs = [
     slug: "steam-room-vs-sauna",
     author: "Rohan Malhotra",
     category: "Guides",
+    isActive: true,
     isFeatured: false,
     isVoiceOfExperts: false,
     isPopular: true,
@@ -139,6 +141,7 @@ const blogs = [
     slug: "science-behind-cold-plunge-therapy",
     author: "Dr. Neha Kapoor",
     category: "Voice of Experts",
+    isActive: true,
     isFeatured: true,
     isVoiceOfExperts: true,
     isPopular: false,
@@ -194,6 +197,7 @@ const blogs = [
     slug: "design-home-wellness-room-on-any-budget",
     author: "Priya Sharma",
     category: "Design",
+    isActive: true,
     isFeatured: false,
     isVoiceOfExperts: false,
     isPopular: false,
@@ -257,6 +261,7 @@ const blogs = [
     slug: "infrared-vs-traditional-saunas",
     author: "Rohan Malhotra",
     category: "Guides",
+    isActive: true,
     isFeatured: false,
     isVoiceOfExperts: false,
     isPopular: true,
@@ -306,6 +311,7 @@ const blogs = [
     slug: "hydrotherapy-101-healing-power-of-water",
     author: "Dr. Ananya Rao",
     category: "Wellness",
+    isActive: true,
     isFeatured: false,
     isVoiceOfExperts: true,
     isPopular: false,
@@ -361,6 +367,7 @@ const blogs = [
     slug: "top-spa-trends-2026",
     author: "Priya Sharma",
     category: "Trends",
+    isActive: true,
     isFeatured: true,
     isVoiceOfExperts: false,
     isPopular: true,
@@ -418,6 +425,7 @@ const blogs = [
     slug: "why-manufacturing-quality-matters",
     author: "Vikram Singh",
     category: "Industry Insights",
+    isActive: true,
     isFeatured: false,
     isVoiceOfExperts: true,
     isPopular: false,
@@ -473,6 +481,7 @@ const blogs = [
     slug: "beginners-guide-building-commercial-spa",
     author: "Rohan Malhotra",
     category: "Guides",
+    isActive: true,
     isFeatured: false,
     isVoiceOfExperts: false,
     isPopular: false,
@@ -536,6 +545,7 @@ const blogs = [
     slug: "mental-health-benefits-of-spa-rituals",
     author: "Dr. Neha Kapoor",
     category: "Wellness",
+    isActive: true,
     isFeatured: false,
     isVoiceOfExperts: true,
     isPopular: true,
@@ -597,7 +607,7 @@ async function seedBlogs() {
       await BlogModel.findOneAndUpdate(
         { slug: blog.slug },
         { $set: blog },
-        { upsert: true, new: true }
+        { upsert: true, new: true, setDefaultsOnInsert: true }
       );
       console.log(`✅ Seeded: ${blog.title}`);
     }
