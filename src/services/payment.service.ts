@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error';
 import crypto from 'crypto';
 import { Types } from 'mongoose';
 import { getRazorpayInstance } from '../config/razorpay.config';
@@ -42,21 +43,15 @@ export const createRazorpayOrder = async (userId: string, orderId: string) => {
   const order = await OrderModel.findById(toObjectId(orderId));
 
   if (!order) {
-    const error = new Error('Order not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Order not found');
   }
 
   if (toObjectId(order.user).toString() !== toObjectId(userId).toString()) {
-    const error = new Error('Unauthorized');
-    (error as any).statusCode = 403;
-    throw error;
+    throw new AppError(403, 'Unauthorized');
   }
 
   if (order.paymentStatus === 'paid') {
-    const error = new Error('Order is already paid');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'Order is already paid');
   }
 
   const razorpay = getRazorpayInstance();
@@ -116,18 +111,14 @@ export const verifyPayment = async (
     .digest('hex');
 
   if (expectedSignature !== razorpaySignature) {
-    const error = new Error('Payment verification failed: invalid signature');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'Payment verification failed: invalid signature');
   }
 
   // Step 2: Find and update the transaction
   const transaction = await findTransactionByRazorpayOrderId(razorpayOrderId);
 
   if (!transaction) {
-    const error = new Error('Transaction not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Transaction not found');
   }
 
   if (transaction.status === 'paid') {
@@ -177,9 +168,7 @@ export const verifyPayment = async (
  */
 export const handleWebhook = async (rawBody: string, webhookSignature: string) => {
   if (!config.razorpayWebhookSecret) {
-    const error = new Error('Webhook secret not configured');
-    (error as any).statusCode = 500;
-    throw error;
+    throw new AppError(500, 'Webhook secret not configured');
   }
 
   // Verify webhook signature
@@ -189,9 +178,7 @@ export const handleWebhook = async (rawBody: string, webhookSignature: string) =
     .digest('hex');
 
   if (expectedSignature !== webhookSignature) {
-    const error = new Error('Invalid webhook signature');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'Invalid webhook signature');
   }
 
   const event = JSON.parse(rawBody);
@@ -259,15 +246,11 @@ export const getPaymentStatus = async (userId: string, orderId: string) => {
   const order = await OrderModel.findById(orderId);
 
   if (!order) {
-    const error = new Error('Order not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Order not found');
   }
 
   if (order.user.toString() !== userId) {
-    const error = new Error('Unauthorized');
-    (error as any).statusCode = 403;
-    throw error;
+    throw new AppError(403, 'Unauthorized');
   }
 
   const transactions = await findTransactionsByOrder(orderId);

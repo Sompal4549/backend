@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { createOrder, getMyOrders, getOrderById, updateOrderByUser } from '../controllers/order.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { body, param } from 'express-validator';
@@ -30,15 +30,18 @@ orderRouter.get('/', authMiddleware, getMyOrders);
 orderRouter.get('/my-orders', authMiddleware, getMyOrders);
 orderRouter.get('/:id', authMiddleware, [param('id').isMongoId().withMessage('Valid order id is required')], validateRequest, getOrderById);
 
-// Allow user to update their own order status (limited actions, e.g., cancel)
+// Allow users to cancel their own order; admins may update any order's status.
 orderRouter.put(
   '/:id',
   authMiddleware,
   [
     param('id').isMongoId().withMessage('Valid order id is required'),
-    body('orderStatus').notEmpty().isIn(['cancelled']).withMessage('Invalid order status for user updates'),
+    body('orderStatus')
+      .optional()
+      .isIn(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'])
+      .withMessage('Invalid order status'),
+    body('paymentStatus').optional().isIn(['pending', 'paid', 'failed']).withMessage('Invalid payment status'),
   ],
   validateRequest,
-  // Controller handler
-  (req: Request, res: Response, next: NextFunction) => updateOrderByUser(req, res).catch(next)
+  updateOrderByUser
 );

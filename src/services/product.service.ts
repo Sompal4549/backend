@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error';
 import { createProduct, getActiveProductByIdOrSlug, updateProductById, deleteProductById, getProducts, countProducts, searchProducts } from '../repositories/product.repository';
 import { getPagination } from '../utils/pagination';
 import { IProduct } from '../models/product.model';
@@ -20,9 +21,7 @@ export const listProducts = async (query: any) => {
 export const getProduct = async (productId: string) => {
   const product = await getActiveProductByIdOrSlug(productId);
   if (!product) {
-    const error = new Error('Product not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Product not found');
   }
   return product;
 };
@@ -34,9 +33,7 @@ export const createNewProduct = async (payload: Partial<IProduct>) => {
 export const updateProduct = async (productId: string, payload: Partial<IProduct>) => {
   const product = await updateProductById(productId, payload);
   if (!product) {
-    const error = new Error('Product not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Product not found');
   }
   return product;
 };
@@ -44,9 +41,7 @@ export const updateProduct = async (productId: string, payload: Partial<IProduct
 export const removeProduct = async (productId: string) => {
   const product = await deleteProductById(productId);
   if (!product) {
-    const error = new Error('Product not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Product not found');
   }
   return product;
 };

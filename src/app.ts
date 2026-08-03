@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { config } from './config/app.config';
+import './plugins/activity-log.plugin';
 import { authRouter } from './routes/auth.routes';
 import { productRouter } from './routes/product.routes';
 import { wishlistRouter } from './routes/wishlist.routes';
@@ -34,6 +35,7 @@ import swaggerUi from 'swagger-ui-express';
 import seoRoutes from "./routes/seo.routes";
 import { socialRouter } from './routes/sociallink.routes';
 import { applicationRouter } from './routes/application.routes';
+import { activityLogRouter } from './routes/activity-log.routes';
 
 export const createApp = () => {
   const app = express();
@@ -148,6 +150,7 @@ export const createApp = () => {
   app.use('/api/v1/pages', pageRouter);
 app.use("/api/v1/social-clicks",socialRouter );
 app.use("/api/v1/applications", applicationRouter);
+app.use('/api/v1/activity-logs', activityLogRouter);
 
 
   app.get('/health', (_req, res) => {

@@ -1,11 +1,10 @@
+import { AppError } from '../utils/app-error';
 import { getUserById, updateUserProfile } from '../repositories/profile.repository';
 
 export const getProfile = async (userId: string) => {
   const user = await getUserById(userId);
   if (!user) {
-    const error = new Error('User not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'User not found');
   }
   return user;
 };

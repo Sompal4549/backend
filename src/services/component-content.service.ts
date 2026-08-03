@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error';
 import { ComponentContentModel, IComponentContent } from '../models/component-content.model';
 
 const HOME_COMPONENT_KEYS = [
@@ -7,15 +8,11 @@ const HOME_COMPONENT_KEYS = [
 
 const ensureHomeComponentPayload = (payload: Partial<IComponentContent>) => {
   if (payload.page && payload.page !== 'home') {
-    const error = new Error('Home component content must use page "home"');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'Home component content must use page "home"');
   }
 
   if (payload.key && !HOME_COMPONENT_KEYS.includes(payload.key as (typeof HOME_COMPONENT_KEYS)[number])) {
-    const error = new Error('Unsupported home component key');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'Unsupported home component key');
   }
 };
 
@@ -29,9 +26,7 @@ export const listComponentContent = async (query: { page?: string; includeInacti
 export const getComponentContentByKey = async (key: string) => {
   const content = await ComponentContentModel.findOne({ key });
   if (!content) {
-    const error = new Error('Component content not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Component content not found');
   }
   return content;
 };
@@ -47,9 +42,7 @@ export const upsertComponentContent = async (payload: Partial<IComponentContent>
 export const updateComponentContent = async (id: string, payload: Partial<IComponentContent>) => {
   const content = await ComponentContentModel.findByIdAndUpdate(id, payload, { new: true, runValidators: true });
   if (!content) {
-    const error = new Error('Component content not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Component content not found');
   }
   return content;
 };
@@ -57,9 +50,7 @@ export const updateComponentContent = async (id: string, payload: Partial<ICompo
 export const deleteComponentContent = async (id: string) => {
   const content = await ComponentContentModel.findByIdAndDelete(id);
   if (!content) {
-    const error = new Error('Component content not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Component content not found');
   }
   return content;
 };
@@ -75,16 +66,12 @@ export const listHomeComponentContent = async (query: { includeInactive?: string
 
 export const getHomeComponentContentByKey = async (key: string) => {
   if (!HOME_COMPONENT_KEYS.includes(key as (typeof HOME_COMPONENT_KEYS)[number])) {
-    const error = new Error('Unsupported home component key');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'Unsupported home component key');
   }
 
   const content = await ComponentContentModel.findOne({ key, page: 'home' });
   if (!content) {
-    const error = new Error('Home component content not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Home component content not found');
   }
   return content;
 };
@@ -106,9 +93,7 @@ export const updateHomeComponentContent = async (id: string, payload: Partial<IC
     { new: true, runValidators: true }
   );
   if (!content) {
-    const error = new Error('Home component content not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Home component content not found');
   }
   return content;
 };
@@ -120,9 +105,7 @@ export const deleteHomeComponentContent = async (id: string) => {
     key: { $in: HOME_COMPONENT_KEYS },
   });
   if (!content) {
-    const error = new Error('Home component content not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Home component content not found');
   }
   return content;
 };

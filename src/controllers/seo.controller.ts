@@ -2,35 +2,27 @@
 
 import { Request, Response } from "express";
 import * as seoService from "../services/seo.service";
+import { asyncHandler } from "../utils/async-handler";
 
-export const createSeo = async (
-  req: Request,
-  res: Response
-) => {
+export const createSeo = asyncHandler(async (req: Request, res: Response) => {
   const seo = await seoService.createSeo(req.body);
 
   res.status(201).json({
     success: true,
     data: seo,
   });
-};
+});
 
-export const getAllSeo = async (
-  _req: Request,
-  res: Response
-) => {
+export const getAllSeo = asyncHandler(async (_req: Request, res: Response) => {
   const seo = await seoService.getAllSeo();
 
   res.json({
     success: true,
     data: seo,
   });
-};
+});
 
-export const getSeoBySlug = async (
-  req: Request,
-  res: Response
-) => {
+export const getSeoBySlug = asyncHandler(async (req: Request, res: Response) => {
   const seo = await seoService.getSeoBySlug(
     req.params.slug
   );
@@ -39,12 +31,9 @@ export const getSeoBySlug = async (
     success: true,
     data: seo,
   });
-};
+});
 
-export const updateSeo = async (
-  req: Request,
-  res: Response
-) => {
+export const updateSeo = asyncHandler(async (req: Request, res: Response) => {
   const seo = await seoService.updateSeo(
     req.params.id,
     req.body
@@ -54,25 +43,22 @@ export const updateSeo = async (
     success: true,
     data: seo,
   });
-};
+});
 
-export const deleteSeo = async (
-  req: Request,
-  res: Response
-) => {
+export const deleteSeo = asyncHandler(async (req: Request, res: Response) => {
   await seoService.deleteSeo(req.params.id);
 
   res.json({
     success: true,
   });
-};
+});
 
-export const getAdvancedSeo = async (_req: Request, res: Response) => {
+export const getAdvancedSeo = asyncHandler(async (_req: Request, res: Response) => {
   const seo = await seoService.getSeoBySlug("advanced-seo");
   res.json({ success: true, data: seo?.advanced || null });
-};
+});
 
-export const upsertAdvancedSeo = async (req: Request, res: Response) => {
+export const upsertAdvancedSeo = asyncHandler(async (req: Request, res: Response) => {
   const { sitemap, robots, searchConsole, analytics } = req.body;
   const seo = await seoService.upsertSeoBySlug("advanced-seo", {
     "advanced.sitemap": sitemap,
@@ -83,4 +69,4 @@ export const upsertAdvancedSeo = async (req: Request, res: Response) => {
     description: "Advanced SEO Settings",
   });
   res.json({ success: true, data: seo });
-};
+});

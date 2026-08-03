@@ -1,21 +1,14 @@
 import { Request, Response } from 'express';
 import { getNavigation, updateNavigation } from '../services/navigation.service';
-import { errorResponse, successResponse } from '../utils/api-response';
+import { successResponse } from '../utils/api-response';
+import { asyncHandler } from '../utils/async-handler';
 
-export const getNavigationContent = async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const navigation = await getNavigation();
-    successResponse(res, navigation);
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
-  }
-};
+export const getNavigationContent = asyncHandler(async (_req: Request, res: Response) => {
+  const navigation = await getNavigation();
+  successResponse(res, navigation);
+});
 
-export const saveNavigationContent = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const navigation = await updateNavigation(req.body);
-    successResponse(res, navigation);
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
-  }
-};
+export const saveNavigationContent = asyncHandler(async (req: Request, res: Response) => {
+  const navigation = await updateNavigation(req.body);
+  successResponse(res, navigation);
+});

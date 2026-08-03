@@ -4,6 +4,7 @@ import { createAccessToken, createRefreshToken, verifyRefreshToken } from '../ut
 import { setRefreshTokenCookie, clearRefreshTokenCookie } from '../helpers/cookie.helper';
 import bcrypt from 'bcrypt';
 import { ROLE } from '../constants/roles.constants';
+import { AppError } from '../utils/app-error';
 
 export const toAuthUser = (user: any) => {
   const plain = typeof user.toObject === 'function' ? user.toObject() : user;
@@ -16,9 +17,7 @@ export const registerUser = async (userData: Partial<IUser>) => {
   const { email } = userData;
   const existingEmail = await findUserByEmail(email as string);
   if (existingEmail) {
-    const error = new Error('Email already registered');
-    (error as any).statusCode = 409;
-    throw error;
+    throw new AppError(409, 'Email already registered');
   }
 
   const user = await createUser({ ...userData, role: ROLE.USER });
@@ -29,9 +28,7 @@ export const registerUserWithRole = async (userData: Partial<IUser>) => {
   const { email } = userData;
   const existingEmail = await findUserByEmail(email as string);
   if (existingEmail) {
-    const error = new Error('Email already registered');
-    (error as any).statusCode = 409;
-    throw error;
+    throw new AppError(409, 'Email already registered');
   }
 
   const user = await createUser(userData);
@@ -44,9 +41,7 @@ export const refreshAccessToken = async (refreshToken: string, res: any) => {
     const user = await findUserById(payload.userId);
     const isValidStoredToken = user?.refreshToken ? await bcrypt.compare(refreshToken, user.refreshToken) : false;
     if (!user || !isValidStoredToken) {
-      const error = new Error('Invalid refresh token');
-      (error as any).statusCode = 401;
-      throw error;
+      throw new AppError(401, 'Invalid refresh token');
     }
     const accessToken = createAccessToken({ userId: user.id, role: user.role });
     const newRefreshToken = createRefreshToken({ userId: user.id, role: user.role });
@@ -54,9 +49,7 @@ export const refreshAccessToken = async (refreshToken: string, res: any) => {
     setRefreshTokenCookie(res, newRefreshToken);
     return accessToken;
   } catch {
-    const error = new Error('Refresh token failed');
-    (error as any).statusCode = 401;
-    throw error;
+    throw new AppError(401, 'Refresh token failed');
   }
 };
 

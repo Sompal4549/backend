@@ -4,6 +4,7 @@ import { UserModel } from '../models/user.model';
 import { config } from '../config/app.config';
 import { errorResponse } from '../utils/api-response';
 import { UserDocument } from '../models/user.model';
+import { runWithActivityContext } from '../utils/activity-context';
 
 export interface AuthRequest extends Request {
   user?: UserDocument;
@@ -25,7 +26,14 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
       return;
     }
     req.user = user;
-    next();
+    runWithActivityContext(
+      {
+        userId: String(user._id),
+        userName: user.name,
+        userRole: user.role,
+      },
+      next
+    );
   } catch {
     errorResponse(res, 'Invalid or expired token', 401);
   }

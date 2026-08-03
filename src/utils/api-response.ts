@@ -7,9 +7,10 @@ export const successResponse = <T>(res: Response, data: T, _message = 'Success',
   });
 };
 
-export const errorResponse = (res: Response, message = 'Error', status = 500, _errors: unknown = null) => {
+export const errorResponse = (res: Response, message = 'Error', status = 500, details: unknown = null) => {
   return res.status(status).json({
     status: 'error',
     message,
+    ...(details !== null && details !== undefined ? { details } : {}),
   });
 };
