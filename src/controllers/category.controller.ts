@@ -1,39 +1,24 @@
 import { Request, Response } from 'express';
-import { successResponse, errorResponse } from '../utils/api-response';
+import { successResponse } from '../utils/api-response';
+import { asyncHandler } from '../utils/async-handler';
 import { createCategory, deleteCategory, listCategories, updateCategory } from '../services/category.service';
 
-export const getCategories = async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const categories = await listCategories();
-    successResponse(res, categories, 'Categories retrieved');
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
-  }
-};
+export const getCategories = asyncHandler(async (_req: Request, res: Response) => {
+  const categories = await listCategories();
+  successResponse(res, categories, 'Categories retrieved');
+});
 
-export const addCategory = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const category = await createCategory(req.body);
-    successResponse(res, category, 'Category created', 201);
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
-  }
-};
+export const addCategory = asyncHandler(async (req: Request, res: Response) => {
+  const category = await createCategory(req.body);
+  successResponse(res, category, 'Category created', 201);
+});
 
-export const editCategory = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const category = await updateCategory(req.params.id, req.body);
-    successResponse(res, category, 'Category updated');
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
-  }
-};
+export const editCategory = asyncHandler(async (req: Request, res: Response) => {
+  const category = await updateCategory(req.params.id, req.body);
+  successResponse(res, category, 'Category updated');
+});
 
-export const removeCategory = async (req: Request, res: Response): Promise<void> => {
-  try {
-    await deleteCategory(req.params.id);
-    successResponse(res, null, 'Category deleted');
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
-  }
-};
+export const removeCategory = asyncHandler(async (req: Request, res: Response) => {
+  await deleteCategory(req.params.id);
+  successResponse(res, null, 'Category deleted');
+});

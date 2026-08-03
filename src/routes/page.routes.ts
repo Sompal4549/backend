@@ -3,20 +3,18 @@ import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
+import { asyncHandler } from '../utils/async-handler';
+import { AppError } from '../utils/app-error';
 import Page from "../models/page.model";
 
 export const pageRouter = Router();
 
-pageRouter.get('/:slug', async (req: Request, res: Response) => {
-  try {
-    const slug = req.params.slug === 'home' ? '/' : req.params.slug;
-    const page = await Page.findOne({ slug });
-    if (!page) return res.status(404).json({ success: false, message: "Page not found" });
-    res.json({ success: true, data: page });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Error fetching page data" });
-  }
-});
+pageRouter.get('/:slug', asyncHandler(async (req: Request, res: Response) => {
+  const slug = req.params.slug === 'home' ? '/' : req.params.slug;
+  const page = await Page.findOne({ slug });
+  if (!page) throw new AppError(404, 'Page not found');
+  res.json({ success: true, data: page });
+}));
 
 pageRouter.use(authMiddleware, adminMiddleware);
 
@@ -39,14 +37,10 @@ pageRouter.post(
     body('faqs.*.answer').notEmpty(),
   ],
   validateRequest,
-  async (_req: Request, res: Response) => {
-    try {
-      const newPage = await Page.create(_req.body);
-      res.json({ success: true, data: newPage, message: "Page created with SEO controls" });
-    } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message || "Internal server error" });
-    }
-  }
+  asyncHandler(async (req: Request, res: Response) => {
+    const newPage = await Page.create(req.body);
+    res.json({ success: true, data: newPage, message: "Page created with SEO controls" });
+  })
 );
 
 pageRouter.put(
@@ -69,15 +63,10 @@ pageRouter.put(
     body('faqs.*.answer').notEmpty(),
   ],
   validateRequest,
-  async (_req: Request, res: Response) => {
-     console.log("PUT BODY:", JSON.stringify(_req.body, null, 2));
-    try {
-      const updatedPage = await Page.findByIdAndUpdate(_req.params.pageId, { $set: _req.body }, { new: true });
-      res.json({ success: true, data: updatedPage, message: "Page settings updated" });
-    } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message });
-    }
-  }
+  asyncHandler(async (req: Request, res: Response) => {
+    const updatedPage = await Page.findByIdAndUpdate(req.params.pageId, { $set: req.body }, { new: true });
+    res.json({ success: true, data: updatedPage, message: "Page settings updated" });
+  })
 );
 
 pageRouter.put(

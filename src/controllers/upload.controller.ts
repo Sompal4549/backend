@@ -1,54 +1,38 @@
 import { Request, Response } from 'express';
 import sharp from 'sharp';
-import { errorResponse, successResponse } from '../utils/api-response';
+import { successResponse } from '../utils/api-response';
+import { asyncHandler } from '../utils/async-handler';
+import { AppError } from '../utils/app-error';
 import { uploadImage } from '../helpers/image.helper';
 
-export const uploadFile = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const file = req.file;
+export const uploadFile = asyncHandler(async (req: Request, res: Response) => {
+  const file = req.file;
 
-    if (!file) {
-      errorResponse(res, 'No file uploaded', 400);
-      return;
-    }
-
-    const subDir = req.body.subDir || '';
-
-    // Convert image to webp
-    const webpBuffer = await sharp(file.buffer)
-      .webp({ quality: 80 })
-      .toBuffer();
-
-    const result = await uploadImage(webpBuffer, subDir);
-
-    successResponse(
-      res,
-      { url: result.url },
-      'File uploaded',
-      201
-    );
-  } catch (error) {
-    errorResponse(
-      res,
-      (error as Error).message,
-      (error as any).statusCode || 500
-    );
+  if (!file) {
+    throw new AppError(400, 'No file uploaded');
   }
-};
 
+  const subDir = req.body.subDir || '';
 
-/**
- * Fetch all images from the uploads directory or a specific subdirectory.
- * Example: GET /api/v1/uploads/list?subDir=about
- */
+  // Convert image to webp
+  const webpBuffer = await sharp(file.buffer)
+    .webp({ quality: 80 })
+    .toBuffer();
+
+  const result = await uploadImage(webpBuffer, subDir);
+
+  successResponse(
+    res,
+    { url: result.url },
+    'File uploaded',
+    201
+  );
+});
+
 /**
  * Listing files from Cloudinary is not supported via simple filesystem calls.
- * It requires using the Cloudinary Search API or Admin API.
  * For a production app, it's recommended to store uploaded image metadata in your database.
  */
-export const listFiles = async (_req: Request, res: Response): Promise<void> => {
-  errorResponse(res, 'Listing files is not supported with Cloudinary integration without DB tracking.', 501);
-};
+export const listFiles = asyncHandler(async (_req: Request, _res: Response) => {
+  throw new AppError(501, 'Listing files is not supported with Cloudinary integration without DB tracking.');
+});

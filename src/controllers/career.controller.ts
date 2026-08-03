@@ -1,51 +1,32 @@
 import { Request, Response } from 'express';
 import { CareerModel } from '../models/career.model';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { successResponse, errorResponse } from '../utils/api-response';
+import { successResponse } from '../utils/api-response';
+import { asyncHandler } from '../utils/async-handler';
+import { AppError } from '../utils/app-error';
 
-export const getCareers = async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const careers = await CareerModel.find().sort({ createdAt: -1 }).lean();
-    successResponse(res, careers, 'Careers retrieved');
-  } catch (error) {
-    errorResponse(res, (error as Error).message, 500);
-  }
-};
+export const getCareers = asyncHandler(async (_req: Request, res: Response) => {
+  const careers = await CareerModel.find().sort({ createdAt: -1 }).lean();
+  successResponse(res, careers, 'Careers retrieved');
+});
 
-export const createCareer = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    console.log('Creating career with data:', req.body);
-    const career = await CareerModel.create(req.body);
-    console.log('Career created successfully:', career._id);
-    successResponse(res, career, 'Career created', 201);
-  } catch (error) {
-    console.error('Error creating career:', error);
-    errorResponse(res, (error as Error).message, 400);
-  }
-};
+export const createCareer = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const career = await CareerModel.create(req.body);
+  successResponse(res, career, 'Career created', 201);
+});
 
-export const updateCareer = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const career = await CareerModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!career) {
-      errorResponse(res, 'Career not found', 404);
-      return;
-    }
-    successResponse(res, career, 'Career updated');
-  } catch (error) {
-    errorResponse(res, (error as Error).message, 400);
+export const updateCareer = asyncHandler(async (req: Request, res: Response) => {
+  const career = await CareerModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  if (!career) {
+    throw new AppError(404, 'Career not found');
   }
-};
+  successResponse(res, career, 'Career updated');
+});
 
-export const deleteCareer = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const career = await CareerModel.findByIdAndDelete(req.params.id);
-    if (!career) {
-      errorResponse(res, 'Career not found', 404);
-      return;
-    }
-    successResponse(res, null, 'Career deleted');
-  } catch (error) {
-    errorResponse(res, (error as Error).message, 500);
+export const deleteCareer = asyncHandler(async (req: Request, res: Response) => {
+  const career = await CareerModel.findByIdAndDelete(req.params.id);
+  if (!career) {
+    throw new AppError(404, 'Career not found');
   }
-};
+  successResponse(res, null, 'Career deleted');
+});

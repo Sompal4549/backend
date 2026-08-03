@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error';
 import { getAllUsers } from '../repositories/user.repository';
 import { countProducts } from '../repositories/product.repository';
 import { updateOrderById } from '../repositories/order.repository';
@@ -32,9 +33,7 @@ export const adminUpdateOrder = async (orderId: string, payload: { orderStatus?:
 
   const order = await updateOrderById(orderId, updatePayload as any);
   if (!order) {
-    const error = new Error('Order not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Order not found');
   }
   return order;
 };
@@ -42,9 +41,7 @@ export const adminUpdateOrder = async (orderId: string, payload: { orderStatus?:
 export const adminUpdateUserRole = async (userId: string, role: string) => {
   const user = await UserModel.findByIdAndUpdate(userId, { role }, { new: true, runValidators: true });
   if (!user) {
-    const error = new Error('User not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'User not found');
   }
   return user;
 };
@@ -54,9 +51,7 @@ export const listAllEnquiries = async () => findAllEnquiries();
 export const adminUpdateEnquiryStatus = async (enquiryId: string, status: string) => {
   const enquiry = await updateEnquiryById(enquiryId, { status } as any);
   if (!enquiry) {
-    const error = new Error('Enquiry not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Enquiry not found');
   }
   return enquiry;
 };

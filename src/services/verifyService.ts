@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error';
 import crypto from 'crypto';
 import { GenericOtpModel } from '../models/Otp';
 import { sendEmailOtp } from './email.service';
@@ -20,9 +21,7 @@ export const sendPhoneOtp = async (phone: string, context: WhatsAppOtpContext = 
 
   const result = await sendWhatsAppOTP(phone, otp, context, name);
   if (!result.success) {
-    const error = new Error(result.error);
-    (error as any).statusCode = 502;
-    throw error;
+    throw new AppError(502, result.error ?? 'Failed to send WhatsApp OTP');
   }
 
   return { success: true, message: 'OTP sent to phone' };
@@ -33,9 +32,7 @@ export const verifyPhoneOtp = async (phone: string, otp: string) => {
   const match = await GenericOtpModel.findOne({ identifier, otp, type: 'phone' });
 
   if (!match) {
-    const error = new Error('Invalid or expired OTP');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'Invalid or expired OTP');
   }
 
   await GenericOtpModel.deleteOne({ _id: match._id });
@@ -61,9 +58,7 @@ export const verifyEmailOtpCode = async (email: string, otp: string) => {
   const match = await GenericOtpModel.findOne({ identifier, otp, type: 'email' });
 
   if (!match) {
-    const error = new Error('Invalid or expired OTP');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'Invalid or expired OTP');
   }
 
   await GenericOtpModel.deleteOne({ _id: match._id });

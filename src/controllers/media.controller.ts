@@ -1,29 +1,22 @@
 import { Request, Response } from 'express';
 import { saveMedia, removeMedia } from '../services/media.service';
-import { successResponse, errorResponse } from '../utils/api-response';
+import { successResponse } from '../utils/api-response';
+import { asyncHandler } from '../utils/async-handler';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { AppError } from '../utils/app-error';
 
-export const uploadMedia = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const files = (req as any).files as Express.Multer.File[];
-    if (!files || files.length === 0) {
-      errorResponse(res, 'No files uploaded', 400);
-      return;
-    }
-    const uploaded = await Promise.all(
-      files.map((file) => saveMedia(file.buffer, file.mimetype, file.size, req.user!.id))
-    );
-    successResponse(res, uploaded, 'Files uploaded successfully', 201);
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
+export const uploadMedia = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const files = (req as any).files as Express.Multer.File[];
+  if (!files || files.length === 0) {
+    throw new AppError(400, 'No files uploaded');
   }
-};
+  const uploaded = await Promise.all(
+    files.map((file) => saveMedia(file.buffer, file.mimetype, file.size, req.user!.id))
+  );
+  successResponse(res, uploaded, 'Files uploaded successfully', 201);
+});
 
-export const deleteMediaById = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const media = await removeMedia(req.params.id);
-    successResponse(res, media, 'Media item deleted');
-  } catch (error) {
-    errorResponse(res, (error as Error).message, (error as any).statusCode || 500);
-  }
-};
+export const deleteMediaById = asyncHandler(async (req: Request, res: Response) => {
+  const media = await removeMedia(req.params.id);
+  successResponse(res, media, 'Media item deleted');
+});

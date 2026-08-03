@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error';
 import { getCartByUser, createCartForUser, upsertCart } from '../repositories/cart.repository';
 import { ProductModel } from '../models/product.model';
 
@@ -14,9 +15,7 @@ const calculateTotal = (items: { product: any; quantity: number; price: number }
 export const addItemToCart = async (userId: string, productId: string, quantity = 1) => {
   const product = await ProductModel.findById(productId).lean();
   if (!product) {
-    const error = new Error('Product not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Product not found');
   }
   const cart = (await fetchCart(userId)) as any;
   const existing = cart.items.find((item: any) => item.product.toString() === productId);
@@ -34,9 +33,7 @@ export const updateCartItem = async (userId: string, productId: string, quantity
   const cart = (await fetchCart(userId)) as any;
   const item = cart.items.find((item: any) => item.product.toString() === productId);
   if (!item) {
-    const error = new Error('Cart item not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Cart item not found');
   }
   item.quantity = quantity;
   cart.totalAmount = calculateTotal(cart.items);

@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error';
 import { 
   createReview,
   findReviewByUserAndProduct,
@@ -17,9 +18,7 @@ import { UserModel } from '../models/user.model';
 export const addReview = async (userId: string, productId: string, payload: Partial<IReview>) => {
   const existing = await findReviewByUserAndProduct(userId, productId);
   if (existing) {
-    const error = new Error('You have already reviewed this product');
-    (error as any).statusCode = 409;
-    throw error;
+    throw new AppError(409, 'You have already reviewed this product');
   }
   const review = await createReview({ user: new Types.ObjectId(userId), product: new Types.ObjectId(productId), ...payload });
   await recalculateRating(productId);
@@ -29,16 +28,12 @@ export const addReview = async (userId: string, productId: string, payload: Part
 export const addReviewForCustomer = async (productId: string, customerId: string, payload: Partial<IReview>) => {
   const customer = await UserModel.findById(customerId);
   if (!customer) {
-    const error = new Error('Target customer not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Target customer not found');
   }
 
   const existing = await findReviewByUserAndProduct(customerId, productId);
   if (existing) {
-    const error = new Error('This customer has already reviewed the product');
-    (error as any).statusCode = 409;
-    throw error;
+    throw new AppError(409, 'This customer has already reviewed the product');
   }
 
   const { userId, ...reviewPayload } = payload as any;
@@ -50,9 +45,7 @@ export const addReviewForCustomer = async (productId: string, customerId: string
 export const editReview = async (userId: string, reviewId: string, payload: Partial<IReview>) => {
   const review = await getReviewById(reviewId);
   if (!review || review.user.toString() !== userId) {
-    const error = new Error('Review not found or unauthorized');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Review not found or unauthorized');
   }
   const updated = await updateReviewById(reviewId, payload);
   await recalculateRating(review.product.toString());
@@ -62,9 +55,7 @@ export const editReview = async (userId: string, reviewId: string, payload: Part
 export const removeReview = async (userId: string, reviewId: string) => {
   const review = await getReviewById(reviewId);
   if (!review || review.user.toString() !== userId) {
-    const error = new Error('Review not found or unauthorized');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Review not found or unauthorized');
   }
   await deleteReviewById(reviewId);
   await recalculateRating(review.product.toString());

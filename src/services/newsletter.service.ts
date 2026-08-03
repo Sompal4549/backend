@@ -1,6 +1,7 @@
 import { SubscriberModel } from '../models/subscriber.model';
 import { BlogModel } from '../models/blog.model'; // Assuming BlogModel exists
 import { sendEmail } from './email.service'; // sendEmail is already imported
+import { AppError } from '../utils/app-error';
 
 export const subscribeUser = async (email: string) => {
   const existing = await SubscriberModel.findOne({ email: email.toLowerCase() });
@@ -10,7 +11,7 @@ export const subscribeUser = async (email: string) => {
       await existing.save();
       return existing;
     }
-    throw new Error('You are already subscribed to our newsletter!');
+    throw new AppError(400, 'You are already subscribed to our newsletter!');
   }
 
   const subscriber = await SubscriberModel.create({ email });
@@ -42,7 +43,7 @@ export const getSubscribers = async () => {
 export const sendBlogToEmails = async (blogId: string, emails: string[]) => {
   const blog = await BlogModel.findById(blogId);
   if (!blog) {
-    throw new Error('Blog not found');
+    throw new AppError(404, 'Blog not found');
   }
 
   const blogUrl = `https://ensis.in/blog/${blog.slug}`;

@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error';
 import { MediaModel, IMedia } from '../models/media.model';
 import { uploadImage, deleteImage } from '../helpers/image.helper';
 
@@ -10,9 +11,7 @@ export const saveMedia = async (buffer: Buffer, mimetype: string, size: number, 
 export const removeMedia = async (id: string) => {
   const media = await MediaModel.findById(id);
   if (!media) {
-    const error = new Error('Media item not found');
-    (error as any).statusCode = 404;
-    throw error;
+    throw new AppError(404, 'Media item not found');
   }
   await deleteImage(media.filename);
   await media.deleteOne();

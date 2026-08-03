@@ -1,8 +1,12 @@
-import { Types } from 'mongoose';
+import { Types, ClientSession } from 'mongoose';
 import { OrderModel, IOrder } from '../models/order.model';
 
-export const createOrder = async (payload: Partial<IOrder>): Promise<IOrder> => {
-  return OrderModel.create(payload);
+export const createOrder = async (payload: Partial<IOrder>, session?: ClientSession | null): Promise<IOrder> => {
+  const order = new OrderModel(payload);
+  if (session) {
+    return order.save({ session });
+  }
+  return order.save();
 };
 
 export const getOrdersByUser = async (userId: string | Types.ObjectId) => {

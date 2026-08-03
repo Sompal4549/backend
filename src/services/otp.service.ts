@@ -5,6 +5,7 @@ import { OtpModel, OTP_CHANNEL } from '../models/otp.model';
 import { sendEmailOtp } from './email.service';
 import { sendWhatsAppOtp } from './whatsapp.service';
 import { markUserEmailVerified, markUserPhoneVerified } from '../repositories/user.repository';
+import { AppError } from '../utils/app-error';
 
 type OtpChannel = typeof OTP_CHANNEL[keyof typeof OTP_CHANNEL];
 
@@ -41,9 +42,7 @@ export const requestOtp = async (channel: OtpChannel, rawTarget: string, purpose
   });
 
   if (recentCount >= config.otpResendLimit) {
-    const error = new Error('OTP retry limit reached. Please try again later.');
-    (error as any).statusCode = 429;
-    throw error;
+    throw new AppError(429, 'OTP retry limit reached. Please try again later.');
   }
 
   await OtpModel.updateMany({ channel, target, purpose, consumedAt: { $exists: false } }, { consumedAt: new Date() });
@@ -72,30 +71,22 @@ export const verifyOtp = async (channel: OtpChannel, rawTarget: string, code: st
     .select('+codeHash');
 
   if (!otp) {
-    const error = new Error('OTP not found or already used');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'OTP not found or already used');
   }
   if (otp.expiresAt.getTime() < Date.now()) {
     otp.consumedAt = new Date();
     await otp.save();
-    const error = new Error('OTP expired');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'OTP expired');
   }
   if (otp.attempts >= otp.maxAttempts) {
-    const error = new Error('OTP verification attempts exceeded');
-    (error as any).statusCode = 429;
-    throw error;
+    throw new AppError(429, 'OTP verification attempts exceeded');
   }
 
   const isValid = await bcrypt.compare(code, otp.codeHash);
   if (!isValid) {
     otp.attempts += 1;
     await otp.save();
-    const error = new Error('Invalid OTP');
-    (error as any).statusCode = 400;
-    throw error;
+    throw new AppError(400, 'Invalid OTP');
   }
 
   otp.consumedAt = new Date();
