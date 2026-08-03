@@ -5,12 +5,14 @@ import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
 
 export const handleSubscription = asyncHandler(async (req: Request, res: Response) => {
-  const { email } = req.body;
+  const { email, type } = req.body;
   if (!email) {
     throw new AppError(400, 'Email is required');
   }
 
-  const subscriber = await subscribeUser(email);
+  const validType: 'blog' | 'career' | 'product' =
+    type === 'career' || type === 'product' ? type : 'blog';
+  const subscriber = await subscribeUser(email, validType);
   successResponse(res, subscriber, 'Successfully subscribed to newsletter!');
 });
 

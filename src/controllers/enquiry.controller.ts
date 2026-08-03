@@ -24,7 +24,7 @@ export const submitEnquiry = asyncHandler(async (req: Request, res: Response) =>
 
   const cityAndState = typeof rawBody.cityAndState === 'string' ? rawBody.cityAndState.trim() : '';
   const splitLocation = cityAndState
-    ? cityAndState.split(',').map((part) => part.trim()).filter(Boolean)
+    ? cityAndState.split(',').map((part: string) => part.trim()).filter(Boolean)
     : [];
 
   const enquiryData = {

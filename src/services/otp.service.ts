@@ -56,6 +56,9 @@ export const requestOtp = async (channel: OtpChannel, rawTarget: string, purpose
     maxAttempts: config.otpMaxVerifyAttempts,
   });
   await sendOtp(channel, target, code, message);
+  if (config.env !== 'production') {
+    console.log(`[DEV] OTP for ${channel} ${target} (purpose: ${purpose}): ${code}`);
+  }
   return { channel, target, expiresInMinutes: config.otpExpiresMinutes };
 };
 

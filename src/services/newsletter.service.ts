@@ -3,18 +3,19 @@ import { BlogModel } from '../models/blog.model'; // Assuming BlogModel exists
 import { sendEmail } from './email.service'; // sendEmail is already imported
 import { AppError } from '../utils/app-error';
 
-export const subscribeUser = async (email: string) => {
+export const subscribeUser = async (email: string, type: 'blog' | 'career' | 'product' = 'blog') => {
   const existing = await SubscriberModel.findOne({ email: email.toLowerCase() });
   if (existing) {
     if (!existing.isActive) {
       existing.isActive = true;
+      existing.type = type;
       await existing.save();
       return existing;
     }
     throw new AppError(400, 'You are already subscribed to our newsletter!');
   }
 
-  const subscriber = await SubscriberModel.create({ email });
+  const subscriber = await SubscriberModel.create({ email, type });
 
   // Confirmation Email (Aap email.service mein ek generic sendEmail function bana sakte hain)
   const subject = 'Welcome to Ensis Wellness Newsletter!';

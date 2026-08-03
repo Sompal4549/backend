@@ -40,8 +40,12 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const userIdStr = user._id.toString();
-  const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, { expiresIn: '1d' });
-  const refreshToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtRefreshSecret, { expiresIn: '7d' });
+  const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, {
+    expiresIn: config.accessTokenExpires as jwt.SignOptions['expiresIn'],
+  });
+  const refreshToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtRefreshSecret, {
+    expiresIn: config.refreshTokenExpires as jwt.SignOptions['expiresIn'],
+  });
 
   // ✅ FIX: refreshToken ko DB mein save karo (bcrypt hash)
   const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
