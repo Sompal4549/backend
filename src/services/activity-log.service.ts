@@ -1,9 +1,8 @@
 import { Types } from 'mongoose';
 import { ActivityLogModel, ActivityAction } from '../models/activity-log.model';
 import { getActivityContext } from '../utils/activity-context';
-import { ROLE } from '../constants/roles.constants';
 
-const ADMIN_ROLES: string[] = [ROLE.ADMIN, ROLE.SUPERADMIN];
+const PUBLIC_ENTITIES = new Set(['Enquiry', 'Subscriber', 'User', 'Order', 'Application']);
 
 interface ActivityEntry {
   action: ActivityAction;
@@ -33,15 +32,29 @@ const computeChanges = (
 
 export const recordActivity = async (entry: ActivityEntry): Promise<void> => {
   const ctx = getActivityContext();
-  if (!ctx?.userId || !ctx.userRole) return;
-  if (!ADMIN_ROLES.includes(ctx.userRole)) return;
+
+  if (ctx?.userId) {
+    // Any authenticated user (admin or customer) action is logged.
+    if (!ctx.userRole) return;
+  } else {
+    // Anonymous/public actions are logged only for customer-facing entities.
+    if (!PUBLIC_ENTITIES.has(entry.entity)) return;
+  }
+
+  const snapshot = entry.snapshotAfter ?? entry.snapshotBefore ?? {};
+  const fallbackName =
+    (typeof snapshot.name === 'string' && snapshot.name) ||
+    (typeof snapshot.fullName === 'string' && snapshot.fullName) ||
+    (typeof snapshot.email === 'string' && snapshot.email) ||
+    (typeof snapshot.phone === 'string' && snapshot.phone) ||
+    'Guest';
 
   try {
     await ActivityLogModel.collection.insertOne({
       ...entry,
-      userId: new Types.ObjectId(ctx.userId),
-      userName: ctx.userName,
-      userRole: ctx.userRole,
+      userId: ctx?.userId ? new Types.ObjectId(ctx.userId) : undefined,
+      userName: ctx?.userName || fallbackName,
+      userRole: ctx?.userRole || 'guest',
       createdAt: new Date(),
       updatedAt: new Date(),
     });

@@ -17,7 +17,7 @@ export const subscribeUser = async (email: string, type: 'blog' | 'career' | 'pr
       await existing.save();
       return existing;
     }
-    throw new AppError(400, 'You are already subscribed to our newsletter!');
+    return existing;
   }
 
   const subscriber = await SubscriberModel.create({ email, type });
