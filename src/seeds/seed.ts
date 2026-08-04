@@ -3,6 +3,7 @@ import { UserModel } from '../models/user.model';
 import { CategoryModel } from '../models/category.model';
 import { ProductModel } from '../models/product.model';
 import { ComponentContentModel } from '../models/component-content.model';
+import { BlogModel } from '../models/blog.model';
 import Page from '../models/page.model';
 import { OrderModel } from '../models/order.model';
 import mongoose, { Types } from 'mongoose';
@@ -39,6 +40,7 @@ const seed = async () => {
   await CategoryModel.deleteMany({});
   await ProductModel.deleteMany({});
   await ComponentContentModel.deleteMany({});
+  await BlogModel.deleteMany({});
   await OrderModel.deleteMany({});
   await Page.deleteMany({});
 
@@ -723,7 +725,345 @@ const seed = async () => {
     await ComponentContentModel.create(componentContent);
   }
 
-  console.log('Seed data created successfully with superadmin, 24 wellness products, pages, and components.');
+  // ─── Seed Blogs (categories: Voice of Experts, Blog, Article) ───
+  const seedBlogs = [
+    {
+      title: "The Art of Panchakarma: Insights from 20 Years of Practice",
+      slug: "art-of-panchakarma-insights",
+      author: "Dr. Ananya Deshpande",
+      category: "Voice of Experts",
+      isActive: true,
+      isFeatured: true,
+      isVoiceOfExperts: true,
+      isPopular: true,
+      robots: "index, follow",
+      blogImage: {
+        image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=1200",
+        alt: "Panchakarma therapy room with wooden massage table and brass bowls",
+      },
+      banner: {
+        title: "The Art of Panchakarma:",
+        highlight: "Insights from 20 Years of Practice",
+        date: "2026-05-10",
+        readingTime: "6 min read",
+        category: "Voice of Experts",
+        backgroundImage:
+          "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=1920",
+        backgroundImageAlt: "Authentic Panchakarma therapy setup",
+      },
+      article: {
+        content:
+          "<p>Panchakarma is more than a detox protocol — it is a complete system of rejuvenation that has stood the test of time. In two decades of designing wellness spaces, I have seen how a well-executed therapy room can transform both the practitioner's precision and the patient's trust.</p><h2>Why the Space Matters</h2><p>The environment is the first medicine. Wooden tables, warm lighting, brass vessels and the gentle aroma of herbs prepare the body to receive therapy. A poorly planned room silently works against the treatment.</p><h2>The ENSIS Difference</h2><p>Every ENSIS Panchakarma table is built with drainage precision, ergonomic height and authentic Vamana positioning — because therapy outcomes depend on the smallest details.</p><p>Choose equipment that respects the tradition and your therapist will honour your patients with the care they deserve.</p>",
+      },
+      ctaBanner: {
+        title: "Ready to Build an Authentic Panchakarma Space?",
+        lotusImage: "",
+        description: "Talk to our experts about designing a therapy room that heals.",
+        buttonText: "BOOK A CONSULTATION",
+        buttonLink: "/consultancy",
+        bannerImage:
+          "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=1920",
+      },
+      aboutTheAuthor: {
+        title: "About the Author",
+        name: "Dr. Ananya Deshpande",
+        description:
+          "Ayurvedic physician and wellness consultant with 20+ years of experience in Panchakarma therapy and spa design.",
+        socialLinks: [
+          { iconImage: "", title: "LinkedIn", link: "https://linkedin.com" },
+          { iconImage: "", title: "Instagram", link: "https://instagram.com" },
+        ],
+      },
+      onThisPage: { title: "On This Page" },
+      expert: {
+        image:
+          "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=600",
+        name: "Dr. Ananya Deshpande",
+        quote:
+          "Authenticity in space design is as important as authenticity in therapy.",
+        role: "Ayurvedic Physician & Wellness Consultant",
+      },
+      downloadMedia: {
+        title: "Download the Panchakarma Room Guide",
+        image: "",
+        description: "A practical checklist for planning your therapy room.",
+        link: "#",
+      },
+      newsletter: {
+        lotusImage: { image: "", alt: "Lotus" },
+        title: "Stay Inspired",
+        description: "Get wellness insights from our experts, every month.",
+        followText: "Follow us",
+        followLinks: [],
+      },
+      seo: {
+        metaTitle: "The Art of Panchakarma — Insights from ENSIS Experts",
+        metaDescription:
+          "Panchakarma therapy insights from a 20-year Ayurvedic practitioner: why room design, table precision and authenticity matter.",
+        metaKeywords: "panchakarma, ayurveda, therapy room design, wellness",
+        canonical: "https://ensis.in/blog/art-of-panchakarma-insights",
+        ogJson: JSON.stringify({
+          "og:type": "article",
+          "og:title": "The Art of Panchakarma: Insights from 20 Years of Practice",
+        }),
+        schema: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: "The Art of Panchakarma: Insights from 20 Years of Practice",
+          author: { "@type": "Person", name: "Dr. Ananya Deshpande" },
+          datePublished: "2026-05-10",
+        }),
+      },
+    },
+    {
+      title: "How to Choose the Right Spa Equipment for Your Business",
+      slug: "how-to-choose-spa-equipment",
+      author: "ENSIS Editorial Team",
+      category: "Blog",
+      isActive: true,
+      isFeatured: true,
+      isVoiceOfExperts: false,
+      isPopular: true,
+      robots: "index, follow",
+      blogImage: {
+        image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1200",
+        alt: "Modern spa massage table in a wellness centre",
+      },
+      banner: {
+        title: "How to Choose the Right Spa Equipment",
+        highlight: "for Your Business",
+        date: "2026-04-22",
+        readingTime: "5 min read",
+        category: "Blog",
+        backgroundImage:
+          "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1920",
+        backgroundImageAlt: "Spa equipment selection guide",
+      },
+      article: {
+        content:
+          "<p>Buying spa equipment is a long-term investment. The right table, steam chamber or oil warmer will serve you for years; the wrong one will drain your budget and your reputation.</p><h2>1. Know Your Therapy Menu</h2><p>List the therapies you actually plan to offer. Ayurvedic centres need Panchakarma tables with drainage; resorts may prioritise massage tables and steam cabins.</p><h2>2. Quality Over Price</h2><p>Teak and seasoned hardwood, marine-grade upholstery and rust-proof fittings cost more upfront but outperform cheap imports within a year.</p><h2>3. After-Sales Support</h2><p>Ask about spare parts, warranty and installation. ENSIS offers end-to-end support across India.</p>",
+      },
+      ctaBanner: {
+        title: "Need Help Choosing Equipment?",
+        lotusImage: "",
+        description: "Our consultants will shortlist equipment for your space and budget.",
+        buttonText: "TALK TO AN EXPERT",
+        buttonLink: "/contact",
+        bannerImage:
+          "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1920",
+      },
+      aboutTheAuthor: {
+        title: "About the Author",
+        name: "ENSIS Editorial Team",
+        description:
+          "The ENSIS content team shares practical guidance on wellness space planning, equipment and Ayurvedic living.",
+        socialLinks: [],
+      },
+      onThisPage: { title: "On This Page" },
+      expert: { image: "", name: "", quote: "", role: "" },
+      downloadMedia: {
+        title: "Equipment Selection Checklist",
+        image: "",
+        description: "Download our printable checklist before you buy.",
+        link: "#",
+      },
+      newsletter: {
+        lotusImage: { image: "", alt: "Lotus" },
+        title: "Stay Inspired",
+        description: "Practical wellness business tips, straight to your inbox.",
+        followText: "Follow us",
+        followLinks: [],
+      },
+      seo: {
+        metaTitle: "How to Choose the Right Spa Equipment — ENSIS Blog",
+        metaDescription:
+          "A practical guide to buying spa equipment: therapy menu, material quality, budget and after-sales support.",
+        metaKeywords: "spa equipment, massage table, steam cabin, ayurvedic equipment",
+        canonical: "https://ensis.in/blog/how-to-choose-spa-equipment",
+        ogJson: JSON.stringify({
+          "og:type": "article",
+          "og:title": "How to Choose the Right Spa Equipment for Your Business",
+        }),
+        schema: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: "How to Choose the Right Spa Equipment for Your Business",
+          author: { "@type": "Organization", name: "ENSIS" },
+          datePublished: "2026-04-22",
+        }),
+      },
+    },
+    {
+      title: "Panchakarma Room Design Guide: Everything You Need to Know",
+      slug: "panchakarma-room-design-guide",
+      author: "ENSIS Editorial Team",
+      category: "Article",
+      isActive: true,
+      isFeatured: true,
+      isVoiceOfExperts: false,
+      isPopular: false,
+      robots: "index, follow",
+      blogImage: {
+        image: "https://images.unsplash.com/photo-1584544518415-82d4371f52f0?q=80&w=1200",
+        alt: "Detailed Panchakarma room design with treatment table",
+      },
+      banner: {
+        title: "Panchakarma Room Design Guide:",
+        highlight: "Everything You Need to Know",
+        date: "2026-03-15",
+        readingTime: "8 min read",
+        category: "Article",
+        backgroundImage:
+          "https://images.unsplash.com/photo-1584544518415-82d4371f52f0?q=80&w=1920",
+        backgroundImageAlt: "Panchakarma treatment room layout",
+      },
+      article: {
+        content:
+          "<p>A Panchakarma room is a working clinical space. Its layout determines how comfortably a therapist can move, how easily a patient can be positioned and how quickly the room can be cleaned between sessions.</p><h2>Space Planning</h2><p>Plan for a minimum of 120 square feet per therapy bed. Keep 3 feet of clearance on all sides for movement and assisting.</p><h2>Plumbing & Drainage</h2><p>Vamana and Basti therapies require controlled drainage. Tables with built-in channels and floor gullies with odour traps are non-negotiable.</p><h2>Lighting & Ambience</h2><p>Warm, dimmable lighting reduces patient anxiety. Brass accents and natural wood keep the space authentic.</p><h2>Ventilation & Steam</h2><p>If the room includes a steam component, plan exhaust capacity twice your steam output.</p><p>Get our full planning checklist from the ENSIS turnkey team.</p>",
+      },
+      ctaBanner: {
+        title: "Design Your Panchakarma Room With Us",
+        lotusImage: "",
+        description: "From floor plans to equipment — we deliver turnkey wellness rooms.",
+        buttonText: "START YOUR PROJECT",
+        buttonLink: "/enquiry",
+        bannerImage:
+          "https://images.unsplash.com/photo-1584544518415-82d4371f52f0?q=80&w=1920",
+      },
+      aboutTheAuthor: {
+        title: "About the Author",
+        name: "ENSIS Editorial Team",
+        description:
+          "ENSIS has designed 1000+ wellness rooms across India and exports worldwide.",
+        socialLinks: [],
+      },
+      onThisPage: { title: "On This Page" },
+      expert: { image: "", name: "", quote: "", role: "" },
+      downloadMedia: {
+        title: "Panchakarma Room Layout Blueprint",
+        image: "",
+        description: "A sample 2D layout with equipment placement.",
+        link: "#",
+      },
+      newsletter: {
+        lotusImage: { image: "", alt: "Lotus" },
+        title: "Stay Inspired",
+        description: "Room design guides and wellness trends, monthly.",
+        followText: "Follow us",
+        followLinks: [],
+      },
+      seo: {
+        metaTitle: "Panchakarma Room Design Guide — ENSIS Article",
+        metaDescription:
+          "Complete guide to designing a Panchakarma room: space planning, drainage, lighting, ventilation and equipment.",
+        metaKeywords: "panchakarma room design, therapy room layout, ayurveda clinic",
+        canonical: "https://ensis.in/blog/panchakarma-room-design-guide",
+        ogJson: JSON.stringify({
+          "og:type": "article",
+          "og:title": "Panchakarma Room Design Guide: Everything You Need to Know",
+        }),
+        schema: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: "Panchakarma Room Design Guide: Everything You Need to Know",
+          author: { "@type": "Organization", name: "ENSIS" },
+          datePublished: "2026-03-15",
+        }),
+      },
+    },
+    {
+      title: "Steam Chamber Benefits for Detox & Relaxation Therapy",
+      slug: "steam-chamber-benefits-detox",
+      author: "Dr. Rajeev Kulkarni",
+      category: "Voice of Experts",
+      isActive: true,
+      isFeatured: false,
+      isVoiceOfExperts: true,
+      isPopular: true,
+      robots: "index, follow",
+      blogImage: {
+        image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=1200",
+        alt: "Herbal steam chamber in a wellness spa",
+      },
+      banner: {
+        title: "Steam Chamber Benefits",
+        highlight: "for Detox & Relaxation Therapy",
+        date: "2026-02-08",
+        readingTime: "4 min read",
+        category: "Voice of Experts",
+        backgroundImage:
+          "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=1920",
+        backgroundImageAlt: "Herbal steam therapy chamber",
+      },
+      article: {
+        content:
+          "<p>Steam therapy has been part of Ayurvedic practice for centuries. In a controlled herbal steam chamber, the body's pores open, circulation improves and muscle tension releases.</p><h2>Detoxification</h2><p>Sweating helps eliminate toxins through the skin — the body's largest organ. Herbal infusions such as eucalyptus and neem amplify the effect.</p><h2>Relaxation & Recovery</h2><p>Warm steam lowers cortisol, eases joint stiffness and prepares the body for massage or Panchakarma therapy.</p><h2>Choosing a Chamber</h2><p>Look for safe boiler separation, even heat distribution and easy-clean surfaces. ENSIS chambers are built with these principles in mind.</p>",
+      },
+      ctaBanner: {
+        title: "Upgrade Your Spa With a Steam Chamber",
+        lotusImage: "",
+        description: "Explore our steam & sauna range built for professional wellness spaces.",
+        buttonText: "VIEW STEAM RANGE",
+        buttonLink: "/products",
+        bannerImage:
+          "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=1920",
+      },
+      aboutTheAuthor: {
+        title: "About the Author",
+        name: "Dr. Rajeev Kulkarni",
+        description:
+          "Spa medicine consultant specialising in hydrotherapy and steam wellness protocols.",
+        socialLinks: [],
+      },
+      onThisPage: { title: "On This Page" },
+      expert: {
+        image:
+          "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=600",
+        name: "Dr. Rajeev Kulkarni",
+        quote:
+          "The steam chamber is the unsung hero of every successful detox programme.",
+        role: "Spa Medicine Consultant",
+      },
+      downloadMedia: {
+        title: "Steam Therapy Guide",
+        image: "",
+        description: "Therapies, timings and safety protocols in one PDF.",
+        link: "#",
+      },
+      newsletter: {
+        lotusImage: { image: "", alt: "Lotus" },
+        title: "Stay Inspired",
+        description: "Expert views on steam, hydrotherapy and wellness design.",
+        followText: "Follow us",
+        followLinks: [],
+      },
+      seo: {
+        metaTitle: "Steam Chamber Benefits for Detox & Relaxation — ENSIS",
+        metaDescription:
+          "Expert insights on herbal steam therapy: detox benefits, relaxation, recovery and how to choose the right chamber.",
+        metaKeywords: "steam chamber, steam therapy, herbal steam, detox spa",
+        canonical: "https://ensis.in/blog/steam-chamber-benefits-detox",
+        ogJson: JSON.stringify({
+          "og:type": "article",
+          "og:title": "Steam Chamber Benefits for Detox & Relaxation Therapy",
+        }),
+        schema: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: "Steam Chamber Benefits for Detox & Relaxation Therapy",
+          author: { "@type": "Person", name: "Dr. Rajeev Kulkarni" },
+          datePublished: "2026-02-08",
+        }),
+      },
+    },
+  ];
+
+  console.log(`Seeding ${seedBlogs.length} blogs...`);
+  for (const blog of seedBlogs) {
+    await BlogModel.create(blog);
+  }
+
+  console.log('Seed data created successfully with superadmin, 24 wellness products, pages, components, and blogs.');
   process.exit(0);
 };
 

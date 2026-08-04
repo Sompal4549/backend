@@ -6,12 +6,14 @@ import { ActivityLogModel } from '../models/activity-log.model';
 export const listActivityLogs = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit), 10) || 50));
-  const { action, entity, user, search } = req.query;
+  const { action, entity, user, search, role } = req.query;
 
   const filter: Record<string, unknown> = {};
   if (action) filter.action = action;
   if (entity) filter.entity = entity;
   if (user) filter.userName = user;
+  if (role === 'admin') filter.userRole = { $in: ['admin', 'superadmin'] };
+  if (role === 'customer') filter.userRole = { $in: ['user', 'guest'] };
   if (search) {
     const regex = new RegExp(String(search), 'i');
     filter.$or = [{ title: regex }, { userName: regex }, { entity: regex }];
