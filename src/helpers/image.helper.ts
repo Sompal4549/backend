@@ -40,6 +40,24 @@ export const deleteImage = async (publicId: string): Promise<void> => {
   await cloudinary.uploader.destroy(publicId);
 };
 
+export const listImagesFromCloudinary = async (
+  subDir: string = ''
+): Promise<{ name: string; url: string }[]> => {
+  const folder = subDir ? `ensis/${subDir}` : 'ensis';
+  const result = await cloudinary.search
+    .expression(`folder="${folder}"`)
+    .sort_by('created_at', 'desc')
+    .max_results(500)
+    .execute();
+
+  const files = (result?.resources || []).map((res: any) => ({
+    name: (res.public_id || '').split('/').pop() || res.public_id || '',
+    url: res.secure_url,
+  }));
+
+  return files;
+};
+
 
 export const uploadResume = async (
   buffer: Buffer,
