@@ -5,7 +5,8 @@ export interface IMedia extends Document {
   url: string;
   mimetype: string;
   size: number;
-  uploadedBy: Types.ObjectId;
+  folder?: string;
+  uploadedBy?: Types.ObjectId;
 }
 
 const mediaSchema = new Schema<IMedia>(
@@ -14,7 +15,8 @@ const mediaSchema = new Schema<IMedia>(
     url: { type: String, required: true },
     mimetype: { type: String, required: true },
     size: { type: Number, required: true },
-    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    folder: { type: String, default: '' },
+    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );
