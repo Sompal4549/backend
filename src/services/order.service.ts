@@ -108,10 +108,19 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
       name: product.title,
       quantity,
       price: product.price,
+      gstRate: product.gstRate ?? 5,
     };
   });
 
-  const totalAmount = items.reduce((total, item) => total + item.quantity * item.price, 0);
+  const subtotal = items.reduce((total, item) => total + item.quantity * item.price, 0);
+  const serverTax = Math.round(
+    items.reduce((total, item) => total + item.quantity * item.price * (item.gstRate ?? 5) / 100, 0)
+  );
+  const tax = Math.round(Number(payload.tax) || 0) || serverTax;
+  const discount = Math.round(Number(payload.discount) || 0);
+  const couponDiscount = Math.round(Number(payload.couponDiscount) || 0);
+  const shipping = Math.round(Number(payload.shipping) || 0);
+  const totalAmount = Math.max(0, subtotal - discount - couponDiscount + shipping + tax);
 
   const order = await runWithTransaction(async (session) => {
     const created = await createOrder(
@@ -119,6 +128,10 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
         user: toObjectId(userId),
         items,
         totalAmount,
+        discount,
+        couponDiscount,
+        shipping,
+        tax,
         paymentStatus: paymentStatus || 'pending',
         orderStatus: orderStatus || 'pending',
         shippingAddress: shippingAddress as any,
