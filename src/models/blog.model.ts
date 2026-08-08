@@ -16,7 +16,7 @@ export interface IBlog extends Document {
   banner?: {
     title: string;
     highlight: string;
-    date: string | Date;
+    date: string;
     readingTime: string;
     category: string;
     backgroundImage: string;
@@ -108,7 +108,7 @@ const BlogSchema = new Schema<IBlog>(
     banner: {
       title: String,
       highlight: String,
-      date: Date,
+      date: String,
       readingTime: String,
       category: String,
       backgroundImage: String,
