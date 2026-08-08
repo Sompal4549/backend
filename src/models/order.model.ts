@@ -6,6 +6,8 @@ export interface IOrderItem {
   quantity: number;
   price: number;
   gstRate?: number;
+  finish?: string;
+  size?: string;
 }
 
 export interface IShippingAddress {
@@ -42,6 +44,8 @@ const orderItemSchema = new Schema<IOrderItem>(
     quantity: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true },
     gstRate: { type: Number, default: 5 },
+    finish: { type: String },
+    size: { type: String },
   },
   { _id: false }
 );

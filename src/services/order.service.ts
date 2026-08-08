@@ -58,6 +58,8 @@ const runWithTransaction = async <T>(fn: (session: ClientSession | null) => Prom
 interface OrderItemInput {
   product: unknown;
   quantity: number;
+  finish?: string;
+  size?: string;
 }
 
 const FREE_SHIPPING_THRESHOLD = 50000;
@@ -96,7 +98,12 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
   const fromCart = !Array.isArray(payload.items) || payload.items.length === 0;
   const sourceItems: OrderItemInput[] = fromCart
     ? await getCartItems(userId)
-    : (payload.items ?? []).map((item: any) => ({ product: item.product, quantity: Number(item.quantity) }));
+    : (payload.items ?? []).map((item: any) => ({
+        product: item.product,
+        quantity: Number(item.quantity),
+        finish: typeof item.finish === 'string' ? item.finish.trim().slice(0, 100) || undefined : undefined,
+        size: typeof item.size === 'string' ? item.size.trim().slice(0, 100) || undefined : undefined,
+      }));
 
   // Server truth: price, name, availability and stock come from the catalog only.
   const productIds = sourceItems.map((item) => toProductId(item.product));
@@ -123,6 +130,8 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
       quantity,
       price: product.price,
       gstRate: product.gstRate ?? 5,
+      finish: item.finish,
+      size: item.size,
     };
   });
 
