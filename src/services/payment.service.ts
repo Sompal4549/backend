@@ -11,6 +11,7 @@ import {
   updateTransactionById,
 } from '../repositories/transaction.repository';
 import { updateOrderById } from '../repositories/order.repository';
+import { markOrderPaymentFailed } from './order.service';
 import { UserModel } from '../models/user.model';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 
@@ -230,9 +231,10 @@ export const handleWebhook = async (rawBody: string, webhookSignature: string) =
         method: payment.method,
       });
 
-      await updateOrderById(transaction.order.toString(), {
-        paymentStatus: 'failed',
-      });
+      // Release the stock reserved by this pending order.
+      await markOrderPaymentFailed(transaction.order.toString()).catch((err) =>
+        console.error('Failed to release stock for unpaid order:', (err as Error).message)
+      );
     }
   }
 
