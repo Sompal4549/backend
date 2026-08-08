@@ -2,6 +2,7 @@ import { AppError } from '../utils/app-error';
 import { getAllUsers } from '../repositories/user.repository';
 import { countProducts } from '../repositories/product.repository';
 import { updateOrderById } from '../repositories/order.repository';
+import { cancelOrder, markOrderPaymentFailed } from './order.service';
 import { ReviewModel } from '../models/review.model';
 import { OrderModel } from '../models/order.model';
 import { UserModel } from '../models/user.model';
@@ -27,6 +28,14 @@ export const listAllOrders = async () => {
 };
 
 export const adminUpdateOrder = async (orderId: string, payload: { orderStatus?: string; paymentStatus?: string }) => {
+  // Cancelling or payment failure releases reserved stock (atomically, once).
+  if (payload.orderStatus === 'cancelled') {
+    return cancelOrder(orderId);
+  }
+  if (payload.paymentStatus === 'failed') {
+    return markOrderPaymentFailed(orderId);
+  }
+
   const updatePayload: { orderStatus?: string; paymentStatus?: string } = {};
   if (payload.orderStatus) updatePayload.orderStatus = payload.orderStatus;
   if (payload.paymentStatus) updatePayload.paymentStatus = payload.paymentStatus;

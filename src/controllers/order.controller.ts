@@ -1,12 +1,12 @@
 import { Response } from 'express';
-import { placeOrder, fetchUserOrders, fetchOrder } from '../services/order.service';
+import { placeOrder, fetchUserOrders, fetchOrder, cancelOrder } from '../services/order.service';
 import { listAllOrders, adminUpdateOrder } from '../services/admin.service';
 import { ROLE } from '../constants/roles.constants';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { updateOrderById, getOrderById as getOrderByIdRepo } from '../repositories/order.repository';
+import { getOrderById as getOrderByIdRepo } from '../repositories/order.repository';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 
 export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -60,7 +60,7 @@ export const updateOrderByUser = asyncHandler(async (req: AuthRequest, res: Resp
       throw new AppError(400, `Order cannot be cancelled from status '${order.orderStatus}'`);
     }
 
-    const updated = await updateOrderById(orderId, { orderStatus } as any);
+    const updated = await cancelOrder(orderId);
     if (!updated) {
       throw new AppError(404, 'Order not found');
     }

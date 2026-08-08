@@ -21,6 +21,7 @@ export interface IShippingAddress {
 export interface IOrder extends Document {
   user: Types.ObjectId;
   items: IOrderItem[];
+  idempotencyKey?: string;
   totalAmount: number;
   discount?: number;
   couponDiscount?: number;
@@ -62,6 +63,7 @@ const orderSchema = new Schema<IOrder>(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     items: [orderItemSchema],
+    idempotencyKey: { type: String },
     totalAmount: { type: Number, required: true },
     discount: { type: Number, default: 0 },
     couponDiscount: { type: Number, default: 0 },
@@ -79,6 +81,11 @@ const orderSchema = new Schema<IOrder>(
     transactionId: { type: Schema.Types.ObjectId, ref: 'Transaction' },
   },
   { timestamps: true }
+);
+
+orderSchema.index(
+  { user: 1, idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
 );
 
 export const OrderModel = model<IOrder>('Order', orderSchema);

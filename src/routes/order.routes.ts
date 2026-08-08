@@ -17,11 +17,10 @@ orderRouter.post(
     body('shippingAddress.postalCode').notEmpty().withMessage('Postal code is required'),
     body('shippingAddress.country').notEmpty().withMessage('Country is required'),
     body('shippingAddress.phone').notEmpty().withMessage('Phone number for delivery is required'),
-    body('paymentStatus').optional().isIn(['pending', 'paid', 'failed']).withMessage('Invalid payment status'),
-    body('orderStatus')
-      .optional()
-      .isIn(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'])
-      .withMessage('Invalid order status'),
+    body('idempotencyKey')
+      .notEmpty()
+      .isLength({ min: 8, max: 128 })
+      .withMessage('Idempotency key is required'),
   ],
   validateRequest,
   createOrder

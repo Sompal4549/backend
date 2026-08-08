@@ -1,5 +1,5 @@
 import { createOrder, getOrdersByUser, getOrderById } from '../repositories/order.repository';
-import { IOrder } from '../models/order.model';
+import { IOrder, OrderModel } from '../models/order.model';
 import { CartModel } from '../models/cart.model';
 import { UserModel } from '../models/user.model';
 import { ProductModel } from '../models/product.model';
@@ -60,6 +60,8 @@ interface OrderItemInput {
   quantity: number;
 }
 
+const FREE_SHIPPING_THRESHOLD = 50000;
+
 const toProductId = (value: unknown): Types.ObjectId => {
   const idStr = String(value ?? '').trim();
   if (/^\d+$/.test(idStr) && idStr.length < 24) return toObjectId(idStr);
@@ -76,9 +78,19 @@ const getCartItems = async (userId: string): Promise<OrderItemInput[]> => {
 };
 
 export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
-  const { shippingAddress, paymentStatus, orderStatus, trackingNumber } = payload;
+  const { shippingAddress, trackingNumber } = payload;
+  const idempotencyKey = typeof payload.idempotencyKey === 'string' ? payload.idempotencyKey.trim() : '';
   if (!shippingAddress) {
     throw new AppError(400, 'Shipping address is required');
+  }
+  if (!idempotencyKey || idempotencyKey.length < 8 || idempotencyKey.length > 128) {
+    throw new AppError(400, 'Idempotency key is required');
+  }
+
+  // Idempotency: same user + key returns the existing order instead of creating a duplicate.
+  const existing = await OrderModel.findOne({ user: toObjectId(userId), idempotencyKey });
+  if (existing) {
+    return existing;
   }
 
   const fromCart = !Array.isArray(payload.items) || payload.items.length === 0;
@@ -88,7 +100,9 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
 
   // Server truth: price, name, availability and stock come from the catalog only.
   const productIds = sourceItems.map((item) => toProductId(item.product));
-  const products = await ProductModel.find({ _id: { $in: productIds }, isActive: true }).lean();
+  const products = await ProductModel.find({ _id: { $in: productIds }, isActive: true })
+    .lean()
+    .select('_id title price gstRate stock');
   const priceMap = new Map(products.map((product) => [product._id.toString(), product]));
 
   const items = sourceItems.map((item) => {
@@ -113,61 +127,75 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
   });
 
   const subtotal = items.reduce((total, item) => total + item.quantity * item.price, 0);
-  const serverTax = Math.round(
+  const tax = Math.round(
     items.reduce((total, item) => total + item.quantity * item.price * (item.gstRate ?? 5) / 100, 0)
   );
-  const tax = Math.round(Number(payload.tax) || 0) || serverTax;
-  const discount = Math.round(Number(payload.discount) || 0);
-  const couponDiscount = Math.round(Number(payload.couponDiscount) || 0);
-  const shipping = Math.round(Number(payload.shipping) || 0);
+  // Server-side pricing rules only. Client values for tax/discount/coupon/shipping/totals are ignored.
+  const discount = Math.round(subtotal * 0.08);
+  const couponDiscount = 0;
+  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 999;
   const totalAmount = Math.max(0, subtotal - discount - couponDiscount + shipping + tax);
 
-  const order = await runWithTransaction(async (session) => {
-    const created = await createOrder(
-      {
-        user: toObjectId(userId),
-        items,
-        totalAmount,
-        discount,
-        couponDiscount,
-        shipping,
-        tax,
-        paymentStatus: paymentStatus || 'pending',
-        orderStatus: orderStatus || 'pending',
-        shippingAddress: shippingAddress as any,
-        trackingNumber,
-      },
-      session
-    );
-
-    // Atomic oversell guard: decrement only if enough stock remains.
-    for (const item of items) {
-      const result = await ProductModel.updateOne(
-        { _id: item.product, stock: { $gte: item.quantity } },
-        { $inc: { stock: -item.quantity } },
-        { session }
+  let order: IOrder;
+  try {
+    order = await runWithTransaction(async (session) => {
+      const txn = session ? { session } : {};
+      const created = await createOrder(
+        {
+          user: toObjectId(userId),
+          items,
+          idempotencyKey,
+          totalAmount,
+          discount,
+          couponDiscount,
+          shipping,
+          tax,
+          paymentStatus: 'pending',
+          orderStatus: 'pending',
+          shippingAddress: shippingAddress as any,
+          trackingNumber,
+        },
+        session
       );
-      if (result.modifiedCount === 0) {
-        throw new AppError(400, `Insufficient stock for ${item.name}`);
+
+      // Single atomic round-trip: decrement each product's stock only if enough remains.
+      const stockOps = items.map((item) => ({
+        updateOne: {
+          filter: { _id: item.product, stock: { $gte: item.quantity } },
+          update: { $inc: { stock: -item.quantity } },
+        },
+      }));
+      const stockResult = await ProductModel.bulkWrite(stockOps, txn);
+      if (stockResult.matchedCount !== items.length) {
+        throw new AppError(400, 'Insufficient stock for one or more products');
+      }
+
+      await UserModel.updateOne(
+        { _id: toObjectId(userId) },
+        { $addToSet: { orders: created._id } },
+        txn
+      );
+
+      if (fromCart) {
+        await CartModel.updateOne(
+          { user: toObjectId(userId) },
+          { $set: { items: [], totalAmount: 0 } },
+          txn
+        );
+      }
+
+      return created;
+    });
+  } catch (err) {
+    // Race: two requests with the same idempotency key — unique index rejects the second one.
+    if ((err as { code?: number })?.code === 11000) {
+      const duplicate = await OrderModel.findOne({ user: toObjectId(userId), idempotencyKey });
+      if (duplicate) {
+        return duplicate;
       }
     }
-
-    await UserModel.updateOne(
-      { _id: toObjectId(userId) },
-      { $addToSet: { orders: created._id } },
-      { session }
-    );
-
-    if (fromCart) {
-      await CartModel.updateOne(
-        { user: toObjectId(userId) },
-        { $set: { items: [], totalAmount: 0 } },
-        { session }
-      );
-    }
-
-    return created;
-  });
+    throw err;
+  }
 
   // Use ONLY the phone number provided in the shipping address at checkout
   const recipientPhone = normalizePhone((shippingAddress as any)?.phone);
@@ -198,4 +226,63 @@ export const fetchOrder = async (userId: string, orderId: string) => {
     throw new AppError(404, 'Order not found');
   }
   return order;
+};
+
+const restoreStockInSession = async (order: IOrder, session: ClientSession | null) => {
+  if (!order?.items?.length) return;
+  const ops = order.items.map((item) => ({
+    updateOne: {
+      filter: { _id: item.product },
+      update: { $inc: { stock: item.quantity } },
+    },
+  }));
+  await ProductModel.bulkWrite(ops, session ? { session } : {});
+};
+
+/**
+ * Transition an order to 'cancelled' and restore its stock — atomically, once.
+ * Stock is restored exactly once: the status guard prevents double restoration,
+ * and orders already failed (whose stock was restored on failure) are skipped.
+ */
+export const cancelOrder = async (orderId: string): Promise<IOrder | null> => {
+  const order = await getOrderById(orderId);
+  if (!order) throw new AppError(404, 'Order not found');
+  if (order.orderStatus === 'cancelled' || order.paymentStatus === 'failed') return order;
+
+  return runWithTransaction(async (session) => {
+    const result = await OrderModel.updateOne(
+      { _id: toObjectId(orderId), orderStatus: { $ne: 'cancelled' } },
+      { $set: { orderStatus: 'cancelled' } },
+      session ? { session } : {}
+    );
+    if (result.modifiedCount === 0) {
+      return getOrderById(orderId);
+    }
+    await restoreStockInSession(order, session);
+    return getOrderById(orderId);
+  });
+};
+
+/**
+ * Transition an unpaid order to 'failed' and restore its stock — atomically, once.
+ * Used by the Razorpay webhook and admins. Already-failed or cancelled orders
+ * (whose stock was already restored) are left untouched.
+ */
+export const markOrderPaymentFailed = async (orderId: string): Promise<IOrder | null> => {
+  const order = await getOrderById(orderId);
+  if (!order) return null;
+  if (order.paymentStatus !== 'pending' || order.orderStatus === 'cancelled') return order;
+
+  return runWithTransaction(async (session) => {
+    const result = await OrderModel.updateOne(
+      { _id: toObjectId(orderId), paymentStatus: 'pending' },
+      { $set: { paymentStatus: 'failed' } },
+      session ? { session } : {}
+    );
+    if (result.modifiedCount === 0) {
+      return getOrderById(orderId);
+    }
+    await restoreStockInSession(order, session);
+    return getOrderById(orderId);
+  });
 };
