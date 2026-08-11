@@ -22,34 +22,34 @@ export interface IProduct extends Document {
   isActive: boolean;
   isFeatured: boolean;
   overview?: {
-    title?: string;
-    description?: string;
-    overviewList?: string[];
-    specifications?: {
-      title?: string;
-      specificationsList?: { title: string; description: string }[];
-    };
-    seeItInRealSpaces:{title:string; images:{image:string; imageAlt:string}[]};
+    // title?: string;
+    // description?: string;
+    // overviewList?: string[];
+    // specifications?: {
+    //   title?: string;
+    //   specificationsList?: { title: string; description: string }[];
+    // };
+    // seeItInRealSpaces:{title:string; images:{image:string; imageAlt:string}[]};
     productPricingFeatures:{title:string; image:string}[];
     emiOptions:boolean;
     customSize:boolean;
-    keyFeatures?: {
-      title?: string;
-      keyFeaturesList?: string[];
-    };
+    // keyFeatures?: {
+    //   title?: string;
+    //   keyFeaturesList?: string[];
+    // };
     idealFor?: string;
-    dimensions?: { title: string; dimensionsList: { title: string; description: string }[] };
-    materialAndCare?: { title: string; description: string };
+    // dimensions?: { title: string; dimensionsList: { title: string; description: string }[] };
+    // materialAndCare?: { title: string; description: string };
     productSpecifications?: { highlight: string; title: string; image: string; specifications: { title: string; description: string }[] }[];
-    whatisInclueded?: string[];
-    items?: { image: string; title: string; description: string }[];
+    // whatisInclueded?: string[];
+    // items?: { image: string; title: string; description: string }[];
     smartDesignAppearance?: {
       highlight?: string;
       title?: string;
       woodFinish?: {image:string; title:string}[];
       sizeOptions?: { title: string; description: string }[];
     };
-    faqs?: { question: string; description: string }[];
+    // faqs?: { question: string; description: string }[];
   };
 }
 
@@ -77,33 +77,33 @@ const productSchema = new Schema<IProduct>(
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
     overview: {
-      title: String,
-      description: String,
-      overviewList: [String],
+      // title: String,
+      // description: String,
+      // overviewList: [String],
 
-      specifications: new Schema(
-        {
-          title: String,
-          specificationsList: [listItemSchema],
-        },
-        { _id: false }
-      ),
+      // specifications: new Schema(
+      //   {
+      //     title: String,
+      //     specificationsList: [listItemSchema],
+      //   },
+      //   { _id: false }
+      // ),
 
-  seeItInRealSpaces: new Schema(
-        {
-          title: String,
-          images: [
-            new Schema(
-              {
-                image: String,
-                imageAlt: String,
-              },
-              { _id: false }
-            ),
-          ],
-        },
-        { _id: false }
-      ),
+      // seeItInRealSpaces: new Schema(
+      //   {
+      //     title: String,
+      //     images: [
+      //       new Schema(
+      //         {
+      //           image: String,
+      //           imageAlt: String,
+      //         },
+      //         { _id: false }
+      //       ),
+      //     ],
+      //   },
+      //   { _id: false }
+      // ),
  
       productPricingFeatures: [
         new Schema(
@@ -125,34 +125,34 @@ const productSchema = new Schema<IProduct>(
         default: false,
       },
 
-      keyFeatures: new Schema(
-        {
-          title: String,
-          keyFeaturesList: [String],
-        },
-        { _id: false }
-      ),
+      // keyFeatures: new Schema(
+      //   {
+      //     title: String,
+      //     keyFeaturesList: [String],
+      //   },
+      //   { _id: false }
+      // ),
 
       idealFor: String,
 
-      dimensions: new Schema(
-        {
-          title: { type: String, default: '' },
-          dimensionsList: {
-            type: [listItemSchema],
-            default: [{ title: '', description: '' }],
-          },
-        },
-        { _id: false }
-      ),
+      // dimensions: new Schema(
+      //   {
+      //     title: { type: String, default: '' },
+      //     dimensionsList: {
+      //       type: [listItemSchema],
+      //       default: [{ title: '', description: '' }],
+      //     },
+      //   },
+      //   { _id: false }
+      // ),
 
-      materialAndCare: new Schema(
-        {
-          title: String,
-          description: String,
-        },
-        { _id: false }
-      ),
+      // materialAndCare: new Schema(
+      //   {
+      //     title: String,
+      //     description: String,
+      //   },
+      //   { _id: false }
+      // ),
 
       productSpecifications: [
         new Schema(
@@ -166,18 +166,18 @@ const productSchema = new Schema<IProduct>(
         ),
       ],
 
-      whatisInclueded: [String],
+      // whatisInclueded: [String],
 
-      items: [
-        new Schema(
-          {
-            image: String,
-            title: String,
-            description: String,
-          },
-          { _id: false }
-        ),
-      ],
+      // items: [
+      //   new Schema(
+      //     {
+      //       image: String,
+      //       title: String,
+      //       description: String,
+      //     },
+      //     { _id: false }
+      //   ),
+      // ],
 
       smartDesignAppearance: new Schema(
         {
@@ -197,15 +197,15 @@ const productSchema = new Schema<IProduct>(
         { _id: false }
       ),
 
-      faqs: [
-        new Schema(
-          {
-            question: String,
-            description: String,
-          },
-          { _id: false }
-        ),
-      ],
+      // faqs: [
+      //   new Schema(
+      //     {
+      //       question: String,
+      //       description: String,
+      //     },
+      //     { _id: false }
+      //   ),
+      // ],
     },
   },
   { timestamps: true }
