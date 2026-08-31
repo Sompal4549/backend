@@ -6,34 +6,16 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 export type WhatsAppOtpContext =
   | 'CONTACT'
-  | 'VISITOR'
-  | 'EXHIBITOR'
-  | 'BUYER'
-  | 'DELEGATE'
-  | 'SELLER'
-  | 'SPONSOR'
-  | 'EXPO_SUPPORT';
+  | 'BUYER';
 
 const allowedContexts: WhatsAppOtpContext[] = [
   'CONTACT',
-  'VISITOR',
-  'EXHIBITOR',
   'BUYER',
-  'DELEGATE',
-  'SELLER',
-  'SPONSOR',
-  'EXPO_SUPPORT',
 ];
 
 const contextLabels: Record<WhatsAppOtpContext, string> = {
   CONTACT: 'contact verification',
-  VISITOR: 'visitor verification',
-  EXHIBITOR: 'exhibitor verification',
   BUYER: 'buyer verification',
-  DELEGATE: 'delegate verification',
-  SELLER: 'seller verification',
-  SPONSOR: 'sponsor verification',
-  EXPO_SUPPORT: 'expo support verification',
 };
 
 const timeoutMs = 15000;

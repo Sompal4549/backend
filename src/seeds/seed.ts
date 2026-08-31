@@ -718,6 +718,156 @@ const seed = async () => {
         hours: "Mon - Sat: 9:00 AM - 6:00 PM",
         socialLinks: []
       }
+    },
+    {
+      key: "policy.terms",
+      label: "Terms & Conditions",
+      page: "policy",
+      description: "Terms and conditions governing the use of the ENSIS website, products, services and business interactions.",
+      isActive: true,
+      data: {
+        sections: [
+          {
+            id: "introduction",
+            number: "01",
+            title: "Introduction",
+            text: "These Terms & Conditions govern your access to and use of the ENSIS website and all services, products, equipment, consultancy and solutions provided by ENSIS.",
+            extra: "By using our website or engaging with our services, you agree to be bound by these Terms.",
+          },
+          {
+            id: "acceptance",
+            number: "02",
+            title: "Acceptance of Terms",
+            text: "By accessing or using our website, submitting an enquiry, placing an order or availing any of our services, you acknowledge that you have read, understood and agreed to these Terms & Conditions.",
+          },
+          {
+            id: "products-services",
+            number: "03",
+            title: "Products & Services",
+            text: "ENSIS provides wellness equipment, furniture, interior design, consultancy and turnkey setup solutions. All product specifications, images and descriptions on our website are for informational purposes only.",
+            bullets: [
+              "Product images may differ slightly from actual items due to lighting and manufacturing variations",
+              "Specifications are subject to change without prior notice",
+              "Custom orders require confirmed payment before production begins",
+            ],
+          },
+          {
+            id: "pricing-payment",
+            number: "04",
+            title: "Pricing & Payment",
+            text: "All prices listed on the website are in Indian Rupees (INR) unless otherwise stated. ENSIS reserves the right to modify prices at any time without prior notice.",
+            bullets: [
+              "Payment terms are agreed upon at the time of order confirmation",
+              "GST and applicable taxes are charged separately unless mentioned",
+              "EMI options are available through select banking partners",
+            ],
+          },
+          {
+            id: "orders-cancellation",
+            number: "05",
+            title: "Orders & Cancellation",
+            text: "Once an order is confirmed, cancellation or modification may be subject to conditions based on the production stage.",
+            extra: "Custom or made-to-order items cannot be cancelled once production has commenced.",
+          },
+          {
+            id: "warranty-liability",
+            number: "06",
+            title: "Warranty & Liability",
+            text: "ENSIS provides warranty on products as specified at the time of purchase. Warranty does not cover damage from misuse, unauthorized modifications or normal wear and tear.",
+            extra: "ENSIS shall not be liable for any indirect, incidental or consequential damages arising from the use of our products or services.",
+          },
+          {
+            id: "intellectual-property",
+            number: "07",
+            title: "Intellectual Property",
+            text: "All content on the ENSIS website including text, images, logos, designs and graphics are the intellectual property of ENSIS and protected under applicable copyright and trademark laws.",
+          },
+          {
+            id: "governing-law",
+            number: "08",
+            title: "Governing Law",
+            text: "These Terms & Conditions are governed by and construed in accordance with the laws of India. Any disputes shall be subject to the exclusive jurisdiction of courts in Ghaziabad, Uttar Pradesh.",
+          },
+        ],
+      },
+    },
+    {
+      key: "policy.privacy",
+      label: "Privacy Policy",
+      page: "policy",
+      description: "How ENSIS collects, uses, stores and protects personal information from website visitors and business partners.",
+      isActive: true,
+      data: {
+        sections: [
+          {
+            id: "information-we-collect",
+            number: "01",
+            title: "Information We Collect",
+            text: "We collect personal information that you voluntarily provide when you contact us, fill out a form or interact with our website. This may include:",
+            bullets: [
+              "Name, phone number, email address",
+              "Company or organization details",
+              "Enquiry details and messages",
+              "Any other information you choose to provide",
+            ],
+          },
+          {
+            id: "how-we-use",
+            number: "02",
+            title: "How We Use Your Information",
+            text: "We use the information we collect to:",
+            bullets: [
+              "Respond to your enquiries and provide requested information",
+              "Share updates about our products, services and offers (with your consent)",
+              "Improve our website, products and services",
+              "Manage and administer our business operations",
+            ],
+          },
+          {
+            id: "data-security",
+            number: "03",
+            title: "Data Security",
+            text: "We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure or destruction.",
+            extra: "However, no method of transmission over the Internet is 100% secure, and we cannot guarantee absolute security.",
+          },
+          {
+            id: "cookies",
+            number: "04",
+            title: "Cookies & Tracking",
+            text: "Our website may use cookies and similar tracking technologies to enhance your browsing experience and collect analytical data about website usage.",
+            bullets: [
+              "Essential cookies for website functionality",
+              "Analytics cookies to understand visitor behavior",
+              "You can control cookie settings through your browser preferences",
+            ],
+          },
+          {
+            id: "third-party",
+            number: "05",
+            title: "Third-Party Services",
+            text: "We may share your information with trusted third-party service providers who assist us in operating our website, conducting our business and serving you, subject to confidentiality agreements.",
+          },
+          {
+            id: "your-rights",
+            number: "06",
+            title: "Your Rights",
+            text: "You have the right to access, correct or delete your personal information. To exercise these rights, please contact us at info@ensis.in.",
+            extra: "We will respond to your request within a reasonable timeframe.",
+          },
+          {
+            id: "policy-updates",
+            number: "07",
+            title: "Policy Updates",
+            text: "ENSIS reserves the right to update this Privacy Policy at any time. Changes will be posted on this page with an updated revision date.",
+          },
+          {
+            id: "contact-privacy",
+            number: "08",
+            title: "Contact Us",
+            text: "If you have any questions about this Privacy Policy, please contact us at info@ensis.in or call +91 9654900525.",
+          },
+        ],
+      },
     }
   ];
 

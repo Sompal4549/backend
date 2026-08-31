@@ -1,11 +1,62 @@
 import { createOrder, getOrdersByUser, getOrderById } from '../repositories/order.repository';
 import { IOrder, OrderModel } from '../models/order.model';
 import { CartModel } from '../models/cart.model';
-import { UserModel } from '../models/user.model';
+import { LeadModel } from '../models/lead.model';
 import { ProductModel } from '../models/product.model';
 import mongoose, { Types, ClientSession } from 'mongoose';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
+import { sendEmail } from './email.service';
 import { AppError } from '../utils/app-error';
+
+const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
+const buildOrderHtml = (order: any) => {
+  const rows = (order.items || []).map((item: any) =>
+    `<tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #ece3d2">${item.name || (typeof item.product === 'object' ? item.product?.title : 'Product')}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #ece3d2;text-align:center">${item.quantity}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #ece3d2;text-align:right">${fmt(item.price)}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #ece3d2;text-align:right">${fmt(item.price * item.quantity)}</td>
+    </tr>`
+  ).join('');
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Order #${order._id}</title></head>
+<body style="margin:0;font-family:Jost,Arial,sans-serif;background:#FCFAF6;color:#1F3A2A">
+<div style="max-width:760px;margin:20px auto;background:#fff;border:1px solid #EDE4D3;border-radius:20px;overflow:hidden">
+<div style="background:#1F3A2A;padding:32px 40px;color:#fff">
+<div style="margin:0;font-size:22px;letter-spacing:.14em;text-transform:uppercase;font-weight:700">ENSIS</div>
+<p style="margin:6px 0 0;font-size:12px;color:#C7A55B;letter-spacing:.1em;text-transform:uppercase">Order #${order._id}</p>
+</div>
+<div style="padding:32px 40px">
+<div style="display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap">
+<div>
+<p style="margin:0;font-size:11px;color:#8d6a3a;letter-spacing:.12em;text-transform:uppercase">Order No</p>
+<p style="margin:4px 0 0;font-size:14px;font-weight:600">#${order._id}</p>
+<p style="margin:14px 0 0;font-size:11px;color:#8d6a3a;letter-spacing:.12em;text-transform:uppercase">Date</p>
+<p style="margin:4px 0 0;font-size:14px;font-weight:600">${new Date(order.createdAt).toLocaleDateString('en-IN')}</p>
+</div>
+<div style="text-align:right">
+<p style="margin:0;font-size:11px;color:#8d6a3a;letter-spacing:.12em;text-transform:uppercase">Ship To</p>
+<p style="margin:4px 0 0;font-size:14px;font-weight:600">${order.shippingAddress?.fullName || order.shippingAddress?.label || 'Customer'}</p>
+${order.shippingAddress?.phone ? `<p style="margin:2px 0 0;font-size:12px">${order.shippingAddress.phone}</p>` : ''}
+${order.shippingAddress?.street ? `<p style="margin:2px 0 0;font-size:12px">${order.shippingAddress.street}, ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''} ${order.shippingAddress.postalCode || ''}</p>` : ''}
+</div>
+</div>
+${rows ? `<table style="width:100%;margin-top:28px;border-collapse:collapse;font-size:13px">
+<thead><tr style="background:#F7F2E9">
+<th style="padding:10px 12px;text-align:left">Item</th><th style="padding:10px 12px">Qty</th><th style="padding:10px 12px;text-align:right">Price</th><th style="padding:10px 12px;text-align:right">Total</th>
+</tr></thead>
+<tbody>${rows}</tbody>
+</table>` : ''}
+<div style="margin-top:20px;text-align:right;font-size:13px">
+${order.discount ? `<p style="margin:4px 0;color:#2F7D5A">Discount: - ${fmt(order.discount)}</p>` : ''}
+${order.shipping ? `<p style="margin:4px 0">Shipping: ${fmt(order.shipping)}</p>` : '<p style="margin:4px 0">Shipping: FREE</p>'}
+${order.tax ? `<p style="margin:4px 0">GST: ${fmt(order.tax)}</p>` : ''}
+<p style="margin:10px 0 0;font-size:16px;border-top:1px solid #EDE4D3;padding-top:10px">Grand Total (incl. GST): <strong>${fmt(order.totalAmount)}</strong></p>
+</div>
+<p style="margin-top:28px;font-size:11px;color:#6c7068;text-align:center">Thank you for choosing ENSIS — Premium Wellness & Panchkarma Spaces.<br>This is a computer generated order receipt.</p>
+</div></div></body></html>`;
+};
 
 const toObjectId = (id: any): Types.ObjectId => {
   if (id instanceof Types.ObjectId) return id;
@@ -179,7 +230,7 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
         throw new AppError(400, 'Insufficient stock for one or more products');
       }
 
-      await UserModel.updateOne(
+      await LeadModel.updateOne(
         { _id: toObjectId(userId) },
         { $addToSet: { orders: created._id } },
         txn
@@ -210,9 +261,10 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
   const recipientPhone = normalizePhone((shippingAddress as any)?.phone);
 
   if (recipientPhone) {
-    const user = await UserModel.findById(toObjectId(userId)).select('name');
-    const message = `*Order Received!*\n\nHello ${user?.name || 'Customer'},\n\nWe have received your order #${order._id} for ₹${order.totalAmount}. Status: ${order.paymentStatus}.\n\nThank you for choosing Ensis!`;
-    await sendWhatsAppMessage(recipientPhone, message, user?.name || null).catch((err) =>
+    const lead = await LeadModel.findById(toObjectId(userId)).select('firstName lastName');
+    const fullName = lead ? `${lead.firstName} ${lead.lastName}`.trim() : 'Customer';
+    const message = `*Order Received!*\n\nHello ${fullName},\n\nWe have received your order #${order._id} for ₹${order.totalAmount}. Status: ${order.paymentStatus}.\n\nThank you for choosing Ensis!`;
+    await sendWhatsAppMessage(recipientPhone, message, fullName || null).catch((err) =>
       console.error('WhatsApp notification failed:', (err as Error).message)
     );
   } else {
@@ -294,4 +346,49 @@ export const markOrderPaymentFailed = async (orderId: string): Promise<IOrder | 
     await restoreStockInSession(order, session);
     return getOrderById(orderId);
   });
+};
+
+export const sendOrderEmail = async (orderId: string) => {
+  const order = await getOrderById(orderId);
+  if (!order) throw new AppError(404, 'Order not found');
+
+  const shippingAddr = order.shippingAddress as any;
+  const email = shippingAddr?.email || (order.user as any)?.email;
+  if (!email) throw new AppError(400, 'No email address found for this order');
+
+  const html = buildOrderHtml(order);
+  const subject = `Order #${order._id} - ENSIS Wellness`;
+
+  await sendEmail(email, subject, `Please find your order #${order._id} details from ENSIS Wellness.`, html);
+
+  return { success: true, message: `Order sent to ${email}` };
+};
+
+export const sendOrderWhatsApp = async (orderId: string) => {
+  const order = await getOrderById(orderId);
+  if (!order) throw new AppError(404, 'Order not found');
+
+  const shippingAddr = order.shippingAddress as any;
+  const phone = shippingAddr?.phone;
+  if (!phone) throw new AppError(400, 'No phone number found for this order');
+
+  const fullName = shippingAddr?.fullName || shippingAddr?.label || 'Customer';
+  const msg = `Hello ${fullName},\n\nThank you for your order with ENSIS Wellness.\n\n*Order #${order._id}*\n*Amount: ${fmt(order.totalAmount)}*\n*Status: ${order.paymentStatus}*\n\nPlease review your order details. For any queries, feel free to reach out.\n\nRegards,\nEnsis Wellness`;
+
+  const phoneStr = String(phone).replace(/\D/g, '');
+  const normalizedPhone = phoneStr.startsWith('91') && phoneStr.length === 12
+    ? phoneStr
+    : phoneStr.length === 10
+      ? `91${phoneStr}`
+      : phoneStr;
+
+  console.log('[WhatsApp] Sending order to:', normalizedPhone, 'Phone raw:', phone);
+  const result = await sendWhatsAppMessage(normalizedPhone, msg, fullName);
+  console.log('[WhatsApp] Order result:', JSON.stringify(result));
+
+  if (!result.success) {
+    throw new AppError(500, `WhatsApp failed: ${(result as any).error || 'Unknown error'}`);
+  }
+
+  return { success: true, message: `Order sent via WhatsApp to ${normalizedPhone}` };
 };

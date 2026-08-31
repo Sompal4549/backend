@@ -5,6 +5,7 @@ export interface IProduct extends Document {
   title: string;
   slug: string;
   code?: string;
+  hsnCode?: string;
   description: string;
   shortDescription?: string;
   price: number;
@@ -21,6 +22,7 @@ export interface IProduct extends Document {
   reviews: Types.ObjectId[];
   isActive: boolean;
   isFeatured: boolean;
+  orderBy: number;
   overview?: {
     // title?: string;
     // description?: string;
@@ -60,6 +62,7 @@ const productSchema = new Schema<IProduct>(
     title: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, trim: true },
     code: { type: String, trim: true },
+    hsnCode: { type: String, trim: true },
     description: { type: String, required: true },
     shortDescription: { type: String },
     price: { type: Number, required: true },
@@ -76,6 +79,7 @@ const productSchema = new Schema<IProduct>(
     reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
+    orderBy: { type: Number, default: 0 },
     overview: {
       // title: String,
       // description: String,

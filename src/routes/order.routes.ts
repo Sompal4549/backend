@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrder, getMyOrders, getOrderById, updateOrderByUser } from '../controllers/order.controller';
+import { createOrder, getMyOrders, getOrderById, updateOrderByUser, getOrdersByLeadCtrl, sendOrderEmailCtrl, sendOrderWhatsAppCtrl } from '../controllers/order.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
@@ -27,7 +27,18 @@ orderRouter.post(
 );
 orderRouter.get('/', authMiddleware, getMyOrders);
 orderRouter.get('/my-orders', authMiddleware, getMyOrders);
+orderRouter.get('/lead/:leadId', authMiddleware, [param('leadId').notEmpty().withMessage('Lead ID is required')], validateRequest, getOrdersByLeadCtrl);
 orderRouter.get('/:id', authMiddleware, [param('id').isMongoId().withMessage('Valid order id is required')], validateRequest, getOrderById);
+
+// Send order via email
+orderRouter.post('/:id/send-email', authMiddleware, [
+  param('id').notEmpty().withMessage('Order ID is required'),
+], validateRequest, sendOrderEmailCtrl);
+
+// Send order via WhatsApp
+orderRouter.post('/:id/send-whatsapp', authMiddleware, [
+  param('id').notEmpty().withMessage('Order ID is required'),
+], validateRequest, sendOrderWhatsAppCtrl);
 
 // Allow users to cancel their own order; admins may update any order's status.
 orderRouter.put(

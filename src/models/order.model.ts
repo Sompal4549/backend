@@ -65,7 +65,7 @@ const shippingAddressSchema = new Schema<IShippingAddress>(
 
 const orderSchema = new Schema<IOrder>(
   {
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    user: { type: Schema.Types.ObjectId, ref: 'Lead', required: true },
     items: [orderItemSchema],
     idempotencyKey: { type: String },
     totalAmount: { type: Number, required: true },

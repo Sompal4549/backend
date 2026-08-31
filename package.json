@@ -10,8 +10,7 @@
     "build": "tsc",
     "prestart": "npm run build",
     "start": "node dist/server.js",
-    "lint": "eslint . --ext ",
-    "seed": "tsx src/seeds/seed"
+    "lint": "eslint . --ext "
   },
   "keywords": [
     "ecommerce",

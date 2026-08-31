@@ -2,19 +2,64 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { UserModel } from '../models/user.model';
+import { LeadModel } from '../models/lead.model';
 import { ROLE } from '../constants/roles.constants';
-import { registerUser, refreshAccessToken, logoutUser } from '../services/auth.service';
+import { refreshAccessToken, logoutUser } from '../services/auth.service';
 import { requestEmailOtp, requestWhatsAppOtp, verifyEmailOtp, verifyWhatsAppOtp } from '../services/otp.service';
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
 import { config } from '../config/app.config';
-import { updateUserRefreshToken } from '../repositories/user.repository';
+
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
-  const user = await registerUser(req.body);
-  successResponse(res, { user }, 'User registered', 201);
+  const { name, email, phone, addressLine, city, state, country, zipCode } = req.body;
+
+  const nameParts = (name || '').trim().split(/\s+/);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  const normalizedPhone = phone.replace(/\D/g, '');
+  const last10 = normalizedPhone.slice(-10);
+  const phoneRegex = new RegExp(`${last10}$`);
+  const existingLead = await LeadModel.findOne({ phone: { $regex: phoneRegex } });
+  if (existingLead) {
+    throw new AppError(409, 'Phone number already registered');
+  }
+
+  const lead = await LeadModel.create({
+    firstName,
+    lastName,
+    companyName: '',
+    email,
+    phone: normalizedPhone,
+    phoneCode: '+91',
+    leadType: 'Individual',
+    leadSource: 'Website',
+    leadStatus: 'New',
+    priority: 'Medium',
+    leadCategory: '',
+    addressLine: addressLine || '',
+    city: city || '',
+    state: state || '',
+    country: country || 'India',
+    zipCode: zipCode || '',
+  });
+
+  const leadIdStr = lead._id.toString();
+  const accessToken = jwt.sign({ leadId: leadIdStr, role: 'lead' }, config.jwtAccessSecret, {
+    expiresIn: config.accessTokenExpires as jwt.SignOptions['expiresIn'],
+  });
+  const refreshToken = jwt.sign({ leadId: leadIdStr, role: 'lead' }, config.jwtRefreshSecret, {
+    expiresIn: config.refreshTokenExpires as jwt.SignOptions['expiresIn'],
+  });
+
+  const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+  await LeadModel.findByIdAndUpdate(leadIdStr, { refreshToken: hashedRefreshToken });
+
+  setRefreshTokenCookie(res, refreshToken);
+  successResponse(res, { lead, accessToken }, 'User registered', 201);
 });
 
 // Phone number normalize helper (same as otp.service)
@@ -31,28 +76,28 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   // Verify OTP with 'login' purpose
   await verifyWhatsAppOtp(normalizedPhone, otp, 'login');
 
-  // DB mein phone kisi bhi format mein ho sakta hai — last 10 digits se match
   const last10 = normalizedPhone.slice(-10);
   const phoneRegex = new RegExp(`${last10}$`);
-  const user = await UserModel.findOne({ phone: { $regex: phoneRegex } });
-  if (!user) {
-    throw new AppError(404, 'User not found with this mobile number. Please register.');
+
+  // Frontend login: always use Lead model
+  const lead = await LeadModel.findOne({ phone: { $regex: phoneRegex } }).select('+refreshToken');
+  if (!lead) {
+    throw new AppError(404, 'User not found. Please register first.');
   }
 
-  const userIdStr = user._id.toString();
-  const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, {
+  const leadIdStr = lead._id.toString();
+  const accessToken = jwt.sign({ leadId: leadIdStr, role: 'lead' }, config.jwtAccessSecret, {
     expiresIn: config.accessTokenExpires as jwt.SignOptions['expiresIn'],
   });
-  const refreshToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtRefreshSecret, {
+  const refreshToken = jwt.sign({ leadId: leadIdStr, role: 'lead' }, config.jwtRefreshSecret, {
     expiresIn: config.refreshTokenExpires as jwt.SignOptions['expiresIn'],
   });
 
-  // ✅ FIX: refreshToken ko DB mein save karo (bcrypt hash)
   const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-  await updateUserRefreshToken(userIdStr, hashedRefreshToken);
+  await LeadModel.findByIdAndUpdate(leadIdStr, { refreshToken: hashedRefreshToken });
 
   setRefreshTokenCookie(res, refreshToken);
-  successResponse(res, { user, accessToken }, 'Login successful');
+  successResponse(res, { lead, accessToken, role: 'lead' }, 'Login successful');
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
