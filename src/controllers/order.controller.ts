@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { placeOrder, fetchUserOrders, fetchOrder, cancelOrder } from '../services/order.service';
+import { placeOrder, fetchUserOrders, fetchOrder, cancelOrder, sendOrderEmail, sendOrderWhatsApp } from '../services/order.service';
 import { listAllOrders, adminUpdateOrder } from '../services/admin.service';
 import { ROLE } from '../constants/roles.constants';
 import { successResponse } from '../utils/api-response';
@@ -7,6 +7,7 @@ import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { getOrderById as getOrderByIdRepo } from '../repositories/order.repository';
+import { getOrdersByLead } from '../repositories/order.repository';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 
 export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -15,7 +16,7 @@ export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) 
 });
 
 export const getMyOrders = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const role = req.user?.role;
+  const role = (req.user as any)?.role;
   if (role === ROLE.ADMIN || role === ROLE.SUPERADMIN) {
     const orders = await listAllOrders();
     successResponse(res, orders, 'All orders retrieved');
@@ -27,7 +28,7 @@ export const getMyOrders = asyncHandler(async (req: AuthRequest, res: Response) 
 });
 
 export const getOrderById = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const role = req.user?.role;
+  const role = (req.user as any)?.role;
   if (role === ROLE.ADMIN || role === ROLE.SUPERADMIN) {
     const order = await getOrderByIdRepo(req.params.id);
     if (!order) {
@@ -43,7 +44,7 @@ export const getOrderById = asyncHandler(async (req: AuthRequest, res: Response)
 export const updateOrderByUser = asyncHandler(async (req: AuthRequest, res: Response) => {
   const orderId = req.params.id;
   const { orderStatus, paymentStatus } = req.body as { orderStatus?: string; paymentStatus?: string };
-  const role = req.user?.role;
+  const role = (req.user as any)?.role;
   const isAdmin = role === ROLE.ADMIN || role === ROLE.SUPERADMIN;
 
   if (!isAdmin) {
@@ -80,4 +81,22 @@ export const updateOrderByUser = asyncHandler(async (req: AuthRequest, res: Resp
 
   const updated = await adminUpdateOrder(orderId, { orderStatus, paymentStatus });
   successResponse(res, updated, 'Order updated');
+});
+
+export const getOrdersByLeadCtrl = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { leadId } = req.params;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 20;
+  const result = await getOrdersByLead(leadId, page, limit);
+  successResponse(res, result, 'Orders retrieved');
+});
+
+export const sendOrderEmailCtrl = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const result = await sendOrderEmail(req.params.id);
+  successResponse(res, result, 'Order sent via email');
+});
+
+export const sendOrderWhatsAppCtrl = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const result = await sendOrderWhatsApp(req.params.id);
+  successResponse(res, result, 'Order sent via WhatsApp');
 });

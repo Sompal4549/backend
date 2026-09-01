@@ -23,7 +23,7 @@ const cartItemSchema = new Schema<ICartItem>(
 
 const cartSchema = new Schema<ICart>(
   {
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    user: { type: Schema.Types.ObjectId, ref: 'Lead', required: true, unique: true },
     items: [cartItemSchema],
     totalAmount: { type: Number, default: 0 },
   },

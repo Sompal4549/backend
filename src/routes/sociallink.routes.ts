@@ -6,6 +6,42 @@ import { AppError } from "../utils/app-error";
 
 export const socialRouter = Router();
 
+interface ApiLocation {
+  country: string | null;
+  city: string | null;
+  region: string | null;
+  timezone: string | null;
+}
+
+interface IpApiResponse {
+  status: string;
+  country?: string;
+  regionName?: string;
+  city?: string;
+  timezone?: string;
+}
+
+async function fetchLocationFromAPI(ip: string): Promise<ApiLocation | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,regionName,city,timezone`, { signal: controller.signal });
+    clearTimeout(timeout);
+    const data = (await res.json()) as IpApiResponse;
+    if (data.status === "success") {
+      return {
+        country: data.country ?? null,
+        city: data.city ?? null,
+        region: data.regionName ?? null,
+        timezone: data.timezone ?? null,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // SOCIAL LINKS (CRUD)
 // ─────────────────────────────────────────────────────────────
@@ -99,6 +135,7 @@ socialRouter.post("/", asyncHandler(async (req: Request, res: Response) => {
   }
 
   const ip =
+    (req.headers["x-client-ip"] as string) ||
     (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
     (req.headers["x-real-ip"] as string) ||
     req.socket.remoteAddress ||
@@ -107,7 +144,21 @@ socialRouter.post("/", asyncHandler(async (req: Request, res: Response) => {
   const userAgent = req.headers["user-agent"] || "";
   const normalizedPlatform = String(platform).toLowerCase();
 
-  const location = geoip.lookup(ip);
+  let location: ApiLocation | null = null;
+
+  const geoResult = geoip.lookup(ip);
+  if (geoResult) {
+    location = {
+      country: geoResult.country ?? null,
+      city: geoResult.city ?? null,
+      region: geoResult.region ?? null,
+      timezone: geoResult.timezone ?? null,
+    };
+  }
+
+  if (!location) {
+    location = await fetchLocationFromAPI(ip);
+  }
 
   await SocialClick.create({
     platform: normalizedPlatform,

@@ -36,6 +36,9 @@ import seoRoutes from "./routes/seo.routes";
 import { socialRouter } from './routes/sociallink.routes';
 import { applicationRouter } from './routes/application.routes';
 import { activityLogRouter } from './routes/activity-log.routes';
+import { leadRouter } from './routes/lead.routes';
+import { solutionRouter } from './routes/solution.routes';
+import { invoiceRouter } from './routes/invoice.routes';
 
 export const createApp = () => {
   const app = express();
@@ -151,6 +154,9 @@ export const createApp = () => {
 app.use("/api/v1/social-clicks",socialRouter );
 app.use("/api/v1/applications", applicationRouter);
 app.use('/api/v1/activity-logs', activityLogRouter);
+app.use('/api/v1/leads', leadRouter);
+app.use('/api/v1/solutions', solutionRouter);
+app.use('/api/v1/invoices', invoiceRouter);
 
 
   app.get('/health', (_req, res) => {

@@ -6,6 +6,7 @@ export interface IBlog extends Document {
   author: string;
   isActive: boolean;
   isFeatured: boolean;
+  orderBy: number;
   isVoiceOfExperts: boolean;
   isPopular: boolean;
   viewCount: number;
@@ -178,6 +179,7 @@ const BlogSchema = new Schema<IBlog>(
 
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
+    orderBy: { type: Number, default: 0 },
     isVoiceOfExperts: { type: Boolean, default: false },
     isPopular: { type: Boolean, default: false },
 

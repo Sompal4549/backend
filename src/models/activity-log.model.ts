@@ -35,5 +35,6 @@ const activityLogSchema = new Schema<IActivityLog>(
 
 activityLogSchema.index({ createdAt: -1 });
 activityLogSchema.index({ action: 1, createdAt: -1 });
+activityLogSchema.index({ entity: 1, entityId: 1, createdAt: -1 });
 
 export const ActivityLogModel = model<IActivityLog>('ActivityLog', activityLogSchema);
