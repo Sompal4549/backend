@@ -9,6 +9,8 @@ import {
   fetchLeadInvoiceStats,
   sendInvoiceEmail,
   sendInvoiceWhatsApp,
+  createInvoiceFromOrder,
+  getInvoiceHtml,
 } from '../services/invoice.service';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
@@ -65,4 +67,17 @@ export const sendInvoiceEmailCtrl = asyncHandler(async (req: AuthRequest, res: R
 export const sendInvoiceWhatsAppCtrl = asyncHandler(async (req: AuthRequest, res: Response) => {
   const result = await sendInvoiceWhatsApp(req.params.id);
   successResponse(res, result, 'Invoice sent via WhatsApp');
+});
+
+export const createInvoiceFromOrderCtrl = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { orderId } = req.params;
+  const leadId = req.user!.id;
+  const invoice = await createInvoiceFromOrder(orderId, leadId);
+  successResponse(res, invoice, 'Invoice created from order', 201);
+});
+
+export const getInvoiceHtmlCtrl = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const html = await getInvoiceHtml(req.params.id);
+  res.setHeader('Content-Type', 'text/html');
+  res.send(html);
 });

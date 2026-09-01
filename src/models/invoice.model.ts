@@ -100,7 +100,7 @@ const invoiceSchema = new Schema<IInvoice>(
     dueDate: { type: Date },
     notes: { type: String, default: '' },
     termsAndConditions: { type: String, default: '' },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

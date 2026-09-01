@@ -9,6 +9,8 @@ import {
   getLeadInvoiceStatsCtrl,
   sendInvoiceEmailCtrl,
   sendInvoiceWhatsAppCtrl,
+  createInvoiceFromOrderCtrl,
+  getInvoiceHtmlCtrl,
 } from '../controllers/invoice.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { body, param } from 'express-validator';
@@ -28,6 +30,16 @@ invoiceRouter.get('/lead/:leadId', authMiddleware, [
 invoiceRouter.get('/lead/:leadId/stats', authMiddleware, [
   param('leadId').notEmpty().withMessage('Lead ID is required'),
 ], validateRequest, getLeadInvoiceStatsCtrl);
+
+// Create invoice from order (must be before /:id routes)
+invoiceRouter.post('/from-order/:orderId', authMiddleware, [
+  param('orderId').notEmpty().withMessage('Order ID is required'),
+], validateRequest, createInvoiceFromOrderCtrl);
+
+// Get invoice HTML (must be before /:id routes)
+invoiceRouter.get('/:id/html', authMiddleware, [
+  param('id').notEmpty().withMessage('Invoice ID is required'),
+], validateRequest, getInvoiceHtmlCtrl);
 
 // Get single invoice
 invoiceRouter.get('/:id', authMiddleware, [
