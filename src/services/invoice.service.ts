@@ -123,7 +123,6 @@ const buildInvoiceHtml = (inv: any) => {
   }).join('');
 
   const companyName = 'Design House India Pvt. Ltd.';
-  const brandName = 'Design House India';
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${inv.invoiceNumber}</title>
