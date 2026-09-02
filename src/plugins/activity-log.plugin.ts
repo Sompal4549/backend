@@ -40,6 +40,19 @@ const pickTitle = (doc: Record<string, unknown> | undefined): string | undefined
   return doc._id ? String(doc._id) : undefined;
 };
 
+const extractLeadId = (doc: Record<string, unknown> | undefined): string | undefined => {
+  if (!doc) return undefined;
+  const lead = doc.lead;
+  if (!lead) return undefined;
+  if (typeof lead === 'string') return lead;
+  if (typeof lead === 'object' && lead !== null) {
+    const leadObj = lead as Record<string, unknown>;
+    if (leadObj._id) return String(leadObj._id);
+    if (leadObj.$oid) return String(leadObj.$oid);
+  }
+  return undefined;
+};
+
 interface SaveDocument extends Document {
   __activityBefore?: Record<string, unknown>;
   __activityIsNew?: boolean;
@@ -71,10 +84,11 @@ export const activityLogPlugin = (schema: Schema): void => {
     const plain = toPlain(this) || {};
     const title = pickTitle(plain);
     const entityId = this._id ? String(this._id) : undefined;
+    const leadId = extractLeadId(plain);
     if (this.__activityIsNew) {
-      await logCreate(modelName, entityId, title, plain);
+      await logCreate(modelName, entityId, title, plain, leadId);
     } else {
-      await logUpdate(modelName, entityId, title, this.__activityBefore || {}, plain);
+      await logUpdate(modelName, entityId, title, this.__activityBefore || {}, plain, leadId);
     }
   });
 
@@ -99,7 +113,8 @@ export const activityLogPlugin = (schema: Schema): void => {
     if (!after?._id) return;
     const before = query.__activityBefore;
     if (!before) return;
-    await logUpdate(modelName, String(after._id), pickTitle(after), before, after);
+    const leadId = extractLeadId(after) || extractLeadId(before);
+    await logUpdate(modelName, String(after._id), pickTitle(after), before, after, leadId);
   });
 
   schema.post('findOneAndDelete', async function (result: unknown) {
@@ -108,7 +123,8 @@ export const activityLogPlugin = (schema: Schema): void => {
     if (skip(modelName)) return;
     const deleted = toPlain(result);
     if (!deleted?._id) return;
-    await logDelete(modelName, String(deleted._id), pickTitle(deleted), deleted);
+    const leadId = extractLeadId(deleted);
+    await logDelete(modelName, String(deleted._id), pickTitle(deleted), deleted, leadId);
   });
 
   schema.pre('deleteOne', async function () {
@@ -120,7 +136,8 @@ export const activityLogPlugin = (schema: Schema): void => {
       for (const doc of docs) {
         const plain = toPlain(doc);
         if (!plain?._id) continue;
-        await logDelete(modelName, String(plain._id), pickTitle(plain), plain);
+        const leadId = extractLeadId(plain);
+        await logDelete(modelName, String(plain._id), pickTitle(plain), plain, leadId);
       }
     } catch {
       /* ignore fetch failures */
@@ -135,10 +152,11 @@ export const activityLogPlugin = (schema: Schema): void => {
       const docs = await query.model.find(query.getFilter());
       if (!docs.length) return;
       const plain = toPlain(docs[0]) || {};
+      const leadId = extractLeadId(plain);
       await logDelete(modelName, plain._id ? String(plain._id) : undefined, pickTitle(plain), {
         _count: docs.length,
         sample: plain,
-      });
+      }, leadId);
     } catch {
       /* ignore fetch failures */
     }
