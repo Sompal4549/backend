@@ -44,17 +44,16 @@ export const uploadFile = asyncHandler(async (req: Request, res: Response) => {
  */
 export const listFiles = asyncHandler(async (req: Request, res: Response) => {
   const subDir = String(req.query.subDir || '');
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.max(Number(req.query.limit) || 25, 1);
 
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');
   res.set('Expires', '0');
 
   try {
-    // Cloudinary se direct list karo — purani uploads (jo DB me track nahi hui)
-    // bhi yahan mil jayengi. DB record kisika miss ho to bhi image dikhegi.
     const cloudinaryFiles = await listImagesFromCloudinary(subDir);
 
-    // DB me bhi tracking rakhte hain (delete karne ke liye publicId work kare)
     const filter: Record<string, unknown> = {};
     if (subDir) {
       filter.folder = subDir;
@@ -75,9 +74,12 @@ export const listFiles = asyncHandler(async (req: Request, res: Response) => {
       }
     }
 
-    successResponse(res, merged, 'Files listed');
+    const total = merged.length;
+    const start = (page - 1) * limit;
+    const paginated = merged.slice(start, start + limit);
+
+    successResponse(res, { files: paginated, total, page, limit }, 'Files listed');
   } catch (error) {
-    // Cloudinary list fail ho jaye to at least DB records toh dikhao
     const filter: Record<string, unknown> = {};
     if (subDir) {
       filter.folder = subDir;
@@ -87,6 +89,11 @@ export const listFiles = asyncHandler(async (req: Request, res: Response) => {
       name: m.filename.split('/').pop() || m.filename,
       url: m.url,
     }));
-    successResponse(res, dbFiles, 'Files listed (fallback: DB only)');
+
+    const total = dbFiles.length;
+    const start = (page - 1) * limit;
+    const paginated = dbFiles.slice(start, start + limit);
+
+    successResponse(res, { files: paginated, total, page, limit }, 'Files listed (fallback: DB only)');
   }
 });

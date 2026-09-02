@@ -8,6 +8,7 @@ interface ActivityEntry {
   action: ActivityAction;
   entity: string;
   entityId?: string;
+  leadId?: string;
   title?: string;
   changes?: Record<string, { before: unknown; after: unknown }>;
   snapshotBefore?: Record<string, unknown>;
@@ -53,6 +54,7 @@ export const recordActivity = async (entry: ActivityEntry): Promise<void> => {
     await ActivityLogModel.collection.insertOne({
       ...entry,
       userId: ctx?.userId ? new Types.ObjectId(ctx.userId) : undefined,
+      leadId: entry.leadId ? new Types.ObjectId(entry.leadId) : undefined,
       userName: ctx?.userName || fallbackName,
       userRole: ctx?.userRole || 'guest',
       createdAt: new Date(),
@@ -67,15 +69,17 @@ export const logCreate = (
   entity: string,
   entityId: string | undefined,
   title: string | undefined,
-  snapshotAfter: Record<string, unknown>
-) => recordActivity({ action: 'create', entity, entityId, title, snapshotAfter });
+  snapshotAfter: Record<string, unknown>,
+  leadId?: string
+) => recordActivity({ action: 'create', entity, entityId, title, snapshotAfter, leadId });
 
 export const logUpdate = (
   entity: string,
   entityId: string | undefined,
   title: string | undefined,
   snapshotBefore: Record<string, unknown>,
-  snapshotAfter: Record<string, unknown>
+  snapshotAfter: Record<string, unknown>,
+  leadId?: string
 ) =>
   recordActivity({
     action: 'update',
@@ -85,11 +89,13 @@ export const logUpdate = (
     snapshotBefore,
     snapshotAfter,
     changes: computeChanges(snapshotBefore, snapshotAfter),
+    leadId,
   });
 
 export const logDelete = (
   entity: string,
   entityId: string | undefined,
   title: string | undefined,
-  snapshot: Record<string, unknown>
-) => recordActivity({ action: 'delete', entity, entityId, title, snapshotAfter: snapshot });
+  snapshot: Record<string, unknown>,
+  leadId?: string
+) => recordActivity({ action: 'delete', entity, entityId, title, snapshotAfter: snapshot, leadId });

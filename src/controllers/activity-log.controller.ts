@@ -6,7 +6,7 @@ import { ActivityLogModel } from '../models/activity-log.model';
 export const listActivityLogs = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit), 10) || 50));
-  const { action, entity, entityId, user, search, role } = req.query;
+  const { action, entity, entityId, leadId, user, search, role } = req.query;
 
   const filter: Record<string, unknown> = {};
   if (action) filter.action = action;
@@ -18,6 +18,23 @@ export const listActivityLogs = asyncHandler(async (req: Request, res: Response)
   if (search) {
     const regex = new RegExp(String(search), 'i');
     filter.$or = [{ title: regex }, { userName: regex }, { entity: regex }];
+  }
+
+  // leadId filter: match old logs (entity=Lead, entityId=leadId) OR new logs (leadId=leadId)
+  if (leadId) {
+    const leadIdFilter = {
+      $or: [
+        { entity: 'Lead', entityId: String(leadId) },
+        { leadId: leadId },
+      ],
+    };
+    if (filter.$or) {
+      // If search $or already exists, wrap both in $and
+      filter.$and = [{ $or: filter.$or }, leadIdFilter];
+      delete filter.$or;
+    } else {
+      Object.assign(filter, leadIdFilter);
+    }
   }
 
   const [total, logs, entities] = await Promise.all([

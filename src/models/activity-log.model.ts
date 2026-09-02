@@ -6,6 +6,7 @@ export interface IActivityLog {
   action: ActivityAction;
   entity: string;
   entityId?: string;
+  leadId?: Types.ObjectId;
   title?: string;
   userId?: Types.ObjectId;
   userName?: string;
@@ -22,6 +23,7 @@ const activityLogSchema = new Schema<IActivityLog>(
     action: { type: String, enum: ['create', 'update', 'delete'], required: true, index: true },
     entity: { type: String, required: true, index: true },
     entityId: { type: String },
+    leadId: { type: Schema.Types.ObjectId, ref: 'Lead', index: true },
     title: { type: String },
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
     userName: { type: String },
@@ -36,5 +38,6 @@ const activityLogSchema = new Schema<IActivityLog>(
 activityLogSchema.index({ createdAt: -1 });
 activityLogSchema.index({ action: 1, createdAt: -1 });
 activityLogSchema.index({ entity: 1, entityId: 1, createdAt: -1 });
+activityLogSchema.index({ leadId: 1, createdAt: -1 });
 
 export const ActivityLogModel = model<IActivityLog>('ActivityLog', activityLogSchema);

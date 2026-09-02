@@ -8,6 +8,44 @@ export interface IInvoiceItem {
   unitPrice: number;
   gstRate: number;
   amount: number;
+  hsn?: string;
+  sac?: string;
+  size?: string;
+  area?: string;
+  unit?: string;
+  discount?: number;
+}
+
+export interface IPurchaseOrder {
+  available: boolean;
+  poNumber?: string;
+  poDate?: Date;
+  poFile?: string;
+}
+
+export interface IPaymentDetails {
+  paymentStatus: 'payment_received' | 'full_payment_pending' | 'partially_paid';
+  paymentTerms?: string;
+  outstandingAmount?: number;
+  amountReceived?: number;
+  tdsApplicable?: boolean;
+  tdsRate?: number;
+}
+
+export interface IDeliveryChallanItem {
+  name: string;
+  quantity: number;
+  delivered: number;
+  available: number;
+  thisChallan: number;
+}
+
+export interface IDeliveryChallan {
+  challanNumber: string;
+  challanDate: Date;
+  sourceInvoice: Types.ObjectId;
+  items: IDeliveryChallanItem[];
+  status: 'pending' | 'delivered' | 'cancelled';
 }
 
 export interface IInvoiceAddress {
@@ -42,6 +80,10 @@ export interface IInvoice extends Document {
   notes?: string;
   termsAndConditions?: string;
   createdBy: Types.ObjectId;
+  purchaseOrder?: IPurchaseOrder;
+  paymentDetails?: IPaymentDetails;
+  deliveryChallans?: IDeliveryChallan[];
+  sourceProformaInvoice?: Types.ObjectId;
 }
 
 const invoiceItemSchema = new Schema<IInvoiceItem>(
@@ -53,6 +95,12 @@ const invoiceItemSchema = new Schema<IInvoiceItem>(
     unitPrice: { type: Number, required: true },
     gstRate: { type: Number, default: 5 },
     amount: { type: Number, required: true },
+    hsn: { type: String },
+    sac: { type: String },
+    size: { type: String },
+    area: { type: String },
+    unit: { type: String, default: 'Nos' },
+    discount: { type: Number, default: 0 },
   },
   { _id: false }
 );
@@ -68,6 +116,58 @@ const invoiceAddressSchema = new Schema<IInvoiceAddress>(
     postalCode: { type: String },
     country: { type: String },
     gstNumber: { type: String },
+  },
+  { _id: false }
+);
+
+const purchaseOrderSchema = new Schema<IPurchaseOrder>(
+  {
+    available: { type: Boolean, default: false },
+    poNumber: { type: String },
+    poDate: { type: Date },
+    poFile: { type: String },
+  },
+  { _id: false }
+);
+
+const paymentDetailsSchema = new Schema<IPaymentDetails>(
+  {
+    paymentStatus: {
+      type: String,
+      enum: ['payment_received', 'full_payment_pending', 'partially_paid'],
+      default: 'full_payment_pending',
+    },
+    paymentTerms: { type: String },
+    outstandingAmount: { type: Number, default: 0 },
+    amountReceived: { type: Number, default: 0 },
+    tdsApplicable: { type: Boolean, default: false },
+    tdsRate: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const deliveryChallanItemSchema = new Schema<IDeliveryChallanItem>(
+  {
+    name: { type: String, required: true },
+    quantity: { type: Number, required: true },
+    delivered: { type: Number, default: 0 },
+    available: { type: Number, required: true },
+    thisChallan: { type: Number, required: true },
+  },
+  { _id: false }
+);
+
+const deliveryChallanSchema = new Schema<IDeliveryChallan>(
+  {
+    challanNumber: { type: String, required: true },
+    challanDate: { type: Date, required: true },
+    sourceInvoice: { type: Schema.Types.ObjectId, ref: 'Invoice', required: true },
+    items: [deliveryChallanItemSchema],
+    status: {
+      type: String,
+      enum: ['pending', 'delivered', 'cancelled'],
+      default: 'pending',
+    },
   },
   { _id: false }
 );
@@ -101,6 +201,10 @@ const invoiceSchema = new Schema<IInvoice>(
     notes: { type: String, default: '' },
     termsAndConditions: { type: String, default: '' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    purchaseOrder: { type: purchaseOrderSchema },
+    paymentDetails: { type: paymentDetailsSchema },
+    deliveryChallans: [deliveryChallanSchema],
+    sourceProformaInvoice: { type: Schema.Types.ObjectId, ref: 'Invoice' },
   },
   { timestamps: true }
 );
