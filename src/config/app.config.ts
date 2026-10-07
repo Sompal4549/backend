@@ -26,7 +26,7 @@ const getList = (key: string, defaultValue: string[]): string[] => {
 export const config = {
   env: getString('NODE_ENV', 'development'),
   port: Number(getString('PORT', '5000')),
-  mongoUri: getFirstString(['MONGO_URI_MAIN', 'MONGO_URI'], 'mongodb://localhost:27017/ensis'),
+  mongoUri: getFirstString(['MONGO_URI_MAIN'], 'mongodb://localhost:27017/ensis'),
   jwtAccessSecret: getFirstString(['JWT_ACCESS_SECRET', 'JWT_SECRET'], 'access-secret-change-me'),
   jwtRefreshSecret: getFirstString(['JWT_REFRESH_SECRET'], 'refresh-secret-change-me'),
   accessTokenExpires: getString('ACCESS_TOKEN_EXPIRES', '36500d'),
@@ -35,12 +35,17 @@ export const config = {
   cookieSameSite: getString('COOKIE_SAME_SITE', 'lax'),
   corsOrigin: getList('CORS_ORIGIN', ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174','https://ensis-admin-omak.vercel.app','https://ensis-frontend-jtom.vercel.app','https://web.ensis.in','https://admin.ensis.in']),
   uploadDir: getString('UPLOAD_DIR', 'src/uploads'),
-  uploadMaxFileSizeBytes: getNumber('UPLOAD_MAX_FILE_SIZE_BYTES', 5 * 1024 * 1024),
+  uploadMaxFileSizeBytes: getNumber('UPLOAD_MAX_FILE_SIZE_BYTES', 100 * 1024 * 1024),
   uploadMaxFiles: getNumber('UPLOAD_MAX_FILES', 6),
-uploadAllowedMimeTypes: getList('UPLOAD_ALLOWED_MIME_TYPES', [
-  'image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/svg+xml', 'image/gif',
-  'application/pdf', // ← add karo
-]),
+  uploadAllowedMimeTypes: getList('UPLOAD_ALLOWED_MIME_TYPES', [
+    'image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/svg+xml', 'image/gif', 'image/avif',
+    'application/pdf',
+    'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/ogg', 'video/x-matroska',
+    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/webm', 'audio/mp4', 'audio/x-m4a',
+    'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain', 'text/csv'
+  ]),
   otpLength: getNumber('OTP_LENGTH', 6),
   otpExpiresMinutes: getNumber('OTP_EXPIRES_MINUTES', 10),
   otpMaxVerifyAttempts: getNumber('OTP_MAX_VERIFY_ATTEMPTS', 10),

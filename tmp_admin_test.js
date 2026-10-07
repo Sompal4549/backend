@@ -6,8 +6,8 @@
       body: JSON.stringify({ phone: '9876543210' })
     });
     const loginJson = await loginRes.json();
-    console.log('LOGIN STATUS', loginRes.status);
-    console.log('LOGIN BODY', JSON.stringify(loginJson, null, 2));
+    // console.log('LOGIN STATUS', loginRes.status);
+    // console.log('LOGIN BODY', JSON.stringify(loginJson, null, 2));
 
     if (!loginJson.data?.accessToken) {
       console.error('No accessToken received');
@@ -20,8 +20,8 @@
       headers: { Authorization: `Bearer ${token}` }
     });
     const dashboardJson = await dashboardRes.json();
-    console.log('DASHBOARD STATUS', dashboardRes.status);
-    console.log('DASHBOARD BODY', JSON.stringify(dashboardJson, null, 2));
+    // console.log('DASHBOARD STATUS', dashboardRes.status);
+    // console.log('DASHBOARD BODY', JSON.stringify(dashboardJson, null, 2));
   } catch (e) {
     console.error('ERROR', e);
     process.exit(1);

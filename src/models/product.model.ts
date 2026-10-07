@@ -43,7 +43,7 @@ export interface IProduct extends Document {
     // dimensions?: { title: string; dimensionsList: { title: string; description: string }[] };
     // materialAndCare?: { title: string; description: string };
     productSpecifications?: { highlight: string; title: string; image: string; specifications: { title: string; description: string }[] }[];
-    // whatisInclueded?: string[];
+    whatisInclueded?: string[];
     // items?: { image: string; title: string; description: string }[];
     smartDesignAppearance?: {
       highlight?: string;
@@ -170,7 +170,7 @@ const productSchema = new Schema<IProduct>(
         ),
       ],
 
-      // whatisInclueded: [String],
+      whatisInclueded: [String],
 
       // items: [
       //   new Schema(
