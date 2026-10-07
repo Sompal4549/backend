@@ -306,11 +306,11 @@ const buildInvoiceHtml = (inv: any) => {
                     </tr>
                     <tr>
                       <td width="33.33%" valign="top" style="padding:8px;border-right:1px solid #d1d5db;font-size:9px;line-height:1.5;color:#1a1a1a">
-                        <div>Bank Name : ${inv.bankDetails?.bankName || '--'}</div>
-                        <div>Account Name : ${inv.bankDetails?.accountName || '--'}</div>
-                        <div>Account No. : ${inv.bankDetails?.accountNo || '--'}</div>
-                        <div>IFSC Code : ${inv.bankDetails?.ifsc || '--'}</div>
-                        <div>Branch Name : ${inv.bankDetails?.branch || '--'}</div>
+                        <div><strong>Bank Name :</strong> ${inv.bankDetails?.bankName || '--'}</div>
+                        <div><strong>Account Name :</strong> ${inv.bankDetails?.accountName || '--'}</div>
+                        <div><strong>Account No. :</strong> ${inv.bankDetails?.accountNo || '--'}</div>
+                        <div><strong>IFSC Code :</strong> ${inv.bankDetails?.ifsc || '--'}</div>
+                        <div><strong>Branch Name :</strong> ${inv.bankDetails?.branch || '--'}</div>
                       </td>
                       <td width="33.34%" valign="top" style="padding:8px;border-right:1px solid #d1d5db;font-size:9px;line-height:1.5;color:#1a1a1a">
                         <div style="min-height:120px;display:flex;flex-direction:column">

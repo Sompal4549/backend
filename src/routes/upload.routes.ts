@@ -10,8 +10,16 @@ const uploader = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config.uploadMaxFileSizeBytes, files: 1 },
   fileFilter: (_req, file, cb) => {
-    if (!config.uploadAllowedMimeTypes.includes(file.mimetype)) {
-      cb(new Error(`Only these file types are allowed: ${config.uploadAllowedMimeTypes.join(', ')}`));
+    const mime = file.mimetype.toLowerCase();
+    const isAllowed =
+      mime.startsWith('image/') ||
+      mime.startsWith('video/') ||
+      mime.startsWith('audio/') ||
+      mime === 'application/pdf' ||
+      config.uploadAllowedMimeTypes.includes(mime);
+
+    if (!isAllowed) {
+      cb(new Error(`File type ${file.mimetype} is not supported. Allowed: Images, Videos, Audio, PDFs, and Documents.`));
       return;
     }
     cb(null, true);

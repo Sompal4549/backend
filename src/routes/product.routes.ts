@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getProducts, getProductById, createProduct, updateProductHandler, deleteProductHandler } from '../controllers/product.controller';
+import { getBackupsHandler, createBackupHandler, getBackupHandler, restoreBackupHandler, deleteBackupHandler, deleteAllBackupsHandler } from '../controllers/product-backup.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
 import { body, param, query } from 'express-validator';
@@ -7,6 +8,7 @@ import { validateRequest } from '../middlewares/validate.middleware';
 
 export const productRouter = Router();
 
+// ─── Public product routes ──────────────────────────────────────────────────
 productRouter.get(
   '/',
   [
@@ -20,6 +22,8 @@ productRouter.get(
   getProducts
 );
 productRouter.get('/:id', [param('id').notEmpty().withMessage('Product id or slug is required')], validateRequest, getProductById);
+
+// ─── Admin product write routes ─────────────────────────────────────────────
 productRouter.post(
   '/',
   authMiddleware,
@@ -61,4 +65,60 @@ productRouter.delete(
   [param('id').isMongoId().withMessage('Valid product id is required')],
   validateRequest,
   deleteProductHandler
+);
+
+// ─── Backup routes ───────────────────────────────────────────────────────────
+// Specific backup by backupId (must come BEFORE /:id/backups to avoid conflict)
+productRouter.get(
+  '/backups/:backupId',
+  authMiddleware,
+  adminMiddleware,
+  [param('backupId').isMongoId().withMessage('Valid backup id is required')],
+  validateRequest,
+  getBackupHandler
+);
+productRouter.post(
+  '/backups/:backupId/restore',
+  authMiddleware,
+  adminMiddleware,
+  [param('backupId').isMongoId().withMessage('Valid backup id is required')],
+  validateRequest,
+  restoreBackupHandler
+);
+productRouter.delete(
+  '/backups/:backupId',
+  authMiddleware,
+  adminMiddleware,
+  [param('backupId').isMongoId().withMessage('Valid backup id is required')],
+  validateRequest,
+  deleteBackupHandler
+);
+
+// Backups for a product
+productRouter.get(
+  '/:id/backups',
+  authMiddleware,
+  adminMiddleware,
+  [param('id').isMongoId().withMessage('Valid product id is required')],
+  validateRequest,
+  getBackupsHandler
+);
+productRouter.post(
+  '/:id/backups',
+  authMiddleware,
+  adminMiddleware,
+  [
+    param('id').isMongoId().withMessage('Valid product id is required'),
+    body('note').optional().isString(),
+  ],
+  validateRequest,
+  createBackupHandler
+);
+productRouter.delete(
+  '/:id/backups',
+  authMiddleware,
+  adminMiddleware,
+  [param('id').isMongoId().withMessage('Valid product id is required')],
+  validateRequest,
+  deleteAllBackupsHandler
 );
