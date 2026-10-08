@@ -17,6 +17,7 @@ productRouter.get(
     query('minPrice').optional().isFloat({ min: 0 }).withMessage('Minimum price must be a positive number'),
     query('maxPrice').optional().isFloat({ min: 0 }).withMessage('Maximum price must be a positive number'),
     query('order').optional().isIn(['asc', 'desc']).withMessage('Order must be asc or desc'),
+    query('includeInactive').optional(),
   ],
   validateRequest,
   getProducts
@@ -38,6 +39,7 @@ productRouter.post(
     body('stock').optional().isInt({ min: 0 }).withMessage('Stock must be a positive integer'),
     body('images').optional().isArray().withMessage('Images must be an array'),
     body('variants').optional().isArray().withMessage('Variants must be an array'),
+    body('tags').optional(),
   ],
   validateRequest,
   createProduct
@@ -54,6 +56,7 @@ productRouter.put(
     body('subCategory').optional().isMongoId().withMessage('Valid sub category is required'),
     body('stock').optional().isInt({ min: 0 }).withMessage('Stock must be a positive integer'),
     body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
+    body('tags').optional(),
   ],
   validateRequest,
   updateProductHandler

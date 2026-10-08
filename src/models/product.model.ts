@@ -222,6 +222,6 @@ productSchema.pre<IProduct>('save', function (next) {
   next();
 });
 
-productSchema.index({ title: 'text', description: 'text' });
+productSchema.index({ title: 'text', description: 'text', tags: 'text' });
 
 export const ProductModel = model<IProduct>('Product', productSchema);
