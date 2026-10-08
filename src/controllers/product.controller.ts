@@ -15,11 +15,17 @@ export const getProductById = asyncHandler(async (req: AuthRequest, res: Respons
 });
 
 export const createProduct = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (typeof req.body.tags === 'string') {
+    req.body.tags = req.body.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+  }
   const product = await createNewProduct(req.body);
   successResponse(res, product, 'Product created', 201);
 });
 
 export const updateProductHandler = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (typeof req.body.tags === 'string') {
+    req.body.tags = req.body.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+  }
   const userId = (req.user as any)?._id?.toString();
   const product = await updateProduct(req.params.id, req.body, userId);
   successResponse(res, product, 'Product updated');

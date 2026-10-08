@@ -60,6 +60,10 @@ export const uploadMediaToCloudinary = async (
       });
     });
 
+    uploadStream.on('error', (err) => {
+      reject(err);
+    });
+
     uploadStream.end(buffer);
   });
 };

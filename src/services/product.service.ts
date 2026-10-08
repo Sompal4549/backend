@@ -12,6 +12,13 @@ export const listProducts = async (query: any) => {
   if (minPrice) filter.price = { ...filter.price, $gte: Number(minPrice) };
   if (maxPrice) filter.price = { ...filter.price, $lte: Number(maxPrice) };
 
+  // Only return active products by default unless includeInactive=true is requested (e.g. by admin)
+  if (query.isActive !== undefined) {
+    filter.isActive = query.isActive === 'true' || query.isActive === true;
+  } else if (query.includeInactive !== 'true' && query.includeInactive !== true) {
+    filter.isActive = true;
+  }
+
   const products = search
     ? await searchProducts(search, filter, pagination.skip, pagination.limit, pagination.sort)
     : await getProducts(filter, pagination.skip, pagination.limit, pagination.sort);
