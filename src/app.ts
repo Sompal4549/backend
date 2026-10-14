@@ -1,9 +1,10 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
+import path from 'path';
 import rateLimit from 'express-rate-limit';
 import { config } from './config/app.config';
 import './plugins/activity-log.plugin';
@@ -37,13 +38,21 @@ import { socialRouter } from './routes/sociallink.routes';
 import { applicationRouter } from './routes/application.routes';
 import { activityLogRouter } from './routes/activity-log.routes';
 import { leadRouter } from './routes/lead.routes';
+import { dashboardRouter, enquiryListRouter } from './routes/dashboard.routes';
 import { solutionRouter } from './routes/solution.routes';
 import { invoiceRouter } from './routes/invoice.routes';
+import { chatbotRouter } from './routes/chatbot.routes';
 
 export const createApp = () => {
   const app = express();
 
+  // Behind Nginx / proxy — use the visitor's IP (X-Forwarded-For)
+  app.set('trust proxy', 1);
+
+  // HTTP request logging
   app.use(morgan('tiny'));
+
+  // ─── Rate Limiting ──────────────────────────────────────────────────────────
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: config.env === 'development' ? 100000 : 10000,
@@ -54,31 +63,66 @@ export const createApp = () => {
       return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
     },
   });
-
-  app.set('trust proxy', 1);
   app.use(limiter);
-  app.use(helmet());
 
-  // Parse comma-separated origins from config into an array and handle potential type narrowing issues
-  const rawOrigin = config.corsOrigin as string | string[];
-  const allowedOrigins = typeof rawOrigin === 'string'
-    ? rawOrigin.split(',').map((origin: string) => origin.trim()).filter((origin) => origin !== '')
-    : rawOrigin;
+  // ─── Security Headers ───────────────────────────────────────────────────────
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: false,
+      crossOriginEmbedderPolicy: false,
+    })
+  );
 
-  app.use(cors({ origin: allowedOrigins, credentials: true }));
-  app.use(compression());
-  app.use(cookieParser());
-  app.use(express.json({ 
-    limit: '10mb',
-    verify: (req: any, _res, buf) => {
-      // Capture raw body for signature verification in webhooks
-      req.rawBody = buf;
+  // ─── CORS — allow frontend & admin origins (Organic blueprint) ──────────────
+  // Explicit Preflight Handler first: echoes the requested headers so that
+  // Authorization / x-admin-page survive credentialed preflights (a literal
+  // "*" is ignored by browsers when credentials: true).
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'OPTIONS') {
+      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.header('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || '*');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.status(200).end();
+      return;
     }
-  }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+    next();
+  });
+
+  app.use(
+    cors({
+      origin: true,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    })
+  );
+
+  app.use(compression());
+
+  // ─── Body Parsers / Cookies ─────────────────────────────────────────────────
+  app.use(cookieParser());
+  app.use(
+    express.json({
+      limit: '50mb',
+      verify: (req: any, _res, buf) => {
+        // Capture raw body for signature verification in webhooks
+        req.rawBody = buf;
+      },
+    })
+  );
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Serve static files and docs early to bypass logic middleware and prevent path mangling
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+  // ─── Static Uploads ─────────────────────────────────────────────────────────
+  const allowCrossOrigin = (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  };
+  app.use('/uploads', allowCrossOrigin, express.static(path.join(process.cwd(), 'uploads')));
+  app.use('/uploads', allowCrossOrigin, express.static(path.join(process.cwd(), 'src', 'uploads')));
 
   /**
    * Middleware to handle legacy numeric ID mapping.
@@ -91,7 +135,7 @@ export const createApp = () => {
     const mapToObjectId = (id: any): string | any => {
       if (typeof id !== 'string') return id;
       const trimmed = id.trim();
-      
+
       // Only pad if it's purely numeric and shorter than 24 characters
       if (/^\d+$/.test(trimmed) && trimmed.length < 24) {
         return OBJECT_ID_PAD.substring(0, 24 - trimmed.length) + trimmed;
@@ -110,7 +154,7 @@ export const createApp = () => {
     // Resolve IDs in the request body for standard entity fields
     if (req.body) {
       const commonIdKeys = ['productId', 'id', 'orderId', 'categoryId', 'reviewId'];
-      
+
       commonIdKeys.forEach(key => {
         if (req.body[key]) {
           req.body[key] = mapToObjectId(req.body[key].toString());
@@ -129,7 +173,39 @@ export const createApp = () => {
     next();
   });
 
+  // ─── NoSQL Injection Sanitizer ──────────────────────────────────────────────
+  // Strips MongoDB operator keys ($gt, $ne, ...) from body, query and params
+  app.use((req, _res, next) => {
+    const clean = (obj: any): any => {
+      if (obj === null || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(clean);
+      for (const key of Object.keys(obj)) {
+        if (key.startsWith('$')) {
+          delete obj[key];
+        } else {
+          obj[key] = clean(obj[key]);
+        }
+      }
+      return obj;
+    };
+    if (req.body) clean(req.body);
+    if (req.query) clean(req.query);
+    if (req.params) clean(req.params);
+    next();
+  });
+
+  // ─── Admin Activity Page Tracker ────────────────────────────────────────────
+  // Captures the admin panel page (x-admin-page) and menu (x-admin-module)
+  app.use((req, _res, next) => {
+    const headers = req.headers;
+    (req as any).adminPage = headers['x-admin-page'] || null;
+    (req as any).adminModule = headers['x-admin-module'] || null;
+    next();
+  });
+
+  // ─── Routes (mounted on both /api and /api/v1) ──────────────────────────────
   app.use('/api/v1/auth', authRouter);
+  app.use('/api/auth', authRouter);
   app.use('/api/v1/products', productRouter);
   app.use('/api/v1/categories', categoryRouter);
   app.use('/api/v1/component-content', componentContentRouter);
@@ -151,17 +227,29 @@ export const createApp = () => {
   app.use('/api/v1/enquiry', enquiryRouter);
   app.use("/api/v1/seo", seoRoutes);
   app.use('/api/v1/pages', pageRouter);
-app.use("/api/v1/social-clicks",socialRouter );
-app.use("/api/v1/applications", applicationRouter);
-app.use('/api/v1/activity-logs', activityLogRouter);
-app.use('/api/v1/leads', leadRouter);
-app.use('/api/v1/solutions', solutionRouter);
-app.use('/api/v1/invoices', invoiceRouter);
+  app.use("/api/v1/social-clicks", socialRouter);
+  app.use("/api/v1/applications", applicationRouter);
+  app.use('/api/v1/activity-logs', activityLogRouter);
+  app.use('/api/v1/leads', leadRouter);
+  app.use('/api/leads', leadRouter);
+  app.use('/api/v1/solutions', solutionRouter);
+  app.use('/api/v1/invoices', invoiceRouter);
 
+  // Live dashboard + enquiries (admin protected), aliased across base paths
+  app.use('/api/v1/dashboard', dashboardRouter);
+  app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/v1/enquiries', enquiryListRouter);
+  app.use('/api/enquiries', enquiryListRouter);
+  app.use('/api/v1/contact-enquiry', enquiryListRouter);
+  app.use('/api/contact-enquiry', enquiryListRouter);
+  app.use('/api/v1/chatbot', chatbotRouter);
+  app.use('/api/chatbot', chatbotRouter);
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
   });
+
+  // ─── 404 + Global Error Handler ─────────────────────────────────────────────
   app.use(notFoundHandler);
   app.use(errorHandler);
 

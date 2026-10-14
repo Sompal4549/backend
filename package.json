@@ -10,6 +10,12 @@
     "build": "tsc",
     "prestart": "npm run build",
     "start": "node dist/server.js",
+    "seed:products": "tsx src/seeds/products.seed.ts",
+    "seed:products:local": "tsx src/seeds/products.seed.ts --env=local",
+    "seed:products:dev": "tsx src/seeds/products.seed.ts --env=dev",
+    "seed:products:prod": "tsx src/seeds/products.seed.ts --env=production",
+    "seed:admin": "tsx src/seeds/admin.seed.ts",
+    "seed:pages": "tsx src/seeds/pages.seed.ts",
     "lint": "eslint . --ext "
   },
   "keywords": [

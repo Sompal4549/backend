@@ -1,52 +1,63 @@
-import { NextFunction, Request, Response } from 'express';
-import mongoose from 'mongoose';
-import { AppError } from '../utils/app-error';
-import { errorResponse } from '../utils/api-response';
-import { config } from '../config/app.config';
+import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
+import { ApiError } from "../utils/app-error";
 
-interface NormalizedError {
-  statusCode: number;
-  message: string;
-  details?: unknown;
-}
+export const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction): void => {
+  let statusCode = err?.statusCode || 500;
+  let message = err?.message || "Internal server error";
+  let errors: string[] = Array.isArray(err?.errors) ? err.errors : [];
 
-const normalizeError = (err: unknown): NormalizedError => {
-  if (err instanceof AppError) {
-    return { statusCode: err.statusCode, message: err.message, details: err.details };
+  // ApiError / AppError — known, operational errors
+  if (err instanceof ApiError) {
+    statusCode = err.statusCode;
+    message = err.message;
+    errors = err.errors.length > 0 ? err.errors : [err.message];
   }
 
-  if (err instanceof mongoose.Error.CastError || (err as { name?: string })?.name === 'CastError') {
-    return { statusCode: 400, message: 'Invalid resource identifier' };
+  // Mongoose CastError (Invalid ObjectId)
+  if (err instanceof mongoose.Error.CastError || err?.name === "CastError") {
+    statusCode = 400;
+    message = `Invalid resource identifier: ${err.path}`;
+    errors = [message];
   }
 
+  // Mongoose Validation Error
   if (err instanceof mongoose.Error.ValidationError) {
-    return { statusCode: 400, message: err.message };
+    statusCode = 400;
+    message = "Validation Error";
+    errors = Object.values(err.errors).map((el: any) => el.message);
   }
 
-  const anyErr = err as { code?: number; name?: string; message?: string };
-
-  if (anyErr?.code === 11000) {
-    return { statusCode: 409, message: 'Duplicate value for a unique field' };
+  // Duplicate Key Error (E11000)
+  if (err?.code === 11000) {
+    statusCode = 409;
+    const field = Object.keys(err.keyValue || {})[0] || "field";
+    message = `Duplicate value entered for '${field}'. Please use another value.`;
+    errors = [message];
   }
 
-  if (anyErr?.name === 'TokenExpiredError' || anyErr?.name === 'JsonWebTokenError') {
-    return { statusCode: 401, message: 'Invalid or expired token' };
+  // JWT Errors
+  if (err?.name === "JsonWebTokenError") {
+    statusCode = 401;
+    message = "Invalid authentication token. Please log in again.";
+    errors = [message];
   }
 
-  return {
-    statusCode: 500,
-    message: config.env === 'development' ? (anyErr?.message ?? 'Internal server error') : 'Internal server error',
-  };
-};
-
-export const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunction): void => {
-  const { statusCode, message, details } = normalizeError(err);
+  if (err?.name === "TokenExpiredError") {
+    statusCode = 401;
+    message = "Authentication token has expired. Please refresh your session.";
+    errors = [message];
+  }
 
   if (statusCode >= 500) {
-    console.error(`[${req.method} ${req.originalUrl}]`, err);
-  } else {
-    console.warn(`[${req.method} ${req.originalUrl}] ${statusCode} ${message}`);
+    console.error(`[SERVER ERROR] ${req.method} ${req.originalUrl}:`, err);
   }
 
-  errorResponse(res, message, statusCode, details);
+  res.status(statusCode).json({
+    success: false,
+    statusCode,
+    message,
+    errors: errors.length > 0 ? errors : [message],
+    timestamp: new Date().toISOString(),
+  });
 };

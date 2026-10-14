@@ -59,7 +59,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   await LeadModel.findByIdAndUpdate(leadIdStr, { refreshToken: hashedRefreshToken });
 
   setRefreshTokenCookie(res, refreshToken);
-  successResponse(res, { lead, accessToken }, 'User registered', 201);
+  successResponse(res, { lead, accessToken, refreshToken }, 'User registered', 201);
 });
 
 // Phone number normalize helper (same as otp.service)
@@ -97,7 +97,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   await LeadModel.findByIdAndUpdate(leadIdStr, { refreshToken: hashedRefreshToken });
 
   setRefreshTokenCookie(res, refreshToken);
-  successResponse(res, { lead, accessToken, role: 'lead' }, 'Login successful');
+  successResponse(res, { lead, accessToken, refreshToken, role: 'lead' }, 'Login successful');
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
@@ -116,7 +116,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const refreshToken = asyncHandler(async (req: Request, res: Response) => {
-  const refreshTokenValue = req.cookies.refreshToken;
+  const refreshTokenValue = req.body?.refreshToken || req.cookies?.refreshToken;
   if (!refreshTokenValue) {
     throw new AppError(401, 'Refresh token missing');
   }

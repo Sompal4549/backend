@@ -52,12 +52,15 @@ export const getReviews = asyncHandler(async (req: Request, res: Response) => {
     isMine: currentUserId ? rev.userId === currentUserId : false,
   }));
 
-  res.status(200).json({
-    success: true,
-    averageRating: result.averageRating,
-    reviews: reviewsWithMine,
-    ...(result.pagination && { pagination: result.pagination })
-  });
+  successResponse(
+    res,
+    {
+      averageRating: result.averageRating,
+      reviews: reviewsWithMine,
+      ...(result.pagination && { pagination: result.pagination }),
+    },
+    "Reviews retrieved"
+  );
 });
 
 export const updateReview = asyncHandler(async (req: AuthRequest, res: Response) => {

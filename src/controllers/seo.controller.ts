@@ -3,23 +3,18 @@
 import { Request, Response } from "express";
 import * as seoService from "../services/seo.service";
 import { asyncHandler } from "../utils/async-handler";
+import { successResponse } from "../utils/api-response";
 
 export const createSeo = asyncHandler(async (req: Request, res: Response) => {
   const seo = await seoService.createSeo(req.body);
 
-  res.status(201).json({
-    success: true,
-    data: seo,
-  });
+  successResponse(res, seo, "SEO created", 201);
 });
 
 export const getAllSeo = asyncHandler(async (_req: Request, res: Response) => {
   const seo = await seoService.getAllSeo();
 
-  res.json({
-    success: true,
-    data: seo,
-  });
+  successResponse(res, seo, "SEO retrieved");
 });
 
 export const getSeoBySlug = asyncHandler(async (req: Request, res: Response) => {
@@ -27,10 +22,7 @@ export const getSeoBySlug = asyncHandler(async (req: Request, res: Response) => 
     req.params.slug
   );
 
-  res.json({
-    success: true,
-    data: seo,
-  });
+  successResponse(res, seo, "SEO retrieved");
 });
 
 export const updateSeo = asyncHandler(async (req: Request, res: Response) => {
@@ -39,23 +31,18 @@ export const updateSeo = asyncHandler(async (req: Request, res: Response) => {
     req.body
   );
 
-  res.json({
-    success: true,
-    data: seo,
-  });
+  successResponse(res, seo, "SEO updated");
 });
 
 export const deleteSeo = asyncHandler(async (req: Request, res: Response) => {
   await seoService.deleteSeo(req.params.id);
 
-  res.json({
-    success: true,
-  });
+  successResponse(res, null, "SEO deleted");
 });
 
 export const getAdvancedSeo = asyncHandler(async (_req: Request, res: Response) => {
   const seo = await seoService.getSeoBySlug("advanced-seo");
-  res.json({ success: true, data: seo?.advanced || null });
+  successResponse(res, seo?.advanced || null, "Advanced SEO retrieved");
 });
 
 export const upsertAdvancedSeo = asyncHandler(async (req: Request, res: Response) => {
@@ -68,5 +55,5 @@ export const upsertAdvancedSeo = asyncHandler(async (req: Request, res: Response
     title: "Advanced SEO",
     description: "Advanced SEO Settings",
   });
-  res.json({ success: true, data: seo });
+  successResponse(res, seo, "Advanced SEO updated");
 });

@@ -1,11 +1,27 @@
 
-> ecommerce-backend@1.0.0 dev
-> nodemon --watch src --ext ts,json --exec "node --loader ts-node/esm src/server"
+> ensis-backend@1.0.0 dev
+> tsx watch src/server
 
-[33m[nodemon] 3.1.14[39m
-[33m[nodemon] to restart at any time, enter `rs`[39m
-[33m[nodemon] watching path(s): src\**\*[39m
-[33m[nodemon] watching extensions: ts,json[39m
-[32m[nodemon] starting `node --loader ts-node/esm src/server`[39m
-MongoDB connected successfully
-[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+Connecting to MongoDB at: mongodb://localhost:27017/ensis
+MongoDB connected successfully to database: ensis
+Server is running on http://localhost:5000
+GET /api/v1/products?limit=100&includeInactive=true 200 149380 - 113.527 ms
+GET /api/v1/categories 200 4762 - 4.301 ms
+OPTIONS /api/v1/products?limit=100&sortBy=orderBy&order=asc&includeInactive=true 204 0 - 0.497 ms
+OPTIONS /api/v1/products?limit=100&sortBy=orderBy&order=asc&includeInactive=true 204 0 - 0.253 ms
+OPTIONS /api/v1/categories 204 0 - 0.278 ms
+OPTIONS /api/v1/categories 204 0 - 0.282 ms
+GET /api/v1/categories 200 - - 34.338 ms
+GET /api/v1/products?limit=100&sortBy=orderBy&order=asc&includeInactive=true 200 - - 54.082 ms
+GET /api/v1/categories 304 - - 4.725 ms
+GET /api/v1/products?limit=100&sortBy=orderBy&order=asc&includeInactive=true 304 - - 55.537 ms
+GET /api/v1/categories 304 - - 30.270 ms
+GET /api/v1/products?limit=100&sortBy=orderBy&order=asc&includeInactive=true 304 - - 47.674 ms
+OPTIONS /api/v1/products?limit=100&sortBy=orderBy&order=asc&includeInactive=true 204 0 - 0.320 ms
+OPTIONS /api/v1/categories 204 0 - 0.174 ms
+GET /api/v1/categories 304 - - 22.957 ms
+GET /api/v1/products?limit=100&sortBy=orderBy&order=asc&includeInactive=true 304 - - 37.125 ms
+OPTIONS /api/v1/products?limit=100&sortBy=orderBy&order=asc&includeInactive=true 204 0 - 0.169 ms
+OPTIONS /api/v1/categories 204 0 - 0.103 ms
+GET /api/v1/categories 304 - - 22.568 ms
+GET /api/v1/products?limit=100&sortBy=orderBy&order=asc&includeInactive=true 304 - - 35.516 ms

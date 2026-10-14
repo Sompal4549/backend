@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { LeadModel } from "../models/lead.model";
 import { asyncHandler } from "../utils/async-handler";
 import { AppError } from "../utils/app-error";
+import { successResponse } from "../utils/api-response";
 
 export const createLead = asyncHandler(async (req: Request, res: Response) => {
   const { email, phone } = req.body;
@@ -18,7 +19,7 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const lead = await LeadModel.create(req.body);
-  res.status(201).json({ status: "success", data: lead });
+  successResponse(res, lead, "Lead created", 201);
 });
 
 export const getLeads = asyncHandler(async (req: Request, res: Response) => {
@@ -52,7 +53,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
     LeadModel.countDocuments(filter),
   ]);
 
-  res.json({ status: "success", data: { leads, total } });
+  successResponse(res, { leads, total }, "Leads retrieved");
 });
 
 export const getLead = asyncHandler(async (req: Request, res: Response) => {
@@ -60,7 +61,7 @@ export const getLead = asyncHandler(async (req: Request, res: Response) => {
   if (!lead) {
     throw new AppError(404, "Lead not found");
   }
-  res.json({ status: "success", data: lead });
+  successResponse(res, lead, "Lead retrieved");
 });
 
 export const updateLead = asyncHandler(async (req: Request, res: Response) => {
@@ -71,7 +72,7 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
   if (!lead) {
     throw new AppError(404, "Lead not found");
   }
-  res.json({ status: "success", data: lead });
+  successResponse(res, lead, "Lead updated");
 });
 
 export const deleteLead = asyncHandler(async (req: Request, res: Response) => {
@@ -79,5 +80,5 @@ export const deleteLead = asyncHandler(async (req: Request, res: Response) => {
   if (!lead) {
     throw new AppError(404, "Lead not found");
   }
-  res.json({ status: "success", data: null });
+  successResponse(res, null, "Lead deleted");
 });

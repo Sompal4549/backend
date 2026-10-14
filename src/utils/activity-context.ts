@@ -4,6 +4,8 @@ export interface ActivityContext {
   userId?: string;
   userName?: string;
   userRole?: string;
+  adminPage?: string;
+  adminModule?: string;
 }
 
 export const activityContextStore = new AsyncLocalStorage<ActivityContext>();

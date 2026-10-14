@@ -1,8 +1,13 @@
 import fs from 'fs';
 import path from 'path';
-import mongoose from 'mongoose';
-import { connectDatabase } from '../config/database.config';
+import dotenv from 'dotenv';
+import mongoose, { Types } from 'mongoose';
 import { ProductModel } from '../models/product.model';
+import { CategoryModel } from '../models/category.model';
+import { generateSlug } from '../utils/generate-slug';
+
+// Load .env from the working directory (same convention as src/config/app.config.ts)
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 type AnyRec = Record<string, any>;
 
@@ -47,7 +52,6 @@ const NEVER_UPDATED_FIELDS = [
   'slug',
   'orderBy',
   '_id',
-  'variants',
   'averageRating',
   'reviews',
   'hsnCode',
@@ -84,6 +88,55 @@ const DRY_RUN = hasFlag('--dry-run');
 const UPDATE_TITLES = hasFlag('--update-titles');
 const ALLOW_CREATE = hasFlag('--allow-create');
 const FORCE = hasFlag('--force');
+const CONFIRM_REMOTE = hasFlag('--confirm-remote');
+
+// Environment selection: --env=local | dev | production  (--local is an alias for --env=local)
+const envArg = args
+  .find((arg) => arg.startsWith('--env='))
+  ?.slice('--env='.length)
+  .trim()
+  .toLowerCase();
+
+const LOCAL = hasFlag('--local') || envArg === 'local';
+
+type DbEnv = 'local' | 'dev' | 'production' | 'main';
+
+const DB_ENV: DbEnv = (() => {
+  if (envArg === undefined || envArg === '' || envArg === 'main') return 'main';
+  if (envArg === 'local') return 'local';
+  if (LOCAL) return 'local';
+  if (envArg === 'dev') return 'dev';
+  if (envArg === 'production' || envArg === 'prod') return 'production';
+  throw new Error(`Unknown --env value "${envArg}" — use --env=local | --env=dev | --env=production`);
+})();
+
+// The URI ALWAYS comes from the environment — never hardcoded here.
+// Each --env target reads its own key from .env:
+//   local      -> MONGO_URI_LOCAL
+//   dev        -> MONGO_URI_DEV
+//   production -> MONGO_URI_PROD   (falls back to MONGO_URI_MAIN)
+//   (default)  -> MONGO_URI_MAIN   (falls back to MONGO_URI_LOCAL)
+const resolveMongoUri = (): { uri: string; key: string } => {
+  const pick = (key: string, fallbackKey?: string): { uri: string; key: string } => {
+    const value = (process.env[key] ?? '').trim();
+    if (value) return { uri: value, key };
+    const fallback = fallbackKey ? (process.env[fallbackKey] ?? '').trim() : '';
+    if (fallback) return { uri: fallback, key: `${fallbackKey} (fallback for ${key})` };
+    throw new Error(`Missing "${key}" in .env — set the MongoDB URI for --env=${DB_ENV}.`);
+  };
+  switch (DB_ENV) {
+    case 'local':
+      return pick('MONGO_URI_LOCAL');
+    case 'dev':
+      return pick('MONGO_URI_DEV');
+    case 'production':
+      return pick('MONGO_URI_PROD', 'MONGO_URI_MAIN');
+    default:
+      return pick('MONGO_URI_MAIN', 'MONGO_URI_LOCAL');
+  }
+};
+
+const maskUri = (uri: string): string => uri.replace(/:([^@/]+)@/, ':****@');
 
 const log = (line = '') => console.log(line);
 const rule = (label: string) => log(`\n${'─'.repeat(20)} ${label} ${'─'.repeat(20)}`);
@@ -241,10 +294,65 @@ const writeBackup = (documents: AnyRec[]): string => {
   return file;
 };
 
+// description is required by the schema; seed data does not carry it,
+// so derive it from the only narrative field available (overview.idealFor).
+const buildDescription = (record: SeedRecord): string => {
+  const idealFor = String(record.overview?.idealFor ?? '').trim();
+  if (idealFor) return idealFor;
+  const material = String(record.material ?? '').trim();
+  const title = String(record.title ?? record.code);
+  return material
+    ? `${title} — crafted in ${material} for professional Ayurvedic, spa and wellness use.`
+    : `${title} — crafted for professional Ayurvedic, spa and wellness use.`;
+};
+
+// _expected.urlSlug is the canonical slug, but the PDF data contains 8
+// duplicate slugs (two distinct products sharing one URL) — the second
+// occurrence gets a stable `-<code>` suffix. Existing DB slugs are reserved.
+const buildSlug = (record: SeedRecord, usedSlugs: Set<string>): string => {
+  const base =
+    String(record._expected?.urlSlug ?? '').trim() || generateSlug(String(record.title ?? record.code));
+  if (!usedSlugs.has(base)) {
+    usedSlugs.add(base);
+    return base;
+  }
+  const suffixed = `${base}-${record.code.trim().toLowerCase()}`;
+  usedSlugs.add(suffixed);
+  return suffixed;
+};
+
+const buildCreateDocument = (record: SeedRecord, categoryId: Types.ObjectId, slug: string) => ({
+  title: String(record.title ?? record.code),
+  slug,
+  code: record.code.trim(),
+  description: buildDescription(record),
+  price: Number(record._expected?.priceINR),
+  orderBy: Number(record._expected?.orderBy ?? 0),
+  category: categoryId,
+  material: record.material,
+  tags: Array.isArray(record.tags) ? record.tags : [],
+  images: [],
+  stock: 0,
+  gstRate: 5,
+  isActive: true,
+  isFeatured: false,
+  overview: record.overview ?? {},
+});
+
 const main = async () => {
   const seedRecords = loadSeedData();
 
-  await connectDatabase();
+  const { uri, key } = resolveMongoUri();
+  log(`DB env            : ${DB_ENV}`);
+  log(`URI from env      : ${key}`);
+  log(`Connecting to MongoDB: ${maskUri(uri)}`);
+  try {
+    await mongoose.connect(uri, { autoIndex: true, serverSelectionTimeoutMS: 15000 });
+  } catch (error) {
+    console.error('MongoDB connection error:', error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
+  const isLocalDb = ['localhost', '127.0.0.1'].includes(mongoose.connection.host ?? '');
 
   const dbName = mongoose.connection.name;
   const host = mongoose.connection.host;
@@ -255,7 +363,8 @@ const main = async () => {
   log(`Products in DB    : ${dbProductCount}`);
   log(`Seed records      : ${seedRecords.length}`);
   log(`Match key          : ${MATCH_KEY}`);
-  log(`Mode flags         : ${[DRY_RUN && '--dry-run', UPDATE_TITLES && '--update-titles', ALLOW_CREATE && '--allow-create', FORCE && '--force'].filter(Boolean).join(' ') || '(none)'}`);
+  log(`Mode flags         : ${[DRY_RUN && '--dry-run', UPDATE_TITLES && '--update-titles', ALLOW_CREATE && '--allow-create', FORCE && '--force', `--env=${DB_ENV}`, CONFIRM_REMOTE && '--confirm-remote'].filter(Boolean).join(' ') || '(none)'}`);
+  log(`Target             : ${isLocalDb ? 'LOCAL' : 'REMOTE (non-local)'}`);
 
   if (dbProductCount !== seedRecords.length) {
     log(`\nWARNING: DB product count (${dbProductCount}) differs from seed count (${seedRecords.length}). Verify you are on the right database.`);
@@ -286,6 +395,7 @@ const main = async () => {
   const fieldHits: Record<string, number> = {};
   const updatePlan: { record: SeedRecord; db: AnyRec; set: AnyRec; changes: Change[] }[] = [];
   const newRecordCodes: string[] = [];
+  const createPlan: SeedRecord[] = [];
   const protectedReport: string[] = [];
   const skippedTitles: string[] = [];
 
@@ -295,6 +405,7 @@ const main = async () => {
     if (!dbRecord) {
       newRecords += 1;
       newRecordCodes.push(code);
+      if (ALLOW_CREATE) createPlan.push(seedRecord);
       return;
     }
     matched += 1;
@@ -327,6 +438,7 @@ const main = async () => {
   log(`Matched (by ${MATCH_KEY})      : ${matched}`);
   log(`New (not in DB)           : ${newRecords}${newRecords ? `  -> ${newRecordCodes.join(', ')}` : ''}`);
   log(`Would UPDATE              : ${wouldUpdate} product(s), ${totalSetOps} field write(s)`);
+  log(`Would CREATE              : ${createPlan.length} product(s)${newRecords > 0 && !ALLOW_CREATE ? `  (${newRecords} new record(s) need --allow-create)` : ''}`);
   log(`No-op (already identical) : ${noOp}`);
   log(`DB products not in seed   : ${orphanDbRecords.length} (never touched)`);
 
@@ -360,15 +472,20 @@ const main = async () => {
     if (updatePlan.length > 15) log(`  … +${updatePlan.length - 15} more products`);
   }
 
-  if (newRecords > 0) {
+  if (newRecords > 0 && ALLOW_CREATE) {
+    rule(`NEW RECORDS — WILL CREATE (${newRecords})`);
+    log(`  Codes        : ${newRecordCodes.join(', ')}`);
+    log('  Fields filled : price/slug/orderBy/category from _expected (priceINR/urlSlug/orderBy/category)');
+    log('                  description from overview.idealFor (schema requires it)');
+    log('                  images: [] — seed data has none; add via admin later');
+    log('  Categories    : resolved by name, created if missing (slug auto-generated)');
+    log('  Duplicate PDF slugs get a stable "-<code>" suffix (slug is unique).');
+  } else if (newRecords > 0) {
     rule('NEW RECORDS — SEED WILL NOT CREATE THEM');
     log(`  ${newRecordCodes.join(', ')}`);
-    log('  Reason: seed data intentionally excludes protected required fields');
-    log('  (description, price, category) which are mandatory to create a product.');
-    log('  Create these manually in the admin panel, then re-run the seed.');
-    if (ALLOW_CREATE) {
-      log('\n  --allow-create was passed but creation stays disabled for the reason above.');
-    }
+    log('  Reason: creation is disabled by default.');
+    log('  Re-run with --allow-create to build them from seed data + _expected fields.');
+    log('  (Required fields description/price/category are derived — see dry-run details.)');
   }
 
   rule('BEFORE APPLYING — BACKUP');
@@ -379,13 +496,23 @@ const main = async () => {
   if (DRY_RUN) {
     rule('RESULT');
     log(`  DRY RUN complete. 0 documents written.`);
-    log(`  Re-run without --dry-run to apply ${totalSetOps} field write(s) across ${wouldUpdate} product(s).`);
+    log(`  Re-run without --dry-run to apply ${totalSetOps} field write(s) across ${wouldUpdate} product(s)${createPlan.length ? ` and CREATE ${createPlan.length} product(s)` : ''}.`);
     await mongoose.disconnect();
     process.exit(newRecords > 0 ? 2 : 0);
   }
 
-  if (matched === 0) {
-    log('\nABORT: 0 products matched — this is most likely the wrong database. Nothing was written.');
+  if (!isLocalDb && !CONFIRM_REMOTE) {
+    rule('ABORT — REFUSING TO WRITE TO A REMOTE DATABASE');
+    log(`  Connected host : ${mongoose.connection.host}`);
+    log('  Writes are blocked because this is not localhost.');
+    log('  • Local run  : npm run seed:products:local -- --allow-create');
+    log('  • Remote run : --env=production (or dev) + --confirm-remote — only if you really mean it');
+    await mongoose.disconnect();
+    process.exit(5);
+  }
+
+  if (matched === 0 && createPlan.length === 0) {
+    log('\nABORT: 0 products matched and nothing to create — most likely the wrong database. Nothing was written.');
     await mongoose.disconnect();
     process.exit(3);
   }
@@ -396,39 +523,90 @@ const main = async () => {
     process.exit(4);
   }
 
-  if (updatePlan.length === 0) {
+  if (updatePlan.length === 0 && createPlan.length === 0) {
     rule('RESULT');
-    log('  Nothing to update — database already matches the seed. 0 documents written.');
+    log('  Nothing to do — database already matches the seed. 0 documents written.');
     await mongoose.disconnect();
     process.exit(newRecords > 0 ? 2 : 0);
   }
 
-  const backupDocs = await ProductModel.find({ _id: { $in: updatePlan.map((item) => item.db._id) } })
-    .populate('category', 'name slug')
-    .lean();
-  const backupFile = writeBackup(backupDocs);
-  log(`\nPre-seed snapshot written: ${backupFile} (${backupDocs.length} products)`);
+  let backupFile = '(no updates — nothing to back up)';
+  let updatedCount = 0;
 
-  const operations = updatePlan.map((item) => ({
-    updateOne: {
-      filter: { _id: item.db._id },
-      update: { $set: item.set },
-    },
-  }));
+  if (updatePlan.length > 0) {
+    const backupDocs = await ProductModel.find({ _id: { $in: updatePlan.map((item) => item.db._id) } })
+      .populate('category', 'name slug')
+      .lean();
+    backupFile = writeBackup(backupDocs);
+    log(`\nPre-seed snapshot written: ${backupFile} (${backupDocs.length} products)`);
 
-  const result = await ProductModel.bulkWrite(operations, { ordered: false });
+    const operations = updatePlan.map((item) => ({
+      updateOne: {
+        filter: { _id: item.db._id },
+        update: { $set: item.set },
+      },
+    }));
+
+    const result = await ProductModel.bulkWrite(operations, { ordered: false });
+    updatedCount = result.modifiedCount;
+  }
+
+  let createdCount = 0;
+
+  if (createPlan.length > 0) {
+    rule(`CREATING ${createPlan.length} PRODUCT(S)`);
+    const usedSlugs = new Set<string>(
+      dbRecords.map((record: AnyRec) => String(record.slug ?? '')).filter(Boolean)
+    );
+
+    const categoryNames = [
+      ...new Set(
+        createPlan
+          .map((record) => String(record._expected?.category ?? '').trim())
+          .filter((name) => name.length > 0)
+      ),
+    ];
+
+    const categoryIds = new Map<string, Types.ObjectId>();
+    for (const name of categoryNames) {
+      const existing = await CategoryModel.findOne({ name }).lean();
+      if (existing) {
+        categoryIds.set(name, existing._id as Types.ObjectId);
+        continue;
+      }
+      const createdCategory = await CategoryModel.create({ name });
+      categoryIds.set(name, createdCategory._id as Types.ObjectId);
+      log(`  category created : ${name}`);
+    }
+
+    const documents = createPlan.map((record) => {
+      const categoryName = String(record._expected?.category ?? '').trim();
+      const categoryId = categoryIds.get(categoryName);
+      if (!categoryId) {
+        throw new Error(`Category "${categoryName}" could not be resolved for ${record.code}`);
+      }
+      return buildCreateDocument(record, categoryId, buildSlug(record, usedSlugs));
+    });
+
+    await ProductModel.insertMany(documents, { ordered: false });
+    createdCount = documents.length;
+    log(`  Created ${createdCount} / ${createPlan.length} product(s)`);
+  }
+
+  const unmatchedCount = newRecords - createdCount;
 
   rule('RESULT');
   log(`  Matched      : ${matched}`);
-  log(`  Updated      : ${result.modifiedCount} / ${updatePlan.length}`);
-  log(`  Unmatched    : ${newRecords} (not created)`);
+  log(`  Updated      : ${updatedCount} / ${updatePlan.length}`);
+  log(`  Created      : ${createdCount} / ${createPlan.length}`);
+  log(`  Unmatched    : ${unmatchedCount}${unmatchedCount > 0 ? ' (not created)' : ''}`);
   log(`  Field writes : ${totalSetOps}`);
   log(`  Protected fields written: 0`);
   log(`  Backup       : ${backupFile}`);
   log('\n  Re-running this seed is safe — it is idempotent and will report 0 changes.');
 
   await mongoose.disconnect();
-  process.exit(newRecords > 0 ? 2 : 0);
+  process.exit(unmatchedCount > 0 ? 2 : 0);
 };
 
 main().catch((error) => {

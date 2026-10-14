@@ -37,7 +37,9 @@ authRouter.post(
 
 authRouter.post('/logout', logout);
 
+// Dual-token refresh: accepts { refreshToken } from body or refreshToken cookie
 authRouter.post('/refresh-token', refreshToken);
+authRouter.post('/refresh', refreshToken);
 
 authRouter.post(
   '/email-otp/send',

@@ -1,10 +1,19 @@
 import { Request, Response } from 'express';
-import { createEnquiry } from '../repositories/enquiry.repository';
+import {
+  createEnquiry,
+  findAllEnquiries,
+  getEnquiryPaginated,
+  exportAllEnquiries,
+  updateEnquiryById,
+  findEnquiryById,
+  deleteEnquiryById,
+} from '../repositories/enquiry.repository';
 import { uploadImage } from '../helpers/image.helper';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { sendEmail } from '../services/email.service';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
+import { ROLE } from '../constants/roles.constants';
 
 export const submitEnquiry = asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
@@ -69,4 +78,37 @@ export const submitEnquiry = asyncHandler(async (req: Request, res: Response) =>
   );
 
   successResponse(res, enquiry, 'Enquiry submitted successfully', 201);
+});
+
+export const getEnquiryPipeline = asyncHandler(async (req: Request, res: Response) => {
+  const { page = '1', limit = '20', status, search } = req.query;
+  const result = await getEnquiryPaginated({
+    page: Number(page),
+    limit: Number(limit),
+    status: status as string,
+    search: search as string,
+  });
+  successResponse(res, result, 'Enquiries retrieved');
+});
+
+export const updateEnquiryStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, notes } = req.body;
+
+  // Validate status
+  const validStatuses = ['new', 'contacted', 'qualified', 'closed'];
+  if (!validStatuses.includes(status as string)) {
+    throw new AppError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+  }
+
+  const enquiry = await updateEnquiryById(id, { status, notes });
+  if (!enquiry) {
+    throw new AppError(404, 'Enquiry not found');
+  }
+  successResponse(res, enquiry, 'Enquiry status updated');
+});
+
+export const exportEnquiries = asyncHandler(async (_req: Request, res: Response) => {
+  const enquiries = await exportAllEnquiries();
+  successResponse(res, enquiries, 'Enquiries exported');
 });

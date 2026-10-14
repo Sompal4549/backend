@@ -6,11 +6,12 @@ export const validateRequest = (req: Request, res: Response, next: NextFunction)
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    const details = errors.array().map((error) => ({
-      field: (error as { path?: string; param?: string }).path ?? (error as { param?: string }).param ?? 'unknown',
-      message: (error as { msg?: string }).msg ?? 'Invalid value',
-    }));
-    errorResponse(res, 'Validation failed', 400, details);
+    const issues = errors.array().map((error) => {
+      const field = (error as { path?: string; param?: string }).path ?? (error as { param?: string }).param ?? 'unknown';
+      const message = (error as { msg?: string }).msg ?? 'Invalid value';
+      return `${field}: ${message}`;
+    });
+    errorResponse(res, 'Validation failed', 400, issues);
     return;
   }
   next();

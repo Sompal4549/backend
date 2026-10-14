@@ -6,7 +6,7 @@ import { cancelOrder, markOrderPaymentFailed } from './order.service';
 import { ReviewModel } from '../models/review.model';
 import { OrderModel } from '../models/order.model';
 import { UserModel } from '../models/user.model';
-import { findAllEnquiries, updateEnquiryById } from '../repositories/enquiry.repository';
+import { findAllEnquiries, updateEnquiryById, deleteEnquiryById as deleteEnquiryByIdRepo } from '../repositories/enquiry.repository';
 
 export const getDashboardData = async () => {
   const totalUsers = await getAllUsers();
@@ -64,3 +64,5 @@ export const adminUpdateEnquiryStatus = async (enquiryId: string, status: string
   }
   return enquiry;
 };
+
+export const deleteEnquiryById = async (enquiryId: string) => deleteEnquiryByIdRepo(enquiryId);

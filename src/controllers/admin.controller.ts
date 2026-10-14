@@ -16,27 +16,74 @@ import { updateUserRefreshToken } from '../repositories/user.repository';
 // Phone normalize helper
 const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
 
-export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
-  const { phone, otp } = req.body;
-  if (!phone || !otp) {
-    throw new AppError(400, 'Phone and OTP are required');
-  }
+// Normalize identifier: strip spaces, +91, etc.
+const normalizeIdentifier = (value: string) => value.replace(/\s+/g, '').replace(/^\+91/, '');
 
-  // ✅ FIX: Phone normalize karo
-  const normalizedPhone = normalizePhone(phone);
+// Determine user by email or phone
+const findUserByEmail = async (email: string) => {
+  return await UserModel.findOne({ email: email.toLowerCase().trim() });
+};
 
-  // Verify OTP specifically for admin login purpose (normalized phone)
-  await verifyWhatsAppOtp(normalizedPhone, otp, 'admin-login');
-
-  // DB mein phone kisi bhi format mein ho sakta hai — last 10 digits se match
-  const last10 = normalizedPhone.slice(-10);
+const findUserByPhone = async (phone: string) => {
+  const normalized = normalizePhone(phone);
+  const last10 = normalized.slice(-10);
   const phoneRegex = new RegExp(`${last10}$`);
-  const user = await UserModel.findOne({
-    phone: { $regex: phoneRegex },
-    role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] },
-  });
-  if (!user) {
-    throw new AppError(403, 'Access denied. You are not an admin or credentials do not match.');
+  return await UserModel.findOne({ phone: { $regex: phoneRegex } });
+};
+
+export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
+  const { identifier, password, otp } = req.body;
+
+  // Support: { email/mobile, password } OR { phone, otp }
+  let user: any;
+
+  if (password) {
+    // Password login: identifier can be email or phone/mobile
+    const normalizedId = normalizeIdentifier(identifier || '').trim();
+
+    if (normalizedId.includes('@')) {
+      // Email-based login
+      user = await findUserByEmail(normalizedId);
+    } else {
+      // Phone-based login (strip +91, spaces, etc.)
+      user = await findUserByPhone(normalizedId);
+    }
+
+    if (!user) {
+      throw new AppError(403, 'Invalid credentials. Email or phone not found.');
+    }
+
+    // Validate role
+    if (![ROLE.ADMIN, ROLE.SUPERADMIN].includes(user.role)) {
+      throw new AppError(403, 'Access denied. You are not an admin.');
+    }
+
+    // Compare bcrypt hash
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new AppError(403, 'Invalid credentials. Password does not match.');
+    }
+  } else if (otp) {
+    // OTP login (existing flow)
+    if (!identifier || !otp) {
+      throw new AppError(400, 'Phone and OTP are required');
+    }
+
+    const normalizedPhone = normalizePhone(identifier);
+    await verifyWhatsAppOtp(normalizedPhone, otp, 'admin-login');
+
+    const last10 = normalizedPhone.slice(-10);
+    const phoneRegex = new RegExp(`${last10}$`);
+    user = await UserModel.findOne({
+      phone: { $regex: phoneRegex },
+      role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] },
+    });
+
+    if (!user) {
+      throw new AppError(403, 'Access denied. You are not an admin or credentials do not match.');
+    }
+  } else {
+    throw new AppError(400, 'Either password or OTP is required');
   }
 
   const userIdStr = user._id.toString();
@@ -47,12 +94,15 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
     expiresIn: config.refreshTokenExpires as jwt.SignOptions['expiresIn'],
   });
 
-  // ✅ FIX: refreshToken ko DB mein save karo (bcrypt hash)
+  // Save refreshToken to DB
   const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
   await updateUserRefreshToken(userIdStr, hashedRefreshToken);
 
+  // Sanitize user object (remove password and refreshToken from response)
+  const { password: _, refreshToken: __, ...sanitizedUser } = user.toObject();
+
   setRefreshTokenCookie(res, refreshToken);
-  successResponse(res, { user, accessToken }, 'Admin login successful');
+  successResponse(res, { accessToken, refreshToken, user: sanitizedUser }, 'Admin login successful');
 });
 
 // Development endpoint - bypass OTP for testing
@@ -91,7 +141,7 @@ export const adminLoginDev = asyncHandler(async (req: Request, res: Response) =>
   await updateUserRefreshToken(userIdStr, hashedRefreshToken);
 
   setRefreshTokenCookie(res, refreshToken);
-  successResponse(res, { user, accessToken }, 'Admin login successful (dev mode)');
+  successResponse(res, { accessToken, refreshToken, user }, 'Admin login successful (dev mode)');
 });
 
 export const deleteUserByAdmin = asyncHandler(async (req: Request, res: Response) => {
@@ -103,10 +153,7 @@ export const deleteUserByAdmin = asyncHandler(async (req: Request, res: Response
     throw new AppError(404, 'User not found');
   }
 
-  res.json({
-    success: true,
-    message: 'User deleted successfully',
-  });
+  successResponse(res, null, 'User deleted successfully');
 });
 
 export const updateUserByAdmin = asyncHandler(async (req: Request, res: Response) => {
@@ -122,10 +169,7 @@ export const updateUserByAdmin = asyncHandler(async (req: Request, res: Response
     throw new AppError(404, 'User not found');
   }
 
-  res.json({
-    success: true,
-    user,
-  });
+  successResponse(res, { user }, 'User updated');
 });
 
 export const getEnquiries = asyncHandler(async (_req: Request, res: Response) => {

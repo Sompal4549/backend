@@ -57,6 +57,8 @@ export const recordActivity = async (entry: ActivityEntry): Promise<void> => {
       leadId: entry.leadId ? new Types.ObjectId(entry.leadId) : undefined,
       userName: ctx?.userName || fallbackName,
       userRole: ctx?.userRole || 'guest',
+      ...(ctx?.adminPage ? { adminPage: ctx.adminPage } : {}),
+      ...(ctx?.adminModule ? { adminModule: ctx.adminModule } : {}),
       createdAt: new Date(),
       updatedAt: new Date(),
     });

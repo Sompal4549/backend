@@ -5,18 +5,61 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
 import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
+import { successResponse } from '../utils/api-response';
 import Page from "../models/page.model";
 
 export const pageRouter = Router();
 
+/**
+ * Public lookup accepts the friendly keys the storefront asks for
+ * (generateSeo("about") -> /pages/about) and resolves them to the canonical
+ * CMS slug (/about-us) so a single seeded record serves both spellings.
+ */
+const PAGE_SLUG_ALIASES: Record<string, string> = {
+  home: '/',
+  about: '/about-us',
+  'about-us': '/about-us',
+  turnkey: '/turnkey-solutions',
+  'turnkey-solutions': '/turnkey-solutions',
+  consultancy: '/consultancy',
+  solutions: '/custom-solutions',
+  'custom-solutions': '/custom-solutions',
+  products: '/products',
+  projects: '/projects',
+  'projects-and-clients': '/projects',
+  blog: '/blog',
+  career: '/careers',
+  careers: '/careers',
+  contact: '/contact-us',
+  'contact-us': '/contact-us',
+  enquiry: '/enquiry',
+  'privacy-policy': '/privacy-policy',
+  'terms-and-conditions': '/terms-and-conditions',
+};
+
+const resolveSlugCandidates = (rawSlug: string): string[] => {
+  const slug = decodeURIComponent(rawSlug).replace(/\/+$/, '');
+  const trimmed = slug.startsWith('/') ? slug : `/${slug}`;
+  const candidates = [rawSlug, slug, trimmed, PAGE_SLUG_ALIASES[slug], PAGE_SLUG_ALIASES[trimmed.replace(/^\//, '')]]
+    .filter((value): value is string => Boolean(value));
+
+  return [...new Set(candidates)];
+};
+
 pageRouter.get('/:slug', asyncHandler(async (req: Request, res: Response) => {
-  const slug = req.params.slug === 'home' ? '/' : req.params.slug;
-  const page = await Page.findOne({ slug });
+  const candidates = resolveSlugCandidates(req.params.slug);
+  const page = await Page.findOne({ slug: { $in: candidates } });
   if (!page) throw new AppError(404, 'Page not found');
-  res.json({ success: true, data: page });
+  successResponse(res, page, "Page retrieved");
 }));
 
 pageRouter.use(authMiddleware, adminMiddleware);
+
+// Admin console: full page list (all seeded CMS pages).
+pageRouter.get('/', asyncHandler(async (_req: Request, res: Response) => {
+  const pages = await Page.find().sort({ pageName: 1 }).lean();
+  successResponse(res, pages, "Pages retrieved");
+}));
 
 pageRouter.post(
   '/',
@@ -39,7 +82,7 @@ pageRouter.post(
   validateRequest,
   asyncHandler(async (req: Request, res: Response) => {
     const newPage = await Page.create(req.body);
-    res.json({ success: true, data: newPage, message: "Page created with SEO controls" });
+    successResponse(res, newPage, "Page created with SEO controls", 201);
   })
 );
 
@@ -65,7 +108,7 @@ pageRouter.put(
   validateRequest,
   asyncHandler(async (req: Request, res: Response) => {
     const updatedPage = await Page.findByIdAndUpdate(req.params.pageId, { $set: req.body }, { new: true });
-    res.json({ success: true, data: updatedPage, message: "Page settings updated" });
+    successResponse(res, updatedPage, "Page settings updated");
   })
 );
 
@@ -80,7 +123,7 @@ pageRouter.put(
   ],
   validateRequest,
   async (_req: Request, res: Response) => {
-    res.json({ success: true, message: "Components updated" });
+    successResponse(res, null, "Components updated");
   }
 );
 
@@ -93,7 +136,7 @@ pageRouter.post(
   ],
   validateRequest,
   async (_req: Request, res: Response) => {
-    res.json({ success: true });
+    successResponse(res, null, "Redirect created");
   }
 );
 

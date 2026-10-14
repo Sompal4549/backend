@@ -3,6 +3,7 @@ import applicationModel from "../models/applicationModel";
 import { uploadResume } from "../helpers/image.helper";
 import { asyncHandler } from "../utils/async-handler";
 import { AppError } from "../utils/app-error";
+import { successResponse } from "../utils/api-response";
 
 export const createApplication = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -24,7 +25,7 @@ export const createApplication = asyncHandler(async (req: Request, res: Response
     resume: url,
   });
 
-  res.status(201).json({ success: true, data: application });
+  successResponse(res, application, "Application created", 201);
 });
 
 export const getApplications = asyncHandler(async (_req: Request, res: Response) => {
@@ -32,10 +33,7 @@ export const getApplications = asyncHandler(async (_req: Request, res: Response)
     createdAt: -1,
   });
 
-  res.json({
-    success: true,
-    data: applications,
-  });
+  successResponse(res, applications, "Applications retrieved");
 });
 
 export const getApplication = asyncHandler(async (req: Request, res: Response) => {
@@ -47,10 +45,7 @@ export const getApplication = asyncHandler(async (req: Request, res: Response) =
     throw new AppError(404, "Application not found");
   }
 
-  res.json({
-    success: true,
-    data: application,
-  });
+  successResponse(res, application, "Application retrieved");
 });
 
 export const updateApplication = asyncHandler(async (req: Request, res: Response) => {
@@ -62,17 +57,11 @@ export const updateApplication = asyncHandler(async (req: Request, res: Response
     }
   );
 
-  res.json({
-    success: true,
-    data: application,
-  });
+  successResponse(res, application, "Application updated");
 });
 
 export const deleteApplication = asyncHandler(async (req: Request, res: Response) => {
   await applicationModel.findByIdAndDelete(req.params.id);
 
-  res.json({
-    success: true,
-    message: "Application deleted successfully",
-  });
+  successResponse(res, null, "Application deleted successfully");
 });
