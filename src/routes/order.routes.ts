@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrder, getMyOrders, getOrderById, updateOrderByUser, getOrdersByLeadCtrl, sendOrderEmailCtrl, sendOrderWhatsAppCtrl } from '../controllers/order.controller';
+import { createOrder, getMyOrders, getOrderById, updateOrderByUser, getOrdersByLeadCtrl, sendOrderEmailCtrl, sendOrderWhatsAppCtrl, getAllOrdersAdmin, dispatchOrder } from '../controllers/order.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
@@ -21,6 +21,19 @@ orderRouter.post(
       .notEmpty()
       .isLength({ min: 8, max: 128 })
       .withMessage('Idempotency key is required'),
+    // Validate items array if present
+    body('items')
+      .optional({ checkFalsy: true })
+      .isArray({ min: 1 })
+      .withMessage('Items must be an array with at least one item if provided'),
+    body('items.*.product')
+      .notEmpty()
+      .withMessage('Product is required for each item'),
+    body('items.*.quantity')
+      .isInt({ min: 1 })
+      .withMessage('Quantity must be a positive integer'),
+    body('items.*.finish').optional().isString().withMessage('Finish must be a string'),
+    body('items.*.size').optional().isString().withMessage('Size must be a string'),
   ],
   validateRequest,
   createOrder
@@ -29,6 +42,14 @@ orderRouter.get('/', authMiddleware, getMyOrders);
 orderRouter.get('/my-orders', authMiddleware, getMyOrders);
 orderRouter.get('/lead/:leadId', authMiddleware, [param('leadId').notEmpty().withMessage('Lead ID is required')], validateRequest, getOrdersByLeadCtrl);
 orderRouter.get('/:id', authMiddleware, [param('id').isMongoId().withMessage('Valid order id is required')], validateRequest, getOrderById);
+
+// NEW: Admin endpoints
+orderRouter.get('/admin/all', authMiddleware, getAllOrdersAdmin);
+orderRouter.patch('/:id/dispatch', authMiddleware, [
+  param('id').isMongoId().withMessage('Valid order id is required'),
+  body('trackingNumber').notEmpty().withMessage('Tracking number is required'),
+  body('courierPartner').notEmpty().withMessage('Courier partner is required'),
+], validateRequest, dispatchOrder);
 
 // Send order via email
 orderRouter.post('/:id/send-email', authMiddleware, [

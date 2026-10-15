@@ -69,6 +69,8 @@ const toObjectId = (id: any): Types.ObjectId => {
   return new Types.ObjectId(idStr);
 };
 
+export { toObjectId };
+
 const normalizePhone = (phone: any): string => {
   if (!phone) return '';
   let cleaned = String(phone).replace(/\D/g, '');

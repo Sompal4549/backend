@@ -97,7 +97,7 @@ const buildInvoiceHtml = (inv: any) => {
     <td style="${bdr};padding:5px 6px;text-align:center;font-size:10px;font-weight:bold;color:#111827">${fmt(taxableValue)}</td>
   </tr>`;
 
-  let taxRows = items.map((item: any, idx: number) => {
+  const taxRows = items.map((item: any, idx: number) => {
     const qty = item.quantity || 0;
     const amount = item.amount || 0;
     const gstRate = item.gstRate || 18;

@@ -1,12 +1,20 @@
 import { Router } from 'express';
-import { submitEnquiry } from '../controllers/enquiry.controller';
+import {
+  submitEnquiry,
+  getEnquiryPipeline,
+  updateEnquiryStatus,
+  exportEnquiries,
+} from '../controllers/enquiry.controller';
 import multer from 'multer';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 const upload = multer({ storage: multer.memoryStorage() });
 export const enquiryRouter = Router();
 
+// Public endpoint for submitting enquiries
 enquiryRouter.post(
   '/submit',
   upload.single('file'),
@@ -20,3 +28,16 @@ enquiryRouter.post(
   validateRequest,
   submitEnquiry
 );
+
+// Admin-protected endpoints for enquiry management
+enquiryRouter.use(authMiddleware, adminMiddleware);
+
+enquiryRouter.get('/', getEnquiryPipeline);
+enquiryRouter.patch('/:id/status', [
+  param('id').isMongoId().withMessage('Valid enquiry ID is required'),
+  body('status')
+    .isIn(['pending', 'contacted', 'resolved', 'cancelled', 'closed', 'new', 'qualified'])
+    .withMessage('Invalid status'),
+  body('notes').optional().isString(),
+], validateRequest, updateEnquiryStatus);
+enquiryRouter.get('/export', exportEnquiries);

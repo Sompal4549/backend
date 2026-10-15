@@ -33,6 +33,8 @@ export interface IOrder extends Document {
   orderStatus: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
   shippingAddress: IShippingAddress;
   trackingNumber?: string;
+  courierPartner?: string;
+  dispatchedAt?: Date;
   razorpayOrderId?: string;
   transactionId?: Types.ObjectId;
 }
@@ -81,6 +83,8 @@ const orderSchema = new Schema<IOrder>(
     },
     shippingAddress: { type: shippingAddressSchema, required: true },
     trackingNumber: { type: String },
+    courierPartner: { type: String },
+    dispatchedAt: { type: Date },
     razorpayOrderId: { type: String },
     transactionId: { type: Schema.Types.ObjectId, ref: 'Transaction' },
   },

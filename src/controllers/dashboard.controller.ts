@@ -9,7 +9,7 @@ import {
   buildSiteStatusSource,
   listEnquiries,
 } from '../services/dashboard.service';
-import { adminUpdateEnquiryStatus, deleteEnquiryById } from '../services/admin.service';
+import { adminUpdateEnquiry, deleteEnquiryById } from '../services/admin.service';
 
 export const getDashboardOverview = asyncHandler(async (_req: Request, res: Response) => {
   const overview = await buildLiveDashboardOverview();
@@ -48,9 +48,27 @@ export const listEnquiriesController = asyncHandler(async (req: Request, res: Re
 });
 
 export const updateEnquiryController = asyncHandler(async (req: Request, res: Response) => {
-  const { status } = req.body;
-  const enquiry = await adminUpdateEnquiryStatus(req.params.id, status);
-  successResponse(res, enquiry, 'Enquiry status updated');
+  const { status, isRead } = req.body;
+  const update: { status?: string; isRead?: boolean } = {};
+
+  if (status !== undefined) {
+    const validStatuses = ['pending', 'contacted', 'resolved', 'cancelled', 'closed', 'new', 'qualified'];
+    if (!validStatuses.includes(status)) {
+      throw new AppError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+    }
+    update.status = status;
+  }
+
+  if (isRead !== undefined) {
+    update.isRead = Boolean(isRead);
+  }
+
+  if (Object.keys(update).length === 0) {
+    throw new AppError(400, 'Nothing to update.');
+  }
+
+  const enquiry = await adminUpdateEnquiry(req.params.id, update);
+  successResponse(res, enquiry, 'Enquiry updated');
 });
 
 export const deleteEnquiryController = asyncHandler(async (req: Request, res: Response) => {

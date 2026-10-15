@@ -16,6 +16,11 @@
     "seed:products:prod": "tsx src/seeds/products.seed.ts --env=production",
     "seed:admin": "tsx src/seeds/admin.seed.ts",
     "seed:pages": "tsx src/seeds/pages.seed.ts",
+    "seed:components": "tsx src/seeds/component-content.seed.ts",
+    "seed:live": "tsx src/seeds/live.seed.ts",
+    "seed:live:fetch": "tsx src/seeds/live.seed.ts --fetch-only",
+    "seed:live:offline": "tsx src/seeds/live.seed.ts --from-snapshot",
+    "seed:live:prune": "tsx src/seeds/live.seed.ts --prune",
     "lint": "eslint . --ext "
   },
   "keywords": [

@@ -5,7 +5,7 @@ import { UserModel } from '../models/user.model';
 import { ROLE } from '../constants/roles.constants';
 import { verifyWhatsAppOtp } from '../services/otp.service';
 import { config } from '../config/app.config';
-import { getDashboardData, listUsers, listAllOrders, adminUpdateOrder, adminUpdateUserRole, listAllEnquiries, adminUpdateEnquiryStatus } from '../services/admin.service';
+import { getDashboardData, listUsers, listAllOrders, adminUpdateOrder, adminUpdateUserRole, listAllEnquiries, adminUpdateEnquiry } from '../services/admin.service';
 import { logoutUser, registerUserWithRole } from '../services/auth.service';
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '../helpers/cookie.helper';
 import { successResponse } from '../utils/api-response';
@@ -21,25 +21,26 @@ const normalizeIdentifier = (value: string) => value.replace(/\s+/g, '').replace
 
 // Determine user by email or phone
 const findUserByEmail = async (email: string) => {
-  return await UserModel.findOne({ email: email.toLowerCase().trim() });
+  return await UserModel.findOne({ email: email.toLowerCase().trim() }).select('+password');
 };
 
 const findUserByPhone = async (phone: string) => {
   const normalized = normalizePhone(phone);
   const last10 = normalized.slice(-10);
   const phoneRegex = new RegExp(`${last10}$`);
-  return await UserModel.findOne({ phone: { $regex: phoneRegex } });
+  return await UserModel.findOne({ phone: { $regex: phoneRegex } }).select('+password');
 };
 
 export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
-  const { identifier, password, otp } = req.body;
+  const { identifier, phone, mobile, email, password, otp } = req.body;
+  const effectiveId = identifier || phone || mobile || email;
 
   // Support: { email/mobile, password } OR { phone, otp }
   let user: any;
 
   if (password) {
     // Password login: identifier can be email or phone/mobile
-    const normalizedId = normalizeIdentifier(identifier || '').trim();
+    const normalizedId = normalizeIdentifier(effectiveId || '').trim();
 
     if (normalizedId.includes('@')) {
       // Email-based login
@@ -65,11 +66,11 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
     }
   } else if (otp) {
     // OTP login (existing flow)
-    if (!identifier || !otp) {
+    if (!effectiveId || !otp) {
       throw new AppError(400, 'Phone and OTP are required');
     }
 
-    const normalizedPhone = normalizePhone(identifier);
+    const normalizedPhone = normalizePhone(effectiveId);
     await verifyWhatsAppOtp(normalizedPhone, otp, 'admin-login');
 
     const last10 = normalizedPhone.slice(-10);
@@ -178,9 +179,18 @@ export const getEnquiries = asyncHandler(async (_req: Request, res: Response) =>
 });
 
 export const updateEnquiry = asyncHandler(async (req: Request, res: Response) => {
-  const { status } = req.body;
-  const enquiry = await adminUpdateEnquiryStatus(req.params.id, status);
-  successResponse(res, enquiry, 'Enquiry status updated');
+  const { status, isRead } = req.body;
+  const update: { status?: string; isRead?: boolean } = {};
+
+  if (status !== undefined) update.status = status;
+  if (isRead !== undefined) update.isRead = Boolean(isRead);
+
+  if (Object.keys(update).length === 0) {
+    throw new AppError(400, 'Nothing to update.');
+  }
+
+  const enquiry = await adminUpdateEnquiry(req.params.id, update);
+  successResponse(res, enquiry, 'Enquiry updated');
 });
 
 export const createUserByAdmin = asyncHandler(async (req: Request, res: Response) => {
@@ -228,3 +238,60 @@ export const updateOrder = asyncHandler(async (req: Request, res: Response) => {
   const order = await adminUpdateOrder(req.params.id, req.body);
   successResponse(res, order, 'Order updated');
 });
+
+export const adminForgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email, identifier } = req.body;
+  const target = (email || identifier || '').trim();
+  if (!target) {
+    throw new AppError(400, 'Email, mobile or staff ID is required');
+  }
+
+  let user: any;
+  if (target.includes('@')) {
+    user = await findUserByEmail(target);
+  } else {
+    user = await findUserByPhone(target);
+  }
+
+  if (!user || ![ROLE.ADMIN, ROLE.SUPERADMIN].includes(user.role as any)) {
+    throw new AppError(404, 'No staff account found with this email, mobile number or staff ID.');
+  }
+
+  const resetToken = jwt.sign(
+    { id: user._id.toString(), type: 'password_reset' },
+    config.jwtAccessSecret,
+    { expiresIn: '15m' }
+  );
+
+  successResponse(res, { success: true, resetToken, email: user.email, name: user.name }, 'Password reset instructions generated');
+});
+
+export const adminResetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    throw new AppError(400, 'Token and new password are required');
+  }
+
+  let decoded: { id: string; type: string };
+  try {
+    decoded = jwt.verify(token, config.jwtAccessSecret) as { id: string; type: string };
+  } catch {
+    throw new AppError(401, 'Invalid or expired reset token');
+  }
+
+  if (decoded.type !== 'password_reset') {
+    throw new AppError(401, 'Invalid token type');
+  }
+
+  const user = await UserModel.findById(decoded.id).select('+password');
+  if (!user || ![ROLE.ADMIN, ROLE.SUPERADMIN].includes(user.role as any)) {
+    throw new AppError(404, 'Admin not found');
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  user.password = hashedPassword;
+  await user.save();
+
+  successResponse(res, { success: true }, 'Password reset successfully');
+});
+

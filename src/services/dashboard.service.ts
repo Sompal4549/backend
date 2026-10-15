@@ -167,6 +167,7 @@ export const listEnquiries = async (options: {
       budgetRange: enquiry.budgetRange ?? null,
       message: enquiry.message,
       status: enquiry.status,
+      notes: enquiry.notes ?? null,
       createdAt: enquiry.createdAt instanceof Date ? enquiry.createdAt.toISOString() : String(enquiry.createdAt ?? ''),
       updatedAt: enquiry.updatedAt instanceof Date ? enquiry.updatedAt.toISOString() : String(enquiry.updatedAt ?? ''),
     };

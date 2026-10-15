@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 import { connectDatabase } from '../config/database.config';
 import { UserModel, UserDocument } from '../models/user.model';
 import { ROLE } from '../constants/roles.constants';
@@ -31,18 +32,22 @@ export const seedAdmin = async (): Promise<UserDocument> => {
     existing.email = DEFAULT_ADMIN.email;
     existing.phone = DEFAULT_ADMIN.phone;
     existing.role = DEFAULT_ADMIN.role;
-    existing.password = DEFAULT_ADMIN.password;
+    // Force password hashing by clearing and re-setting
+    existing.password = undefined; // Clear existing so pre-save hook runs
+    const salt = await bcrypt.genSalt(10);
+    existing.password = await bcrypt.hash(DEFAULT_ADMIN.password, salt);
     existing.emailVerified = true;
     existing.phoneVerified = true;
     await existing.save();
     return existing;
   }
 
+  const salt = await bcrypt.genSalt(10);
   return UserModel.create({
     name: DEFAULT_ADMIN.name,
     email: DEFAULT_ADMIN.email,
     phone: DEFAULT_ADMIN.phone,
-    password: DEFAULT_ADMIN.password,
+    password: await bcrypt.hash(DEFAULT_ADMIN.password, salt),
     role: DEFAULT_ADMIN.role,
     emailVerified: true,
     phoneVerified: true,

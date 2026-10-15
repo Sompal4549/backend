@@ -39,7 +39,7 @@ productRouter.post(
     body('stock').optional().isInt({ min: 0 }).withMessage('Stock must be a positive integer'),
     body('images').optional().isArray().withMessage('Images must be an array'),
     body('variants').optional().isArray().withMessage('Variants must be an array'),
-    body('tags').optional(),
+    body('tags').optional().isArray().withMessage('Tags must be an array'),
   ],
   validateRequest,
   createProduct
@@ -56,7 +56,7 @@ productRouter.put(
     body('subCategory').optional().isMongoId().withMessage('Valid sub category is required'),
     body('stock').optional().isInt({ min: 0 }).withMessage('Stock must be a positive integer'),
     body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
-    body('tags').optional(),
+    body('tags').optional().isArray().withMessage('Tags must be an array'),
   ],
   validateRequest,
   updateProductHandler

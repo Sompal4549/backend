@@ -38,8 +38,13 @@ authRouter.post(
 authRouter.post('/logout', logout);
 
 // Dual-token refresh: accepts { refreshToken } from body or refreshToken cookie
-authRouter.post('/refresh-token', refreshToken);
-authRouter.post('/refresh', refreshToken);
+// Access token expires in 15m, refresh token expires in 7d with rotation on each use
+authRouter.post('/refresh-token', [
+  body('refreshToken').optional().isString().notEmpty().withMessage('Refresh token must be a non-empty string'),
+], validateRequest, refreshToken);
+authRouter.post('/refresh', [
+  body('refreshToken').optional().isString().notEmpty().withMessage('Refresh token must be a non-empty string'),
+], validateRequest, refreshToken);
 
 authRouter.post(
   '/email-otp/send',

@@ -7,6 +7,7 @@ import { ReviewModel } from '../models/review.model';
 import { OrderModel } from '../models/order.model';
 import { UserModel } from '../models/user.model';
 import { findAllEnquiries, updateEnquiryById, deleteEnquiryById as deleteEnquiryByIdRepo } from '../repositories/enquiry.repository';
+import { toObjectId } from './order.service';
 
 export const getDashboardData = async () => {
   const totalUsers = await getAllUsers();
@@ -25,6 +26,75 @@ export const listUsers = async () => getAllUsers();
 
 export const listAllOrders = async () => {
   return OrderModel.find().populate('user', 'name email').sort({ createdAt: -1 });
+};
+
+export const listAllOrdersAdmin = async (params: {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: string;
+  paymentStatus?: string;
+}) => {
+  const { page, limit, search, status, paymentStatus } = params;
+  const skip = (page - 1) * limit;
+
+  const filter: any = {};
+  
+  if (search) {
+    const searchRegex = new RegExp(search, 'i');
+    filter.$or = [
+      { '_id': searchRegex },
+      { 'user.name': searchRegex },
+      { 'user.email': searchRegex },
+    ];
+  }
+  
+  if (status) filter.orderStatus = status;
+  if (paymentStatus) filter.paymentStatus = paymentStatus;
+
+  const [orders, total] = await Promise.all([
+    OrderModel.find(filter)
+      .populate('user', 'name email phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    OrderModel.countDocuments(filter),
+  ]);
+
+  return {
+    orders,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  };
+};
+
+export const dispatchOrder = async (
+  orderId: string,
+  payload: { trackingNumber: string; courierPartner: string; dispatchedAt?: Date }
+) => {
+  const order = await OrderModel.findByIdAndUpdate(
+    toObjectId(orderId),
+    {
+      $set: {
+        trackingNumber: payload.trackingNumber,
+        courierPartner: payload.courierPartner,
+        dispatchedAt: payload.dispatchedAt || new Date(),
+        orderStatus: 'shipped',
+      },
+    },
+    { new: true, runValidators: true }
+  ).populate('user', 'name email phone');
+
+  if (!order) {
+    throw new AppError(404, 'Order not found');
+  }
+
+  return order;
 };
 
 export const adminUpdateOrder = async (orderId: string, payload: { orderStatus?: string; paymentStatus?: string }) => {
@@ -57,8 +127,11 @@ export const adminUpdateUserRole = async (userId: string, role: string) => {
 
 export const listAllEnquiries = async () => findAllEnquiries();
 
-export const adminUpdateEnquiryStatus = async (enquiryId: string, status: string) => {
-  const enquiry = await updateEnquiryById(enquiryId, { status } as any);
+export const adminUpdateEnquiry = async (
+  enquiryId: string,
+  update: { status?: string; isRead?: boolean }
+) => {
+  const enquiry = await updateEnquiryById(enquiryId, update as any);
   if (!enquiry) {
     throw new AppError(404, 'Enquiry not found');
   }

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Request, Response } from 'express';
 import { BlogModel } from '../models/blog.model';
 import { successResponse } from '../utils/api-response';
@@ -6,7 +7,7 @@ import { AppError } from '../utils/app-error';
 import { notifySubscribers } from '../services/newsletter.service';
 
 export const getAllBlogs = asyncHandler(async (_req: Request, res: Response) => {
-  const blogs = await BlogModel.find({ isActive: true }).sort({ createdAt: -1 });
+  const blogs = await BlogModel.find().sort({ createdAt: -1 });
   successResponse(res, blogs, 'Blogs retrieved successfully');
 });
 
@@ -36,10 +37,11 @@ export const getFeaturedBlogs = asyncHandler(async (_req: Request, res: Response
 
 export const getBlogBySlug = asyncHandler(async (req: Request, res: Response) => {
   const { slug } = req.params;
+  const isId = mongoose.isValidObjectId(slug);
+  const query = isId ? { $or: [{ slug }, { _id: slug }] } : { slug };
 
-  // Simple View Count: Increment viewCount by 1 every time the blog is fetched
   const blog = await BlogModel.findOneAndUpdate(
-    { slug, isActive: true },
+    query,
     { $inc: { viewCount: 1 } },
     { new: true }
   );

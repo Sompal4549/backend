@@ -16,7 +16,9 @@ export interface IEnquiry extends Document {
   attachmentUrl?: string;
   preferredContact?: string;
   agreeToContact: boolean;
-  status: 'pending' | 'contacted' | 'resolved' | 'cancelled' | 'closed';
+  status: 'pending' | 'contacted' | 'resolved' | 'cancelled' | 'closed' | 'new' | 'qualified';
+  isRead: boolean;
+  notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,9 +42,11 @@ const EnquirySchema: Schema = new Schema(
     agreeToContact: { type: Boolean, default: false },
     status: {
       type: String,
-      enum: ['pending', 'contacted', 'resolved', 'cancelled', 'closed'],
+      enum: ['pending', 'contacted', 'resolved', 'cancelled', 'closed', 'new', 'qualified'],
       default: 'pending',
     },
+    isRead: { type: Boolean, default: false },
+    notes: { type: String },
   },
   {
     timestamps: true,

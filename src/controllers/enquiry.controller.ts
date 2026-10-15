@@ -1,19 +1,17 @@
 import { Request, Response } from 'express';
 import {
   createEnquiry,
-  findAllEnquiries,
   getEnquiryPaginated,
   exportAllEnquiries,
   updateEnquiryById,
-  findEnquiryById,
-  deleteEnquiryById,
 } from '../repositories/enquiry.repository';
 import { uploadImage } from '../helpers/image.helper';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
+import { AppError } from '../utils/app-error';
+import { IEnquiry } from '../models/enquiry.model';
 import { sendEmail } from '../services/email.service';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
-import { ROLE } from '../constants/roles.constants';
 
 export const submitEnquiry = asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
@@ -93,19 +91,30 @@ export const getEnquiryPipeline = asyncHandler(async (req: Request, res: Respons
 
 export const updateEnquiryStatus = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status, notes } = req.body;
+  const { status, notes, isRead } = req.body;
 
-  // Validate status
-  const validStatuses = ['new', 'contacted', 'qualified', 'closed'];
-  if (!validStatuses.includes(status as string)) {
-    throw new AppError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+  const update: Partial<IEnquiry> = {};
+
+  if (status !== undefined) {
+    const validStatuses = ['pending', 'contacted', 'resolved', 'cancelled', 'closed', 'new', 'qualified'];
+    if (!validStatuses.includes(status as string)) {
+      throw new AppError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+    }
+    update.status = status;
   }
 
-  const enquiry = await updateEnquiryById(id, { status, notes });
+  if (notes !== undefined) update.notes = notes;
+  if (isRead !== undefined) update.isRead = Boolean(isRead);
+
+  if (Object.keys(update).length === 0) {
+    throw new AppError(400, 'Nothing to update.');
+  }
+
+  const enquiry = await updateEnquiryById(id, update);
   if (!enquiry) {
     throw new AppError(404, 'Enquiry not found');
   }
-  successResponse(res, enquiry, 'Enquiry status updated');
+  successResponse(res, enquiry, 'Enquiry updated');
 });
 
 export const exportEnquiries = asyncHandler(async (_req: Request, res: Response) => {

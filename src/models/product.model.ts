@@ -53,6 +53,13 @@ export interface IProduct extends Document {
     };
     // faqs?: { question: string; description: string }[];
   };
+  seo?: {
+    metaTitle?: string;
+    metaDescription?: string;
+    metaKeywords?: string;
+    canonical?: string;
+    ogImage?: string;
+  };
 }
 
 const listItemSchema = new Schema({ title: String, description: String }, { _id: false });
@@ -210,6 +217,13 @@ const productSchema = new Schema<IProduct>(
       //     { _id: false }
       //   ),
       // ],
+    },
+    seo: {
+      metaTitle: String,
+      metaDescription: String,
+      metaKeywords: String,
+      canonical: String,
+      ogImage: String,
     },
   },
   { timestamps: true }

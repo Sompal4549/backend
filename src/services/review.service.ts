@@ -8,7 +8,11 @@ import {
   calculateProductRating,
   getReviewsForProduct,
   getPaginatedReviewsForProduct,
-  countReviewsForProduct
+  countReviewsForProduct,
+  getAllReviewsPaginated,
+  updateReviewStatus,
+  bulkUpdateReviewStatus,
+  bulkDeleteReviews
 } from '../repositories/review.repository';
 import { updateProductById } from '../repositories/product.repository';
 import { IReview } from '../models/review.model';
@@ -20,7 +24,7 @@ export const addReview = async (userId: string, productId: string, payload: Part
   if (existing) {
     throw new AppError(409, 'You have already reviewed this product');
   }
-  const review = await createReview({ user: new Types.ObjectId(userId), product: new Types.ObjectId(productId), ...payload });
+  const review = await createReview({ user: new Types.ObjectId(userId), product: new Types.ObjectId(productId), ...payload, status: 'approved' });
   await recalculateRating(productId);
   return review;
 };
@@ -37,7 +41,7 @@ export const addReviewForCustomer = async (productId: string, customerId: string
   }
 
   const { userId, ...reviewPayload } = payload as any;
-  const review = await createReview({ user: new Types.ObjectId(customerId), product: new Types.ObjectId(productId), ...reviewPayload });
+  const review = await createReview({ user: new Types.ObjectId(customerId), product: new Types.ObjectId(productId), ...reviewPayload, status: 'approved' });
   await recalculateRating(productId);
   return review;
 };
@@ -116,6 +120,52 @@ export const getProductReviews = async (
     };
   }
   return result;
+};
+
+// Admin moderation functions
+export const getAllReviews = async (
+  page?: number,
+  limit?: number,
+  filters: { status?: string; rating?: number; productId?: string; search?: string } = {}
+) => {
+  // If pagination not provided, return all reviews
+  if (!page && !limit) {
+    const reviews = await getAllReviewsPaginated(1, 1000, filters); // Get a large number
+    return {
+      reviews: reviews.reviews,
+      totalCount: reviews.totalCount,
+      totalPages: 1,
+      currentPage: 1,
+    };
+  }
+  
+  const pg = Math.max(page || 1, 1);
+  const lt = Math.max(limit || 20, 1);
+  return await getAllReviewsPaginated(pg, lt, filters);
+};
+
+export const moderateReview = async (
+  reviewId: string,
+  status: 'approved' | 'rejected',
+  moderatorId: string
+) => {
+  const review = await updateReviewStatus(reviewId, status, moderatorId);
+  if (!review) {
+    throw new AppError(404, 'Review not found');
+  }
+  return review;
+};
+
+export const bulkModerateReviews = async (
+  reviewIds: string[],
+  status: 'approved' | 'rejected',
+  moderatorId: string
+) => {
+  return await bulkUpdateReviewStatus(reviewIds, status, moderatorId);
+};
+
+export const bulkRemoveReviews = async (reviewIds: string[]) => {
+  return await bulkDeleteReviews(reviewIds);
 };
 
 const recalculateRating = async (productId: string) => {
