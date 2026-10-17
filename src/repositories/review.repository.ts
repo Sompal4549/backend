@@ -1,6 +1,7 @@
 import { ReviewModel, IReview } from '../models/review.model';
 import { ProductModel } from '../models/product.model';
 import { Types } from 'mongoose';
+import { escapeRegex } from '../utils/escape-regex';
 
 // The website only ever shows approved reviews
 const PUBLIC = { status: 'approved' } as const;
@@ -84,7 +85,7 @@ export const getAllReviewsPaginated = async (
   const term = filters.search?.trim();
   if (term) {
     // Escaped so typed text can never act as a regex pattern
-    const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const regex = new RegExp(escapeRegex(term), 'i');
     const products = await ProductModel.find({ title: regex }).select('_id').limit(200).lean();
     query.$or = [
       { comment: regex },
