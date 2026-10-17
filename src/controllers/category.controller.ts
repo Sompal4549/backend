@@ -3,8 +3,9 @@ import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { createCategory, deleteCategory, listCategories, updateCategory } from '../services/category.service';
 
-export const getCategories = asyncHandler(async (_req: Request, res: Response) => {
-  const categories = await listCategories();
+export const getCategories = asyncHandler(async (req: Request, res: Response) => {
+  // ?all=1 (admin list) also returns hidden categories with product counts
+  const categories = await listCategories({ includeInactive: req.query.all === '1' });
   successResponse(res, categories, 'Categories retrieved');
 });
 

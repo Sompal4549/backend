@@ -18,13 +18,52 @@ export const uploadFile = asyncHandler(async (req: Request, res: Response) => {
   const isImage = mime.startsWith('image/');
   const isSvg = mime === 'image/svg+xml';
 
+  // Images up to 5MB; small files (logos, icons) are fine — everything is re-encoded to webp below
+  if (isImage && !isSvg) {
+    const fileSizeMB = file.buffer.length / (1024 * 1024);
+    if (fileSizeMB > 5) {
+      throw new AppError(400, 'Image file size must not exceed 5MB');
+    }
+  }
+
   let uploadBuffer = file.buffer;
   let finalMimetype = file.mimetype;
 
   // Convert raster images to webp with sharp; skip videos, audios, pdfs, svgs and docs
   if (isImage && !isSvg) {
     try {
-      uploadBuffer = await sharp(file.buffer)
+      // First, let's check and potentially resize dimensions if needed
+      const metadata = await sharp(file.buffer).metadata();
+      const width = metadata.width || 0;
+      const height = metadata.height || 0;
+      
+      // Enforce maximum dimensions (e.g., 1920x1080 for web images)
+      const maxWidth = 1920;
+      const maxHeight = 1080;
+      
+      let needsResize = false;
+      let resizeWidth = width;
+      let resizeHeight = height;
+      
+      if (width > maxWidth || height > maxHeight) {
+        needsResize = true;
+        // Calculate proportional dimensions
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        resizeWidth = Math.round(width * ratio);
+        resizeHeight = Math.round(height * ratio);
+      }
+      
+      // Process the image with sharp
+      let sharpInstance = sharp(file.buffer);
+      
+      if (needsResize) {
+        sharpInstance = sharpInstance.resize(resizeWidth, resizeHeight, {
+          fit: 'inside',
+          withoutEnlargement: true
+        });
+      }
+      
+      uploadBuffer = await sharpInstance
         .webp({ quality: 80 })
         .toBuffer();
       finalMimetype = 'image/webp';
@@ -59,6 +98,12 @@ export const uploadFile = asyncHandler(async (req: Request, res: Response) => {
       name: file.originalname || result.publicId,
       size: uploadBuffer.length,
       resourceType: result.resourceType,
+      // Include processing info for images
+      ...(isImage && !isSvg && {
+        processed: true,
+        format: 'webp',
+        quality: 80
+      })
     },
     'File uploaded',
     201

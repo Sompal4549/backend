@@ -3,6 +3,9 @@ import { SocialClick, SocialLink } from "../models/sociallink.model";
 import geoip from "geoip-lite";
 import { asyncHandler } from "../utils/async-handler";
 import { AppError } from "../utils/app-error";
+import { successResponse } from "../utils/api-response";
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 export const socialRouter = Router();
 
@@ -49,11 +52,11 @@ async function fetchLocationFromAPI(ip: string): Promise<ApiLocation | null> {
 /** GET /api/v1/social-clicks/links */
 socialRouter.get("/links", asyncHandler(async (_req: Request, res: Response) => {
   const links = await SocialLink.find().sort({ order: 1 });
-  return res.json({ status: "success", data: links });
+  return successResponse(res, links, "Links retrieved");
 }));
 
 /** POST /api/v1/social-clicks/links */
-socialRouter.post("/links", asyncHandler(async (req: Request, res: Response) => {
+socialRouter.post("/links", authMiddleware, adminMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { platform, url, icon, isActive, order } = req.body;
   if (!platform || !url) {
     throw new AppError(400, "platform and url are required");
@@ -61,7 +64,7 @@ socialRouter.post("/links", asyncHandler(async (req: Request, res: Response) => 
 
   try {
     const link = await SocialLink.create({ platform, url, icon, isActive, order });
-    return res.status(201).json({ status: "success", data: link });
+    return successResponse(res, link, "Link created", 201);
   } catch (err: any) {
     if (err.code === 11000) {
       throw new AppError(409, `${err.keyValue?.platform} already exists`);
@@ -71,7 +74,7 @@ socialRouter.post("/links", asyncHandler(async (req: Request, res: Response) => 
 }));
 
 /** PUT /api/v1/social-clicks/links/:id */
-socialRouter.put("/links/:id", asyncHandler(async (req: Request, res: Response) => {
+socialRouter.put("/links/:id", authMiddleware, adminMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { platform, url, icon, isActive, order } = req.body;
   const link = await SocialLink.findByIdAndUpdate(
     req.params.id,
@@ -79,14 +82,14 @@ socialRouter.put("/links/:id", asyncHandler(async (req: Request, res: Response) 
     { new: true, runValidators: true }
   );
   if (!link) throw new AppError(404, "Link not found");
-  return res.json({ status: "success", data: link });
+  return successResponse(res, link, "Link updated");
 }));
 
 /** DELETE /api/v1/social-clicks/links/:id */
-socialRouter.delete("/links/:id", asyncHandler(async (req: Request, res: Response) => {
+socialRouter.delete("/links/:id", authMiddleware, adminMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const link = await SocialLink.findByIdAndDelete(req.params.id);
   if (!link) throw new AppError(404, "Link not found");
-  return res.json({ status: "success", message: "Deleted" });
+  return successResponse(res, null, "Deleted");
 }));
 
 // ─────────────────────────────────────────────────────────────
@@ -104,7 +107,7 @@ socialRouter.get("/stats", asyncHandler(async (_req: Request, res: Response) => 
     },
     { $sort: { count: -1 } },
   ]);
-  return res.json({ status: "success", data: stats });
+  return successResponse(res, stats, "Stats retrieved");
 }));
 
 /** GET /api/v1/social-clicks */
@@ -120,10 +123,7 @@ socialRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
     .skip((Number(page) - 1) * Number(limit))
     .limit(Number(limit));
 
-  return res.json({
-    status: "success",
-    data: { clicks, total, page: Number(page), limit: Number(limit) },
-  });
+  return successResponse(res, { clicks, total, page: Number(page), limit: Number(limit) }, "Clicks retrieved");
 }));
 
 /** POST /api/v1/social-clicks */
@@ -170,5 +170,5 @@ socialRouter.post("/", asyncHandler(async (req: Request, res: Response) => {
     timezone: location?.timezone ?? null,
   });
 
-  return res.status(201).json({ status: "success", message: "click recorded" });
+  return successResponse(res, null, "click recorded", 201);
 }));

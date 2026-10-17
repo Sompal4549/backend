@@ -1,5 +1,21 @@
 import { Router } from 'express';
-import { adminLogin, adminLoginDev, adminLogout, getDashboard, getUsers, getAllOrders, updateOrder, createUserByAdmin, changeUserRole, getEnquiries, updateEnquiry, updateUserByAdmin, deleteUserByAdmin } from '../controllers/admin.controller';
+import {
+  adminLogin,
+  adminLoginDev,
+  adminLogout,
+  adminForgotPassword,
+  adminResetPassword,
+  getDashboard,
+  getUsers,
+  getAllOrders,
+  updateOrder,
+  createUserByAdmin,
+  changeUserRole,
+  getEnquiries,
+  updateEnquiry,
+  updateUserByAdmin,
+  deleteUserByAdmin,
+} from '../controllers/admin.controller';
 import { createReviewForCustomer } from '../controllers/review.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
@@ -12,8 +28,10 @@ export const adminRouter = Router();
 adminRouter.post(
   '/login',
   [
-    body('phone').notEmpty().isMobilePhone('any').withMessage('Valid phone is required'),
-    body('otp').notEmpty().withMessage('OTP is required')
+    body('phone').optional().isMobilePhone('any').withMessage('Valid phone is required'),
+    body('otp').optional().isString().withMessage('OTP must be a string'),
+    body('identifier').optional().isString().withMessage('Identifier must be a string'),
+    body('password').optional().isString().withMessage('Password must be a string'),
   ],
   validateRequest,
   adminLogin
@@ -27,6 +45,26 @@ adminRouter.post(
   ],
   validateRequest,
   adminLoginDev
+);
+
+adminRouter.post(
+  '/forgot-password',
+  [
+    body('email').optional().isString(),
+    body('identifier').optional().isString(),
+  ],
+  validateRequest,
+  adminForgotPassword
+);
+
+adminRouter.post(
+  '/reset-password',
+  [
+    body('token').notEmpty().withMessage('Token is required'),
+    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  ],
+  validateRequest,
+  adminResetPassword
 );
 
 adminRouter.post('/logout', adminLogout);
@@ -55,7 +93,11 @@ adminRouter.put(
   '/enquiries/:id',
   [
     param('id').isMongoId().withMessage('Valid enquiry ID is required'),
-    body('status').isIn(['pending', 'contacted', 'resolved', 'cancelled', 'closed']).withMessage('Invalid status')
+    body('status')
+      .optional()
+      .isIn(['pending', 'contacted', 'resolved', 'cancelled', 'closed', 'new', 'qualified'])
+      .withMessage('Invalid status'),
+    body('isRead').optional().isBoolean(),
   ],
   validateRequest,
   updateEnquiry

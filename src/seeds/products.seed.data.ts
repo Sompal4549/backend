@@ -584,7 +584,7 @@
     "_expected": {
       "priceINR": 52000,
       "category": "Spa Massage Tables",
-      "urlSlug": "premium-wooden-spa-massage-table",
+      "urlSlug": "premium-wooden-spa-massage-table-ens-009",
       "orderBy": 9
     }
   },
@@ -714,7 +714,7 @@
     "_expected": {
       "priceINR": 48000,
       "category": "Panchkarma Beds",
-      "urlSlug": "premium-spa-wellness-therapy-table",
+      "urlSlug": "premium-spa-wellness-therapy-table-ens-011",
       "orderBy": 11
     }
   },
@@ -1132,7 +1132,7 @@
     "_expected": {
       "priceINR": 26500,
       "category": "Stands",
-      "urlSlug": "premium-teak-wood-shirodhara-stand",
+      "urlSlug": "premium-teak-wood-shirodhara-stand-ens-018",
       "orderBy": 18
     }
   },
@@ -1332,7 +1332,7 @@
     "_expected": {
       "priceINR": 48500,
       "category": "Steam Box",
-      "urlSlug": "premium-herbal-steam-box",
+      "urlSlug": "premium-herbal-steam-box-ens-021",
       "orderBy": 21
     }
   },
@@ -1765,7 +1765,7 @@
     "_expected": {
       "priceINR": 21000,
       "category": "Trolley",
-      "urlSlug": "premium-wooden-spa-service-trolley",
+      "urlSlug": "premium-wooden-spa-service-trolley-ens-028",
       "orderBy": 28
     }
   },
@@ -2286,7 +2286,7 @@
     "_expected": {
       "priceINR": 14500,
       "category": "Stool",
-      "urlSlug": "premium-panchkarma-therapy-stool",
+      "urlSlug": "premium-panchkarma-therapy-stool-ens-036",
       "orderBy": 36
     }
   },
@@ -2528,7 +2528,7 @@
     "_expected": {
       "priceINR": 12500,
       "category": "Step Stool",
-      "urlSlug": "premium-wooden-panchkarma-step-stool",
+      "urlSlug": "premium-wooden-panchkarma-step-stool-ens-040",
       "orderBy": 40
     }
   },
@@ -3582,7 +3582,7 @@
     "_expected": {
       "priceINR": 7500,
       "category": "Bowl",
-      "urlSlug": "premium-brass-therapy-bowl",
+      "urlSlug": "premium-brass-therapy-bowl-ens-060",
       "orderBy": 60
     }
   },

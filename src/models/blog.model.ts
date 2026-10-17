@@ -5,6 +5,7 @@ export interface IBlog extends Document {
   slug: string;
   author: string;
   isActive: boolean;
+  tags?: string[];
   isFeatured: boolean;
   orderBy: number;
   isVoiceOfExperts: boolean;
@@ -177,6 +178,7 @@ const BlogSchema = new Schema<IBlog>(
       schema: { type: String, default: "" },
     },
 
+    tags: { type: [String], default: [] },
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
     orderBy: { type: Number, default: 0 },

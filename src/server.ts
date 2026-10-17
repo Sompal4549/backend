@@ -1,8 +1,9 @@
 import { createApp } from './app';
 import { connectDatabase } from './config/database.config';
-import { config } from './config/app.config';
+import { config, checkEnvironment } from './config/app.config';
 
 const startServer = async (): Promise<void> => {
+  checkEnvironment();
   await connectDatabase();
   const app = createApp();
 

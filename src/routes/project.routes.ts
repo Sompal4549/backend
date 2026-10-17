@@ -9,7 +9,7 @@ const router = Router();
 
 router.get('/', projectController.getProjects);
 
-router.post('/', projectController.createProject);
+router.post('/', authMiddleware, adminMiddleware, projectController.createProject);
 
 router.put(
   '/:id',

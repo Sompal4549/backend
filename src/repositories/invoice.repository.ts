@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import { InvoiceModel, IInvoice } from '../models/invoice.model';
+import { LeadModel } from '../models/lead.model';
 
 export const createInvoice = async (payload: Partial<IInvoice>): Promise<IInvoice> => {
   const invoice = new InvoiceModel(payload);
@@ -24,25 +25,60 @@ export const getInvoicesByLead = async (leadId: string, page = 1, limit = 20) =>
 
 export const getAllInvoices = async (page = 1, limit = 20, filters: { type?: string; status?: string; search?: string } = {}) => {
   const skip = (page - 1) * limit;
-  const query: Record<string, any> = {};
+  const query: Record<string, unknown> = {};
   if (filters.type) query.type = filters.type;
   if (filters.status) query.status = filters.status;
-  if (filters.search) {
+  const term = filters.search?.trim();
+  if (term) {
+    // Escaped so typed text can never act as a regex pattern
+    const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const customers = await LeadModel.find({
+      $or: [{ firstName: regex }, { lastName: regex }, { email: regex }, { phone: regex }, { companyName: regex }],
+    })
+      .select('_id')
+      .limit(500)
+      .lean();
     query.$or = [
-      { invoiceNumber: { $regex: filters.search, $options: 'i' } },
+      { invoiceNumber: regex },
+      { 'billingAddress.name': regex },
+      { 'billingAddress.phone': regex },
+      { lead: { $in: customers.map((c) => c._id) } },
     ];
   }
-  const [invoices, total] = await Promise.all([
+  const [invoices, total, totals] = await Promise.all([
     InvoiceModel.find(query)
       .populate('lead', 'firstName lastName email phone companyName')
-      .populate('order')
+      .populate('order', 'orderStatus paymentStatus totalAmount createdAt')
       .populate('items.product', 'title')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
     InvoiceModel.countDocuments(query),
+    // Summary over all non-cancelled invoices, independent of the current filters
+    InvoiceModel.aggregate<{ _id: string; count: number; billed: number; received: number }>([
+      { $group: { _id: '$status', count: { $sum: 1 }, billed: { $sum: '$totalAmount' }, received: { $sum: '$paymentReceived' } } },
+    ]),
   ]);
-  return { invoices, total, page, limit };
+  // Money totals count tax invoices only: estimates (proforma) and challans are not bills
+  const [money] = await InvoiceModel.aggregate<{ billed: number; received: number }>([
+    { $match: { type: 'tax', status: { $ne: 'cancelled' } } },
+    { $group: { _id: null, billed: { $sum: '$totalAmount' }, received: { $sum: '$paymentReceived' } } },
+  ]);
+  const billed = money?.billed || 0;
+  const received = money?.received || 0;
+  return {
+    invoices,
+    total,
+    page,
+    limit,
+    summary: {
+      count: totals.reduce((sum, t) => sum + t.count, 0),
+      byStatus: Object.fromEntries(totals.map((t) => [t._id, t.count])),
+      billed,
+      received,
+      outstanding: Math.max(0, billed - received),
+    },
+  };
 };
 
 export const getInvoiceById = async (id: string) => {

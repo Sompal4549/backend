@@ -14,7 +14,14 @@ export interface IUser {
   wishlist: Types.ObjectId[];
   orders: Types.ObjectId[];
   refreshToken?: string;
+  isTwoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
+  twoFactorBackupCodes?: string[];
+  loginAttempts?: number;
+  lockUntil?: Date;
+  employeeId?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
+  isLocked(): boolean;
 }
 
 export type UserDocument = HydratedDocument<IUser>;
@@ -32,6 +39,12 @@ const userSchema = new Schema<IUser>(
     wishlist: [{ type: Schema.Types.ObjectId, ref: 'Product' }],
     orders: [{ type: Schema.Types.ObjectId, ref: 'Order' }],
     refreshToken: { type: String, select: false },
+    isTwoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret: { type: String, select: false },
+    twoFactorBackupCodes: [{ type: String }],
+    loginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date },
+    employeeId: { type: String, trim: true, sparse: true },
   },
   { timestamps: true }
 );
@@ -46,6 +59,10 @@ userSchema.pre('save', async function (this: UserDocument, next) {
 userSchema.methods.comparePassword = async function (candidatePassword: string) {
   if (!this.password) return false;
   return bcrypt.compare(candidatePassword, this.password);
+};
+
+userSchema.methods.isLocked = function (): boolean {
+  return !!(this.lockUntil && this.lockUntil > new Date());
 };
 
 export const UserModel = model<IUser>('User', userSchema);

@@ -15,6 +15,7 @@ import {
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { ROLE } from '../constants/roles.constants';
 
 export const createInvoiceCtrl = asyncHandler(async (req: AuthRequest, res: Response) => {
   const invoice = await createNewInvoice(req.body, req.user!.id);
@@ -71,8 +72,10 @@ export const sendInvoiceWhatsAppCtrl = asyncHandler(async (req: AuthRequest, res
 
 export const createInvoiceFromOrderCtrl = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { orderId } = req.params;
-  const leadId = req.user!.id;
-  const invoice = await createInvoiceFromOrder(orderId, leadId);
+  const role = (req.user as { role?: string } | undefined)?.role;
+  const isAdmin = role === ROLE.ADMIN || role === ROLE.SUPERADMIN;
+  // Customers may only invoice their own order; admins may invoice any order
+  const invoice = await createInvoiceFromOrder(orderId, isAdmin ? null : req.user!.id);
   successResponse(res, invoice, 'Invoice created from order', 201);
 });
 

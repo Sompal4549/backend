@@ -1,10 +1,20 @@
 import { Request, Response } from 'express';
-import { createEnquiry } from '../repositories/enquiry.repository';
+import {
+  createEnquiry,
+  getEnquiryPaginated,
+  exportAllEnquiries,
+  updateEnquiryById,
+} from '../repositories/enquiry.repository';
 import { uploadImage } from '../helpers/image.helper';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
+import { AppError } from '../utils/app-error';
+import { IEnquiry } from '../models/enquiry.model';
 import { sendEmail } from '../services/email.service';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
+
+/** Website forms that post here (see EnquaryBannerAndForm, ContactSection, Products) */
+const ENQUIRY_SOURCES = ['enquiry', 'contact', 'products'];
 
 export const submitEnquiry = asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
@@ -34,8 +44,16 @@ export const submitEnquiry = asyncHandler(async (req: Request, res: Response) =>
     cityAndState: undefined,
     state: rawBody.state || (splitLocation[1] ?? ''),
     city: rawBody.city || (splitLocation[0] ?? ''),
+    pincode: rawBody.pincode || rawBody.zipcode || '',
+    alternatePhone: rawBody.alternatePhone || '',
+    subject: rawBody.subject || '',
     servicesRequired,
     preferredContact: rawBody.preferredContact || 'whatsapp',
+    source: ENQUIRY_SOURCES.includes(rawBody.source) ? rawBody.source : 'other',
+    // Never trusted from the public form
+    status: undefined,
+    isRead: undefined,
+    notes: undefined,
     agreeToContact: rawBody.agreeToContact === true || rawBody.agreeToContact === 'true',
   };
 
@@ -69,4 +87,48 @@ export const submitEnquiry = asyncHandler(async (req: Request, res: Response) =>
   );
 
   successResponse(res, enquiry, 'Enquiry submitted successfully', 201);
+});
+
+export const getEnquiryPipeline = asyncHandler(async (req: Request, res: Response) => {
+  const { page = '1', limit = '20', status, search } = req.query;
+  const result = await getEnquiryPaginated({
+    page: Number(page),
+    limit: Number(limit),
+    status: status as string,
+    search: search as string,
+  });
+  successResponse(res, result, 'Enquiries retrieved');
+});
+
+export const updateEnquiryStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, notes, isRead } = req.body;
+
+  const update: Partial<IEnquiry> = {};
+
+  if (status !== undefined) {
+    const validStatuses = ['pending', 'contacted', 'resolved', 'cancelled', 'closed', 'new', 'qualified'];
+    if (!validStatuses.includes(status as string)) {
+      throw new AppError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+    }
+    update.status = status;
+  }
+
+  if (notes !== undefined) update.notes = notes;
+  if (isRead !== undefined) update.isRead = Boolean(isRead);
+
+  if (Object.keys(update).length === 0) {
+    throw new AppError(400, 'Nothing to update.');
+  }
+
+  const enquiry = await updateEnquiryById(id, update);
+  if (!enquiry) {
+    throw new AppError(404, 'Enquiry not found');
+  }
+  successResponse(res, enquiry, 'Enquiry updated');
+});
+
+export const exportEnquiries = asyncHandler(async (_req: Request, res: Response) => {
+  const enquiries = await exportAllEnquiries();
+  successResponse(res, enquiries, 'Enquiries exported');
 });

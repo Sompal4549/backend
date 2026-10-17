@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { placeOrder, fetchUserOrders, fetchOrder, cancelOrder, sendOrderEmail, sendOrderWhatsApp } from '../services/order.service';
-import { listAllOrders, adminUpdateOrder } from '../services/admin.service';
+import { listAllOrders, adminUpdateOrder, listAllOrdersAdmin } from '../services/admin.service';
+import { dispatchOrder as dispatchOrderService } from '../services/admin.service';
 import { ROLE } from '../constants/roles.constants';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
@@ -27,6 +28,17 @@ export const getMyOrders = asyncHandler(async (req: AuthRequest, res: Response) 
   successResponse(res, orders, 'User orders retrieved');
 });
 
+export const getAllOrdersAdmin = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const page = parseInt(req.query.page as string, 10) || 1;
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string, 10) || 20));
+  const search = req.query.search as string;
+  const status = req.query.status as string;
+  const paymentStatus = req.query.paymentStatus as string;
+
+  const result = await listAllOrdersAdmin({ page, limit, search, status, paymentStatus });
+  successResponse(res, result, 'Orders retrieved');
+});
+
 export const getOrderById = asyncHandler(async (req: AuthRequest, res: Response) => {
   const role = (req.user as any)?.role;
   if (role === ROLE.ADMIN || role === ROLE.SUPERADMIN) {
@@ -39,6 +51,26 @@ export const getOrderById = asyncHandler(async (req: AuthRequest, res: Response)
   }
   const order = await fetchOrder(req.user!.id, req.params.id);
   successResponse(res, order, 'Order retrieved');
+});
+
+export const dispatchOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { trackingNumber, courierPartner, dispatchedAt } = req.body as {
+    trackingNumber: string;
+    courierPartner: string;
+    dispatchedAt?: string;
+  };
+
+  if (!trackingNumber || !courierPartner) {
+    throw new AppError(400, 'Tracking number and courier partner are required');
+  }
+
+  const order = await dispatchOrderService(req.params.id, {
+    trackingNumber,
+    courierPartner,
+    dispatchedAt: dispatchedAt ? new Date(dispatchedAt) : undefined,
+  });
+
+  successResponse(res, order, 'Order dispatched successfully');
 });
 
 export const updateOrderByUser = asyncHandler(async (req: AuthRequest, res: Response) => {

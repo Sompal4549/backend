@@ -1,3 +1,4 @@
+import { isObjectIdString } from '../utils/object-id';
 import { Request, Response } from 'express';
 import { BlogModel } from '../models/blog.model';
 import { successResponse } from '../utils/api-response';
@@ -5,8 +6,10 @@ import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
 import { notifySubscribers } from '../services/newsletter.service';
 
-export const getAllBlogs = asyncHandler(async (_req: Request, res: Response) => {
-  const blogs = await BlogModel.find({ isActive: true }).sort({ createdAt: -1 });
+// GET /blogs: published posts for the website; ?all=1 (admin list) also returns drafts
+export const getAllBlogs = asyncHandler(async (req: Request, res: Response) => {
+  const filter = req.query.all === '1' ? {} : { isActive: { $ne: false } };
+  const blogs = await BlogModel.find(filter).sort({ createdAt: -1 });
   successResponse(res, blogs, 'Blogs retrieved successfully');
 });
 
@@ -36,18 +39,27 @@ export const getFeaturedBlogs = asyncHandler(async (_req: Request, res: Response
 
 export const getBlogBySlug = asyncHandler(async (req: Request, res: Response) => {
   const { slug } = req.params;
+  const isId = isObjectIdString(slug);
+  const query = isId ? { $or: [{ slug }, { _id: slug }] } : { slug };
 
-  // Simple View Count: Increment viewCount by 1 every time the blog is fetched
-  const blog = await BlogModel.findOneAndUpdate(
-    { slug, isActive: true },
-    { $inc: { viewCount: 1 } },
-    { new: true }
-  );
+  // Views are counted by POST /blogs/:slug/view from the reader's browser; the page fetch is cached
+  const blog = await BlogModel.findOne(query);
 
   if (!blog) {
     throw new AppError(404, 'Blog not found');
   }
   successResponse(res, blog, 'Blog retrieved successfully');
+});
+
+// POST /blogs/:slug/view — one call per reader session (the website dedupes); returns the new count
+export const recordBlogView = asyncHandler(async (req: Request, res: Response) => {
+  const { slug } = req.params;
+  const query = isObjectIdString(slug) ? { $or: [{ slug }, { _id: slug }] } : { slug };
+  const blog = await BlogModel.findOneAndUpdate({ ...query, isActive: { $ne: false } }, { $inc: { viewCount: 1 } }, { new: true }).select('viewCount');
+  if (!blog) {
+    throw new AppError(404, 'Blog not found');
+  }
+  successResponse(res, { views: blog.viewCount }, 'View recorded');
 });
 
 export const createBlog = asyncHandler(async (req: Request, res: Response) => {

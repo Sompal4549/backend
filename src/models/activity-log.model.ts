@@ -11,6 +11,8 @@ export interface IActivityLog {
   userId?: Types.ObjectId;
   userName?: string;
   userRole?: string;
+  adminPage?: string;
+  adminModule?: string;
   changes?: Record<string, { before: unknown; after: unknown }>;
   snapshotBefore?: Record<string, unknown>;
   snapshotAfter?: Record<string, unknown>;
@@ -28,6 +30,8 @@ const activityLogSchema = new Schema<IActivityLog>(
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
     userName: { type: String },
     userRole: { type: String },
+    adminPage: { type: String },
+    adminModule: { type: String },
     changes: { type: Schema.Types.Mixed },
     snapshotBefore: { type: Schema.Types.Mixed },
     snapshotAfter: { type: Schema.Types.Mixed },

@@ -10,7 +10,9 @@ const normalizeEmail = (email: string) => email.trim().toLowerCase();
 export const generateOTP = (): string => crypto.randomInt(100000, 999999).toString();
 
 export const sendPhoneOtp = async (phone: string, context: WhatsAppOtpContext = 'CONTACT', name: string | null = null) => {
-  const otp = "123456"; // Standardizing for easier testing if needed, or keep generateOTP()
+  // Fixed code only when WhatsApp is in console (log-only) mode on a dev machine; a real send always gets a random code
+  const consoleOnly = process.env.NODE_ENV !== 'production' && process.env.WHATSAPP_PROVIDER === 'console';
+  const otp = consoleOnly ? '123456' : generateOTP();
   const identifier = normalizePhone(phone);
 
   await GenericOtpModel.findOneAndUpdate(
@@ -49,7 +51,7 @@ export const sendEmailOtpCode = async (email: string, name?: string | null) => {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
-  await sendEmailOtp(identifier, otp, name ? `Dear ${name}, your IHWE OTP is {{code}}.` : undefined);
+  await sendEmailOtp(identifier, otp, name ? `Dear ${name}, your Ensis OTP is {{code}}.` : undefined);
   return { success: true, message: 'OTP sent to email' };
 };
 

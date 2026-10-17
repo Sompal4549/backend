@@ -97,7 +97,7 @@ const buildInvoiceHtml = (inv: any) => {
     <td style="${bdr};padding:5px 6px;text-align:center;font-size:10px;font-weight:bold;color:#111827">${fmt(taxableValue)}</td>
   </tr>`;
 
-  let taxRows = items.map((item: any, idx: number) => {
+  const taxRows = items.map((item: any, idx: number) => {
     const qty = item.quantity || 0;
     const amount = item.amount || 0;
     const gstRate = item.gstRate || 18;
@@ -494,14 +494,15 @@ export const sendInvoiceWhatsApp = async (invoiceId: string) => {
   return { success: true, message: `Invoice sent via WhatsApp to ${normalizedPhone}` };
 };
 
-export const createInvoiceFromOrder = async (orderId: string, leadId: string) => {
+/** leadId = the customer asking for their own invoice; null = an admin acting on any order */
+export const createInvoiceFromOrder = async (orderId: string, leadId: string | null) => {
   const order = await OrderModel.findById(orderId).populate('items.product', 'title');
   if (!order) {
     throw new AppError(404, 'Order not found');
   }
 
   // Verify the order belongs to this lead
-  if (String(order.user) !== leadId) {
+  if (leadId !== null && String(order.user) !== leadId) {
     throw new AppError(403, 'Unauthorized access to this order');
   }
 
@@ -555,7 +556,7 @@ export const createInvoiceFromOrder = async (orderId: string, leadId: string) =>
   const invoice = await createInvoice({
     invoiceNumber,
     type: 'tax',
-    lead: leadId as any,
+    lead: order.user as any,
     order: order._id,
     items,
     billingAddress,

@@ -12,6 +12,16 @@ export interface AuthRequest extends Request {
   user?: UserDocument | ILead;
 }
 
+const headerValue = (value: string | string[] | undefined): string | undefined => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw ? String(raw) : undefined;
+};
+
+const pageContext = (req: AuthRequest) => ({
+  adminPage: headerValue((req as any).adminPage ?? req.headers['x-admin-page']),
+  adminModule: headerValue((req as any).adminModule ?? req.headers['x-admin-module']),
+});
+
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
@@ -36,6 +46,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
           userId: String(lead._id),
           userName: `${lead.firstName} ${lead.lastName}`,
           userRole: 'lead',
+          ...pageContext(req),
         },
         next
       );
@@ -54,6 +65,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
         userId: String(user._id),
         userName: user.name,
         userRole: user.role,
+        ...pageContext(req),
       },
       next
     );

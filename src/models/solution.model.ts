@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { cityPageSchema, ICityPage } from './city-page.schema';
 
 export interface ISolution extends Document {
   title: string;
@@ -49,6 +50,7 @@ export interface ISolution extends Document {
     ogJson: string;
     schema: string;
   };
+  cities: ICityPage[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,6 +90,7 @@ const SolutionSchema = new Schema<ISolution>(
       ogJson: { type: String, default: '' },
       schema: { type: String, default: '' },
     },
+    cities: { type: [cityPageSchema], default: [] },
   },
   { timestamps: true }
 );

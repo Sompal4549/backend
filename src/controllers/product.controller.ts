@@ -2,7 +2,15 @@ import { Response } from 'express';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { listProducts, getProduct, createNewProduct, updateProduct, removeProduct } from '../services/product.service';
+import {
+  listProducts,
+  getProduct,
+  createNewProduct,
+  updateProduct,
+  removeProduct,
+  restoreProduct,
+  permanentDeleteProduct,
+} from '../services/product.service';
 
 export const getProducts = asyncHandler(async (req: AuthRequest, res: Response) => {
   const result = await listProducts(req.query);
@@ -26,6 +34,11 @@ export const updateProductHandler = asyncHandler(async (req: AuthRequest, res: R
   if (typeof req.body.tags === 'string') {
     req.body.tags = req.body.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
   }
+  // Clean up empty optional fields
+  if (req.body.subCategory === '' || req.body.subcategory === '') {
+    req.body.subCategory = undefined;
+    req.body.subcategory = undefined;
+  }
   const userId = (req.user as any)?._id?.toString();
   const product = await updateProduct(req.params.id, req.body, userId);
   successResponse(res, product, 'Product updated');
@@ -34,5 +47,16 @@ export const updateProductHandler = asyncHandler(async (req: AuthRequest, res: R
 export const deleteProductHandler = asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = (req.user as any)?._id?.toString();
   await removeProduct(req.params.id, userId);
-  successResponse(res, null, 'Product deleted');
+  successResponse(res, null, 'Product moved to deleted list');
+});
+
+export const restoreProductHandler = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const product = await restoreProduct(_req.params.id);
+  successResponse(res, product, 'Product restored successfully');
+});
+
+export const permanentDeleteProductHandler = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = (req.user as any)?._id?.toString();
+  await permanentDeleteProduct(req.params.id, userId);
+  successResponse(res, null, 'Product permanently deleted');
 });

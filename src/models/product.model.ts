@@ -1,5 +1,6 @@
 import { Schema, model, Document, Types } from 'mongoose';
 import { generateSlug } from '../utils/generate-slug';
+import { cityPageSchema, ICityPage } from './city-page.schema';
 
 export interface IProduct extends Document {
   title: string;
@@ -22,6 +23,9 @@ export interface IProduct extends Document {
   reviews: Types.ObjectId[];
   isActive: boolean;
   isFeatured: boolean;
+  isDeleted?: boolean;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
   orderBy: number;
   overview?: {
     // title?: string;
@@ -53,6 +57,14 @@ export interface IProduct extends Document {
     };
     // faqs?: { question: string; description: string }[];
   };
+  cities?: ICityPage[];
+  seo?: {
+    metaTitle?: string;
+    metaDescription?: string;
+    metaKeywords?: string;
+    canonical?: string;
+    ogImage?: string;
+  };
 }
 
 const listItemSchema = new Schema({ title: String, description: String }, { _id: false });
@@ -79,6 +91,9 @@ const productSchema = new Schema<IProduct>(
     reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: String, default: null },
     orderBy: { type: Number, default: 0 },
     overview: {
       // title: String,
@@ -211,13 +226,23 @@ const productSchema = new Schema<IProduct>(
       //   ),
       // ],
     },
+    seo: {
+      metaTitle: String,
+      metaDescription: String,
+      metaKeywords: String,
+      canonical: String,
+      ogImage: String,
+    },
+    cities: { type: [cityPageSchema], default: [] },
   },
   { timestamps: true }
 );
 
-productSchema.pre<IProduct>('save', function (next) {
-  if (!this.slug) {
-    this.slug = generateSlug(this.title);
+// Before validation, so a product saved without a slug gets one instead of failing "slug is required".
+// Titles can hold markup such as <br> for the storefront hero; the slug uses the plain words.
+productSchema.pre<IProduct>('validate', function (next) {
+  if (!this.slug && this.title) {
+    this.slug = generateSlug(this.title.replace(/<[^>]+>/g, ' '));
   }
   next();
 });

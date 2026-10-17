@@ -1,6 +1,8 @@
 import { Request, Response, Router } from 'express';
 import { body } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 export const analyticsRouter = Router();
 
@@ -24,7 +26,7 @@ analyticsRouter.post(
  * ADMIN ROUTE: Global Technical SEO (GA, GTM, GSC)
  */
 analyticsRouter.put(
-  '/settings',
+  '/settings', authMiddleware, adminMiddleware,
   [
     body('googleAnalyticsId').optional().isString().withMessage('GA ID or full script snippet'),
     body('gtmId').optional().isString().withMessage('GTM ID or full script snippet'),
