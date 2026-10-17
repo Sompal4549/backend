@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createOrder, getMyOrders, getOrderById, updateOrderByUser, getOrdersByLeadCtrl, sendOrderEmailCtrl, sendOrderWhatsAppCtrl, getAllOrdersAdmin, dispatchOrder } from '../controllers/order.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 import { body, param } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
 
@@ -40,24 +41,24 @@ orderRouter.post(
 );
 orderRouter.get('/', authMiddleware, getMyOrders);
 orderRouter.get('/my-orders', authMiddleware, getMyOrders);
-orderRouter.get('/lead/:leadId', authMiddleware, [param('leadId').notEmpty().withMessage('Lead ID is required')], validateRequest, getOrdersByLeadCtrl);
+orderRouter.get('/lead/:leadId', authMiddleware, adminMiddleware, [param('leadId').notEmpty().withMessage('Lead ID is required')], validateRequest, getOrdersByLeadCtrl);
 orderRouter.get('/:id', authMiddleware, [param('id').isMongoId().withMessage('Valid order id is required')], validateRequest, getOrderById);
 
 // NEW: Admin endpoints
-orderRouter.get('/admin/all', authMiddleware, getAllOrdersAdmin);
-orderRouter.patch('/:id/dispatch', authMiddleware, [
+orderRouter.get('/admin/all', authMiddleware, adminMiddleware, getAllOrdersAdmin);
+orderRouter.patch('/:id/dispatch', authMiddleware, adminMiddleware, [
   param('id').isMongoId().withMessage('Valid order id is required'),
   body('trackingNumber').notEmpty().withMessage('Tracking number is required'),
   body('courierPartner').notEmpty().withMessage('Courier partner is required'),
 ], validateRequest, dispatchOrder);
 
 // Send order via email
-orderRouter.post('/:id/send-email', authMiddleware, [
+orderRouter.post('/:id/send-email', authMiddleware, adminMiddleware, [
   param('id').notEmpty().withMessage('Order ID is required'),
 ], validateRequest, sendOrderEmailCtrl);
 
 // Send order via WhatsApp
-orderRouter.post('/:id/send-whatsapp', authMiddleware, [
+orderRouter.post('/:id/send-whatsapp', authMiddleware, adminMiddleware, [
   param('id').notEmpty().withMessage('Order ID is required'),
 ], validateRequest, sendOrderWhatsAppCtrl);
 
