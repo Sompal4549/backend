@@ -12,11 +12,18 @@ export const listProducts = async (query: any) => {
   if (minPrice) filter.price = { ...filter.price, $gte: Number(minPrice) };
   if (maxPrice) filter.price = { ...filter.price, $lte: Number(maxPrice) };
 
-  // Only return active products by default unless includeInactive=true is requested (e.g. by admin)
-  if (query.isActive !== undefined) {
-    filter.isActive = query.isActive === 'true' || query.isActive === true;
-  } else if (query.includeInactive !== 'true' && query.includeInactive !== true) {
-    filter.isActive = true;
+  const isDeletedRequested = query.deleted === 'true' || query.isDeleted === 'true';
+
+  if (isDeletedRequested) {
+    filter.isDeleted = true;
+  } else {
+    filter.isDeleted = { $ne: true };
+    // Only return active products by default unless includeInactive=true is requested (e.g. by admin)
+    if (query.isActive !== undefined) {
+      filter.isActive = query.isActive === 'true' || query.isActive === true;
+    } else if (query.includeInactive !== 'true' && query.includeInactive !== true) {
+      filter.isActive = true;
+    }
   }
 
   const products = search
@@ -54,6 +61,37 @@ export const updateProduct = async (productId: string, payload: Partial<IProduct
 export const removeProduct = async (productId: string, deletedBy?: string) => {
   // Backup before delete so the product can be recovered if needed
   await createProductBackup(productId, deletedBy, 'auto-before-delete').catch(() => {});
+
+  // Soft delete so it can be restored from Deleted Products list
+  const product = await updateProductById(productId, {
+    isDeleted: true,
+    deletedAt: new Date(),
+    deletedBy: deletedBy || 'Admin',
+    isActive: false,
+  });
+
+  if (!product) {
+    throw new AppError(404, 'Product not found');
+  }
+  return product;
+};
+
+export const restoreProduct = async (productId: string) => {
+  const product = await updateProductById(productId, {
+    isDeleted: false,
+    deletedAt: null,
+    deletedBy: null,
+    isActive: true,
+  });
+
+  if (!product) {
+    throw new AppError(404, 'Product not found');
+  }
+  return product;
+};
+
+export const permanentDeleteProduct = async (productId: string, deletedBy?: string) => {
+  await createProductBackup(productId, deletedBy, 'manual-permanent-delete').catch(() => {});
 
   const product = await deleteProductById(productId);
   if (!product) {

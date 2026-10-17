@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { createReview, updateReview, deleteReview, getReviews } from '../controllers/review.controller';
+import { createReview, updateReview, deleteReview, getReviews, getAllReviewsHandler } from '../controllers/review.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { body } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
 
 export const reviewRouter = Router();
 
+reviewRouter.get('/', getAllReviewsHandler);
 reviewRouter.get('/:productId', getReviews);
 reviewRouter.post(
   '/:productId',

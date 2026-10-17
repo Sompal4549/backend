@@ -42,6 +42,14 @@ import { dashboardRouter, enquiryListRouter } from './routes/dashboard.routes';
 import { solutionRouter } from './routes/solution.routes';
 import { invoiceRouter } from './routes/invoice.routes';
 import { chatbotRouter } from './routes/chatbot.routes';
+import { verifyRouter } from './routes/verify';
+import { verifyImageRouter } from './routes/verify-image.routes';
+import { adminChatsRouter } from './routes/admin-chats.routes';
+import { otpRouter } from './routes/otpRoutes';
+import { analyticsRouter } from './routes/analytics.routes';
+import { dropdownsRouter } from './routes/dropdowns.routes';
+import { settingsRouter } from './routes/settings.routes';
+import { chatbotManagerRouter } from './routes/chatbot-manager.routes';
 
 export const createApp = () => {
   const app = express();
@@ -204,46 +212,51 @@ export const createApp = () => {
   });
 
   // ─── Routes (mounted on both /api and /api/v1) ──────────────────────────────
-  app.use('/api/v1/auth', authRouter);
-  app.use('/api/auth', authRouter);
-  app.use('/api/v1/products', productRouter);
-  app.use('/api/v1/categories', categoryRouter);
-  app.use('/api/v1/component-content', componentContentRouter);
-  app.use('/api/v1/navigation', navigationRouter);
-  app.use('/api/v1/footer', footerRouter);
-  app.use('/api/v1/uploads', uploadRouter);
-  app.use('/api/v1/wishlist', wishlistRouter);
-  app.use('/api/v1/reviews', reviewRouter);
-  app.use('/api/v1/orders', orderRouter);
-  app.use('/api/v1/payments', paymentRouter);
-  app.use('/api/v1/blogs', blogRouter);
-  app.use('/api/v1/newsletter', newsletterRouter);
-  app.use('/api/v1/cart', cartRouter);
-  app.use('/api/v1/profile', profileRouter);
-  app.use('/api/v1/media', mediaRouter);
-  app.use('/api/v1/admin', adminRouter);
-  app.use('/api/v1/projects', projectRouter);
-  app.use('/api/v1/careers', careerRouter);
-  app.use('/api/v1/enquiry', enquiryRouter);
-  app.use("/api/v1/seo", seoRoutes);
-  app.use('/api/v1/pages', pageRouter);
-  app.use("/api/v1/social-clicks", socialRouter);
-  app.use("/api/v1/applications", applicationRouter);
-  app.use('/api/v1/activity-logs', activityLogRouter);
-  app.use('/api/v1/leads', leadRouter);
-  app.use('/api/leads', leadRouter);
-  app.use('/api/v1/solutions', solutionRouter);
-  app.use('/api/v1/invoices', invoiceRouter);
+  const mountRoute = (routePath: string, router: express.Router) => {
+    app.use(`/api/v1${routePath}`, router);
+    app.use(`/api${routePath}`, router);
+  };
 
-  // Live dashboard + enquiries (admin protected), aliased across base paths
-  app.use('/api/v1/dashboard', dashboardRouter);
-  app.use('/api/dashboard', dashboardRouter);
-  app.use('/api/v1/enquiries', enquiryListRouter);
-  app.use('/api/enquiries', enquiryListRouter);
-  app.use('/api/v1/contact-enquiry', enquiryListRouter);
-  app.use('/api/contact-enquiry', enquiryListRouter);
-  app.use('/api/v1/chatbot', chatbotRouter);
-  app.use('/api/chatbot', chatbotRouter);
+  mountRoute('/auth', authRouter);
+  mountRoute('/products', productRouter);
+  mountRoute('/categories', categoryRouter);
+  mountRoute('/component-content', componentContentRouter);
+  mountRoute('/navigation', navigationRouter);
+  mountRoute('/footer', footerRouter);
+  mountRoute('/uploads', uploadRouter);
+  mountRoute('/wishlist', wishlistRouter);
+  mountRoute('/reviews', reviewRouter);
+  mountRoute('/orders', orderRouter);
+  mountRoute('/payments', paymentRouter);
+  mountRoute('/blogs', blogRouter);
+  mountRoute('/newsletter', newsletterRouter);
+  mountRoute('/cart', cartRouter);
+  mountRoute('/profile', profileRouter);
+  mountRoute('/media', mediaRouter);
+  mountRoute('/admin/chatbot', chatbotManagerRouter);
+  mountRoute('/admin/chats', adminChatsRouter);
+  mountRoute('/admin', adminRouter);
+  mountRoute('/projects', projectRouter);
+  mountRoute('/careers', careerRouter);
+  mountRoute('/enquiry', enquiryRouter);
+  mountRoute('/seo', seoRoutes);
+  mountRoute('/pages', pageRouter);
+  mountRoute('/social-clicks', socialRouter);
+  mountRoute('/applications', applicationRouter);
+  mountRoute('/activity-logs', activityLogRouter);
+  mountRoute('/leads', leadRouter);
+  mountRoute('/solutions', solutionRouter);
+  mountRoute('/invoices', invoiceRouter);
+  mountRoute('/dashboard', dashboardRouter);
+  mountRoute('/enquiries', enquiryListRouter);
+  mountRoute('/contact-enquiry', enquiryListRouter);
+  mountRoute('/chatbot', chatbotRouter);
+  mountRoute('/verify', verifyRouter);
+  mountRoute('/verify-image', verifyImageRouter);
+  mountRoute('/otp', otpRouter);
+  mountRoute('/analytics', analyticsRouter);
+  mountRoute('/dropdowns', dropdownsRouter);
+  mountRoute('/settings', settingsRouter);
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });

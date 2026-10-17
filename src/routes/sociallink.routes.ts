@@ -4,6 +4,8 @@ import geoip from "geoip-lite";
 import { asyncHandler } from "../utils/async-handler";
 import { AppError } from "../utils/app-error";
 import { successResponse } from "../utils/api-response";
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 export const socialRouter = Router();
 
@@ -54,7 +56,7 @@ socialRouter.get("/links", asyncHandler(async (_req: Request, res: Response) => 
 }));
 
 /** POST /api/v1/social-clicks/links */
-socialRouter.post("/links", asyncHandler(async (req: Request, res: Response) => {
+socialRouter.post("/links", authMiddleware, adminMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { platform, url, icon, isActive, order } = req.body;
   if (!platform || !url) {
     throw new AppError(400, "platform and url are required");
@@ -72,7 +74,7 @@ socialRouter.post("/links", asyncHandler(async (req: Request, res: Response) => 
 }));
 
 /** PUT /api/v1/social-clicks/links/:id */
-socialRouter.put("/links/:id", asyncHandler(async (req: Request, res: Response) => {
+socialRouter.put("/links/:id", authMiddleware, adminMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { platform, url, icon, isActive, order } = req.body;
   const link = await SocialLink.findByIdAndUpdate(
     req.params.id,
@@ -84,7 +86,7 @@ socialRouter.put("/links/:id", asyncHandler(async (req: Request, res: Response) 
 }));
 
 /** DELETE /api/v1/social-clicks/links/:id */
-socialRouter.delete("/links/:id", asyncHandler(async (req: Request, res: Response) => {
+socialRouter.delete("/links/:id", authMiddleware, adminMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const link = await SocialLink.findByIdAndDelete(req.params.id);
   if (!link) throw new AppError(404, "Link not found");
   return successResponse(res, null, "Deleted");

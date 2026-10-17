@@ -1,10 +1,23 @@
-import { Router } from 'express';
-import { getProducts, getProductById, createProduct, updateProductHandler, deleteProductHandler } from '../controllers/product.controller';
+import { Router, Request, Response } from 'express';
+import {
+  getProducts,
+  getProductById,
+  createProduct,
+  updateProductHandler,
+  deleteProductHandler,
+  restoreProductHandler,
+  permanentDeleteProductHandler,
+} from '../controllers/product.controller';
 import { getBackupsHandler, createBackupHandler, getBackupHandler, restoreBackupHandler, deleteBackupHandler, deleteAllBackupsHandler } from '../controllers/product-backup.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
 import { body, param, query } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
+import { ProductModel } from '../models/product.model';
+import { normalizeCityPages } from '../models/city-page.schema';
+import { asyncHandler } from '../utils/async-handler';
+import { successResponse } from '../utils/api-response';
+import { AppError } from '../utils/app-error';
 
 export const productRouter = Router();
 
@@ -22,6 +35,33 @@ productRouter.get(
   validateRequest,
   getProducts
 );
+
+// Specific backup by backupId (must come BEFORE /:id to avoid conflict)
+productRouter.get(
+  '/backups/:backupId',
+  authMiddleware,
+  adminMiddleware,
+  [param('backupId').isMongoId().withMessage('Valid backup id is required')],
+  validateRequest,
+  getBackupHandler
+);
+productRouter.post(
+  '/backups/:backupId/restore',
+  authMiddleware,
+  adminMiddleware,
+  [param('backupId').isMongoId().withMessage('Valid backup id is required')],
+  validateRequest,
+  restoreBackupHandler
+);
+productRouter.delete(
+  '/backups/:backupId',
+  authMiddleware,
+  adminMiddleware,
+  [param('backupId').isMongoId().withMessage('Valid backup id is required')],
+  validateRequest,
+  deleteBackupHandler
+);
+
 productRouter.get('/:id', [param('id').notEmpty().withMessage('Product id or slug is required')], validateRequest, getProductById);
 
 // ─── Admin product write routes ─────────────────────────────────────────────
@@ -51,15 +91,32 @@ productRouter.put(
   [
     param('id').isMongoId().withMessage('Valid product id is required'),
     body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number'),
-    body('discountPrice').optional().isFloat({ min: 0 }).withMessage('Discount price must be a positive number'),
-    body('category').optional().isMongoId().withMessage('Valid category is required'),
-    body('subCategory').optional().isMongoId().withMessage('Valid sub category is required'),
-    body('stock').optional().isInt({ min: 0 }).withMessage('Stock must be a positive integer'),
-    body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
-    body('tags').optional().isArray().withMessage('Tags must be an array'),
+    body('discountPrice').optional(),
+    body('category').optional(),
+    body('subCategory').optional(),
+    body('stock').optional(),
+    body('isActive').optional(),
+    body('tags').optional(),
   ],
   validateRequest,
   updateProductHandler
+);
+// PUT /products/:id/cities — { cities }: replaces the product's city landing pages
+productRouter.put(
+  '/:id/cities',
+  authMiddleware,
+  adminMiddleware,
+  [param('id').isMongoId().withMessage('Valid product id is required')],
+  validateRequest,
+  asyncHandler(async (req: Request, res: Response) => {
+    const product = await ProductModel.findByIdAndUpdate(
+      req.params.id,
+      { cities: normalizeCityPages(req.body.cities) },
+      { new: true, runValidators: true }
+    );
+    if (!product) throw new AppError(404, 'Product not found');
+    successResponse(res, product.cities, 'City pages updated');
+  })
 );
 productRouter.delete(
   '/:id',
@@ -68,6 +125,30 @@ productRouter.delete(
   [param('id').isMongoId().withMessage('Valid product id is required')],
   validateRequest,
   deleteProductHandler
+);
+productRouter.post(
+  '/:id/restore',
+  authMiddleware,
+  adminMiddleware,
+  [param('id').isMongoId().withMessage('Valid product id is required')],
+  validateRequest,
+  restoreProductHandler
+);
+productRouter.patch(
+  '/:id/restore',
+  authMiddleware,
+  adminMiddleware,
+  [param('id').isMongoId().withMessage('Valid product id is required')],
+  validateRequest,
+  restoreProductHandler
+);
+productRouter.delete(
+  '/:id/permanent',
+  authMiddleware,
+  adminMiddleware,
+  [param('id').isMongoId().withMessage('Valid product id is required')],
+  validateRequest,
+  permanentDeleteProductHandler
 );
 
 // ─── Backup routes ───────────────────────────────────────────────────────────

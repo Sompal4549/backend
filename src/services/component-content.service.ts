@@ -1,4 +1,6 @@
 import { AppError } from '../utils/app-error';
+import Settings from '../models/settings.model';
+import Page from '../models/page.model';
 import { ComponentContentModel, IComponentContent } from '../models/component-content.model';
 
 const HOME_COMPONENT_KEYS = [
@@ -39,10 +41,53 @@ export const upsertComponentContent = async (payload: Partial<IComponentContent>
   );
 };
 
+/**
+ * Pages & CMS keeps its own copy of each section (settings.data.<page>.sections[].data) and writes it
+ * back here whenever that page is saved. Mirror direct edits into that copy, so a later page save
+ * from Pages & CMS does not bring back the old content.
+ */
+const mirrorIntoPageSettings = async (key: string, data: Record<string, unknown>) => {
+  const settings = await Settings.findOne({ website: 'ensis' }).lean<{ _id: unknown; data?: Record<string, any> }>();
+  if (!settings?.data) return;
+  const updates: Record<string, unknown> = {};
+  for (const [configKey, pageConfig] of Object.entries(settings.data)) {
+    const sections = Array.isArray(pageConfig?.sections) ? pageConfig.sections : [];
+    sections.forEach((section: any, index: number) => {
+      if (section?.componentKey === key) {
+        updates[`data.${configKey}.sections.${index}.data`] = { ...(section.data || {}), ...data };
+      }
+    });
+  }
+  if (Object.keys(updates).length) {
+    await Settings.updateOne({ _id: settings._id }, { $set: updates });
+  }
+
+  // The website's page endpoint reads the Page record's sections first
+  const pages = await Page.find({ 'sections.componentKey': key }).select('sections').lean<{ _id: unknown; sections?: any[] }[]>();
+  for (const page of pages) {
+    const pageUpdates: Record<string, unknown> = {};
+    (page.sections || []).forEach((section: any, index: number) => {
+      if (section?.componentKey === key) {
+        pageUpdates[`sections.${index}.data`] = { ...(section.data || {}), ...data };
+      }
+    });
+    if (Object.keys(pageUpdates).length) {
+      await Page.updateOne({ _id: page._id }, { $set: pageUpdates });
+    }
+  }
+};
+
 export const updateComponentContent = async (id: string, payload: Partial<IComponentContent>) => {
   const content = await ComponentContentModel.findByIdAndUpdate(id, payload, { new: true, runValidators: true });
   if (!content) {
     throw new AppError(404, 'Component content not found');
+  }
+  if (payload.data && typeof payload.data === 'object') {
+    try {
+      await mirrorIntoPageSettings(content.key, payload.data as Record<string, unknown>);
+    } catch (err) {
+      console.error(`Could not mirror ${content.key} into Pages & CMS:`, err);
+    }
   }
   return content;
 };

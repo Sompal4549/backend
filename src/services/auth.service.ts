@@ -51,7 +51,7 @@ export const refreshAccessToken = async (refreshToken: string, res: any) => {
       const newRefreshToken = createRefreshToken({ leadId: lead._id.toString(), role: 'lead' });
       await LeadModel.findByIdAndUpdate(lead._id, { refreshToken: await bcrypt.hash(newRefreshToken, 10) });
       setRefreshTokenCookie(res, newRefreshToken);
-      return accessToken;
+      return { accessToken, refreshToken: newRefreshToken };
     }
 
     // User refresh token (admin/superadmin)
@@ -64,7 +64,7 @@ export const refreshAccessToken = async (refreshToken: string, res: any) => {
     const newRefreshToken = createRefreshToken({ userId: user.id, role: user.role });
     await updateUserRefreshToken(user.id, await bcrypt.hash(newRefreshToken, 10));
     setRefreshTokenCookie(res, newRefreshToken);
-    return accessToken;
+    return { accessToken, refreshToken: newRefreshToken };
   } catch {
     throw new AppError(401, 'Refresh token failed');
   }

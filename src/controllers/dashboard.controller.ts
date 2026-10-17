@@ -36,20 +36,22 @@ export const listEnquiriesController = asyncHandler(async (req: Request, res: Re
   const limit = Number.parseInt(String(req.query.limit ?? '20'), 10);
   const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
   const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
+  const source = typeof req.query.source === 'string' ? req.query.source.trim() : '';
 
   const result = await listEnquiries({
     page: Number.isNaN(page) ? 1 : page,
     limit: Number.isNaN(limit) ? 20 : limit,
     search,
     status,
+    source,
   });
 
   successResponse(res, result, 'Enquiries retrieved');
 });
 
 export const updateEnquiryController = asyncHandler(async (req: Request, res: Response) => {
-  const { status, isRead } = req.body;
-  const update: { status?: string; isRead?: boolean } = {};
+  const { status, isRead, notes } = req.body;
+  const update: { status?: string; isRead?: boolean; notes?: string } = {};
 
   if (status !== undefined) {
     const validStatuses = ['pending', 'contacted', 'resolved', 'cancelled', 'closed', 'new', 'qualified'];
@@ -61,6 +63,10 @@ export const updateEnquiryController = asyncHandler(async (req: Request, res: Re
 
   if (isRead !== undefined) {
     update.isRead = Boolean(isRead);
+  }
+
+  if (typeof notes === 'string') {
+    update.notes = notes.slice(0, 5000);
   }
 
   if (Object.keys(update).length === 0) {

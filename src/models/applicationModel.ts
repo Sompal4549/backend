@@ -10,6 +10,19 @@ export interface IApplication extends Document {
   coverLetter?: string;
   experience:string;
   status: "pending" | "reviewed" | "shortlisted" | "rejected";
+  notes?: string;
+  /** "career-form" (general form) or "ai-cv" (job Apply flow with CV screening) */
+  source: "career-form" | "ai-cv";
+  aiScore?: number;
+  jobTitle?: string;
+  aiSummary?: string;
+  linkedin?: string;
+  currentCompany?: string;
+  currentDesignation?: string;
+  noticePeriod?: string;
+  expectedCTC?: string;
+  willingToRelocate?: string;
+  employmentStatus?: string;
 }
 
 const applicationSchema = new Schema<IApplication>(
@@ -65,6 +78,27 @@ experience: {
       ],
       default: "pending",
     },
+    // HR notes, written in the admin
+    notes: {
+      type: String,
+      default: "",
+    },
+    source: {
+      type: String,
+      enum: ["career-form", "ai-cv"],
+      default: "career-form",
+    },
+    // Filled by the AI CV screening flow
+    aiScore: { type: Number, min: 0, max: 100 },
+    jobTitle: { type: String, default: "" },
+    aiSummary: { type: String, default: "" },
+    linkedin: { type: String, default: "" },
+    currentCompany: { type: String, default: "" },
+    currentDesignation: { type: String, default: "" },
+    noticePeriod: { type: String, default: "" },
+    expectedCTC: { type: String, default: "" },
+    willingToRelocate: { type: String, default: "" },
+    employmentStatus: { type: String, default: "" },
   },
   {
     timestamps: true,

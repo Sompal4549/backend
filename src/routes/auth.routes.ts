@@ -9,6 +9,17 @@ import {
   sendEmailOtp,
   sendWhatsAppOtp,
 } from '../controllers/auth.controller';
+import {
+  handleUnifiedLogin,
+  handleVerify2FA,
+  handleSetup2FA,
+  handleConfirm2FA,
+  handleGetMe,
+} from '../controllers/admin-auth.controller';
+import {
+  adminForgotPassword,
+  adminResetPassword,
+} from '../controllers/admin.controller';
 import { validateRequest } from '../middlewares/validate.middleware';
 import { body } from 'express-validator';
 
@@ -27,6 +38,7 @@ authRouter.post(
 
 authRouter.post(
   '/login',
+  handleUnifiedLogin,
   [
     body('phone').notEmpty().isMobilePhone('any').withMessage('Valid phone is required'),
     body('otp').notEmpty().withMessage('OTP is required')
@@ -35,6 +47,12 @@ authRouter.post(
   login
 );
 
+authRouter.post('/verify-2fa', handleVerify2FA);
+authRouter.get('/setup-2fa', handleSetup2FA);
+authRouter.post('/confirm-2fa', handleConfirm2FA);
+authRouter.get('/me', handleGetMe);
+authRouter.post('/forgot-password', adminForgotPassword);
+authRouter.post('/reset-password', adminResetPassword);
 authRouter.post('/logout', logout);
 
 // Dual-token refresh: accepts { refreshToken } from body or refreshToken cookie

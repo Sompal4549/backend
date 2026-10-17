@@ -14,6 +14,7 @@ import Seo from '../models/seo.models';
 import { SolutionModel } from '../models/solution.model';
 import { ProjectModel } from '../models/project.model';
 import { BlogModel } from '../models/blog.model';
+import { syncCmsFromLive } from './live-cms-adapter';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -41,6 +42,9 @@ const PAGE_KEYS = [
   'privacy-policy',
   'terms-and-conditions',
 ];
+
+/** Page names the storefront passes to GET /component-content/page/:page */
+const LIVE_COMPONENT_PAGES = ['home', 'about', 'turnkey', 'consultancy', 'product', 'projects', 'blog', 'career', 'contact', 'enquiry'];
 
 interface LiveResponse {
   ok: boolean;
@@ -111,6 +115,14 @@ const fetchSnapshot = async (): Promise<any> => {
   snapshot.blogs = (await fetchLive('/blogs')) || [];
   snapshot.products = await fetchAllProducts();
   snapshot.pages = await fetchPages();
+  // Which sections each live page renders, in order (local admin sections are rebuilt to match)
+  snapshot.pageOrder = {};
+  for (const page of LIVE_COMPONENT_PAGES) {
+    const list = await fetchLive(`/component-content/page/${page}`);
+    if (Array.isArray(list)) {
+      snapshot.pageOrder[page] = list.filter((c: any) => c?.key && c.isActive !== false).map((c: any) => c.key);
+    }
+  }
 
   const counts = [
     ['categories', snapshot.categories],
@@ -250,13 +262,9 @@ const seedLocal = async (snapshot: any, prune: boolean): Promise<void> => {
   console.log('- products');
   await seedProducts(snapshot, liveCatIdToLocalId);
   for (const product of snapshot.products || []) if (product?.slug) kept.products.push(product.slug);
-  console.log('- pages');
-  for (const page of snapshot.pages || []) {
-    if (!page?.slug) continue;
-    await replaceOneById(Page, { slug: page.slug }, page);
-    kept.pages.push(page.slug);
-  }
-  console.log(`  pages: ${kept.pages.length} upserted`);
+  // Live Page docs hold only SEO under short slugs ("about"); copying them would create
+  // duplicates of the local pages. Their SEO is merged by syncCmsFromLive below instead.
+  for (const page of await Page.find().select('slug').lean()) if (page.slug) kept.pages.push(page.slug);
   console.log('- component contents');
   for (const component of snapshot.componentContents || []) {
     if (!component?.key) continue;
@@ -264,6 +272,13 @@ const seedLocal = async (snapshot: any, prune: boolean): Promise<void> => {
     kept.components.push(component.key);
   }
   console.log(`  componentContents: ${kept.components.length} upserted`);
+  console.log('- admin page sections (from live content)');
+  const report = await syncCmsFromLive(snapshot);
+  console.log(`  sections updated: ${report.sectionsUpdated}, kept (local only): ${report.sectionsKept.length}`);
+  console.log(`  seo merged: ${report.seoMerged.join(', ') || '-'}`);
+  if (report.liveOnlyComponents.length) {
+    console.log(`  live components without an admin section: ${report.liveOnlyComponents.join(', ')}`);
+  }
   console.log('- navigation / footer');
   if (snapshot.navigation) {
     const navKey = snapshot.navigation.key || 'main';

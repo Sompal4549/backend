@@ -13,6 +13,9 @@ import { IEnquiry } from '../models/enquiry.model';
 import { sendEmail } from '../services/email.service';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 
+/** Website forms that post here (see EnquaryBannerAndForm, ContactSection, Products) */
+const ENQUIRY_SOURCES = ['enquiry', 'contact', 'products'];
+
 export const submitEnquiry = asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
   let attachmentUrl = '';
@@ -41,8 +44,16 @@ export const submitEnquiry = asyncHandler(async (req: Request, res: Response) =>
     cityAndState: undefined,
     state: rawBody.state || (splitLocation[1] ?? ''),
     city: rawBody.city || (splitLocation[0] ?? ''),
+    pincode: rawBody.pincode || rawBody.zipcode || '',
+    alternatePhone: rawBody.alternatePhone || '',
+    subject: rawBody.subject || '',
     servicesRequired,
     preferredContact: rawBody.preferredContact || 'whatsapp',
+    source: ENQUIRY_SOURCES.includes(rawBody.source) ? rawBody.source : 'other',
+    // Never trusted from the public form
+    status: undefined,
+    isRead: undefined,
+    notes: undefined,
     agreeToContact: rawBody.agreeToContact === true || rawBody.agreeToContact === 'true',
   };
 

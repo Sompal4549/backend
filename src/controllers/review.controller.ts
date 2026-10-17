@@ -1,10 +1,21 @@
 import { Request, Response } from 'express';
-import { addReview, addReviewForCustomer, editReview, removeReview, getProductReviews } from '../services/review.service';
+import { addReview, addReviewForCustomer, editReview, removeReview, getProductReviews, getAllReviews } from '../services/review.service';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/app.config';
+
+export const getAllReviewsHandler = asyncHandler(async (req: Request, res: Response) => {
+  const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+  const rating = req.query.rating ? parseInt(req.query.rating as string, 10) : undefined;
+  const status = req.query.status as string | undefined;
+  const search = req.query.search as string | undefined;
+
+  const result = await getAllReviews(page, limit, { rating, status, search });
+  successResponse(res, result, 'All reviews retrieved');
+});
 
 export const createReview = asyncHandler(async (req: AuthRequest, res: Response) => {
   // Admin route: create review for current admin user

@@ -1,16 +1,32 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPage extends Document {
+  configKey?: string;
   pageName: string;
   slug: string;
+  status?: 'Published' | 'Draft';
+  visibility?: 'Public' | 'Private';
+  author?: string;
+  updatedBy?: string;
+  publishedAt?: string;
+  sections?: any[];
   seo: {
     metaTitle: string;
     metaDescription: string;
     metaKeywords?: string;
     canonical?: string;
-    ogJson?: string;    // 👈 add
-    schema?: string;    // 👈 add
-    // purane fields hata do ya rakho — but admin inhi 2 ko use karta hai
+    canonicalUrl?: string;
+    ogTitle?: string;
+    ogDescription?: string;
+    ogImage?: string;
+    h1Tag?: string;
+    breadcrumbName?: string;
+    schema?: string;
+    schemaMarkup?: string;
+    robotsIndex?: boolean;
+    robotsFollow?: boolean;
+    ogJson?: string;
+    isActive?: boolean;
   };
   advanceSeo?: {
     headCode?: string;
@@ -22,15 +38,18 @@ export interface IPage extends Document {
 
 const PageSchema: Schema = new Schema(
   {
+    configKey: { type: String, index: true },
     pageName: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
+    status: { type: String, enum: ['Published', 'Draft'], default: 'Published' },
+    visibility: { type: String, default: 'Public' },
+    author: { type: String, default: 'Admin' },
+    updatedBy: { type: String, default: 'Admin' },
+    publishedAt: { type: String },
+    sections: { type: Schema.Types.Mixed, default: [] },
     seo: {
-      metaTitle: { type: String, required: true },
-      metaDescription: { type: String, required: true },
-      metaKeywords: { type: String },
-      canonical: { type: String },
-      ogJson: { type: String },    // 👈 add
-      schema: { type: String },    // 👈 add
+      type: Schema.Types.Mixed,
+      default: {},
     },
     advanceSeo: {
       headCode: { type: String },
@@ -38,7 +57,6 @@ const PageSchema: Schema = new Schema(
     },
     robots: {
       type: String,
-      enum: ['index, follow', 'noindex, nofollow', 'index, nofollow', 'noindex, follow'],
       default: 'index, follow',
     },
     faqs: [
@@ -48,8 +66,11 @@ const PageSchema: Schema = new Schema(
       },
     ],
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    strict: false,
+  }
 );
 
-const Page = mongoose.model<IPage>('Page', PageSchema);
+const Page = mongoose.models.Page || mongoose.model<IPage>('Page', PageSchema);
 export default Page;

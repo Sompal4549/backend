@@ -1,6 +1,6 @@
 {
   "source": "https://api.ensis.in/api/v1",
-  "fetchedAt": "2026-10-15T08:43:56.186Z",
+  "fetchedAt": "2026-10-16T07:29:37.943Z",
   "categories": [
     {
       "_id": "6ac60078ce67ab3bfd8501fe",
@@ -4632,8 +4632,8 @@
       "readBy": [],
       "robots": "index, follow",
       "title": "The Mental Health Benefits of Regular Spa Rituals",
-      "updatedAt": "2026-10-15T07:25:44.483Z",
-      "viewCount": 99
+      "updatedAt": "2026-10-16T04:53:30.058Z",
+      "viewCount": 101
     },
     {
       "banner": {
@@ -4731,8 +4731,8 @@
       "readBy": [],
       "robots": "index, follow",
       "title": "A Beginner's Guide to Building a Commercial Spa",
-      "updatedAt": "2026-10-15T07:25:44.487Z",
-      "viewCount": 77
+      "updatedAt": "2026-10-16T04:53:29.986Z",
+      "viewCount": 79
     },
     {
       "banner": {
@@ -4830,8 +4830,8 @@
       "readBy": [],
       "robots": "index, follow",
       "title": "Why Manufacturing Quality Matters in Wellness Equipment",
-      "updatedAt": "2026-10-15T07:25:44.486Z",
-      "viewCount": 84
+      "updatedAt": "2026-10-16T04:53:29.985Z",
+      "viewCount": 86
     },
     {
       "banner": {
@@ -4924,8 +4924,8 @@
       "readBy": [],
       "robots": "index, follow",
       "title": "Top 7 Spa Trends to Watch in 2026",
-      "updatedAt": "2026-10-15T06:46:26.678Z",
-      "viewCount": 81
+      "updatedAt": "2026-10-16T04:53:30.004Z",
+      "viewCount": 83
     },
     {
       "banner": {
@@ -5320,8 +5320,8 @@
       "readBy": [],
       "robots": "index, follow",
       "title": "The Science Behind Cold Plunge Therapy",
-      "updatedAt": "2026-10-15T05:02:30.268Z",
-      "viewCount": 38
+      "updatedAt": "2026-10-16T06:16:01.736Z",
+      "viewCount": 39
     },
     {
       "banner": {
@@ -5414,8 +5414,8 @@
       "readBy": [],
       "robots": "index, follow",
       "title": "Steam Room vs Sauna: Which One Is Right for You?",
-      "updatedAt": "2026-10-15T05:02:31.851Z",
-      "viewCount": 31
+      "updatedAt": "2026-10-16T06:15:56.317Z",
+      "viewCount": 32
     },
     {
       "banner": {
@@ -8287,7 +8287,7 @@
       "overview": {
         "productPricingFeatures": [],
         "emiOptions": false,
-        "customSize": false,
+        "customSize": true,
         "idealFor": "Storing Towels, Oils, Herbal Products, Spa Accessories, Therapy Essentials in Spas, Wellness Centres, Ayurvedic Clinics, Salons, Resorts, and Therapy Rooms.",
         "productSpecifications": [
           {
@@ -8340,7 +8340,7 @@
       "slug": "premium-wooden-spa-service-trolley",
       "code": "ENS-027",
       "description": "Crafted from premium Rubber Wood, this Spa Service Trolley measures 850 × 500 × 900 mm (L × W × H) and features a natural wood-grain finish, raised top utility tray, spacious drawer, two open storage shelves, side handle, and four lockable caster wheels for smooth mobility and professional use.",
-      "shortDescription": "Premium Wooden Spa Service Trolley crafted from high-quality Rubber Wood with a natural wood-grain finish, raised top utility tray, spacious drawer, two open storage shelves, side handle, and four lockable caster wheels for convenient organization and smooth professional mobility.",
+      "shortDescription": "Premium Rubber Wood Spa Trolley with a natural finish, raised utility tray, spacious drawer, two storage shelves, side handle, and lockable caster wheels.",
       "price": 22000,
       "category": {
         "_id": "6ac5f4f0ce67ab3bfd85012c",
@@ -8351,13 +8351,17 @@
         "updatedAt": "2026-10-07T07:29:52.913Z",
         "__v": 0
       },
-      "subcategory": "",
+      "subcategory": "Wooden Spa Service Trolley with Drawer & Lockable Wheels",
       "material": "Rubber Wood",
-      "weight": "",
+      "weight": "-6",
       "images": [
-        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1791278126/ensis/products/nek3j0rjcpg0xy6zgx3o.webp"
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1791278126/ensis/products/nek3j0rjcpg0xy6zgx3o.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792054584/ensis/products/veqfgbamtx8tiwrmeotu.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792054589/ensis/products/vxk0wnma0e6f5sppr9rp.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792054592/ensis/products/r5jgotvbgsq8cev9ptto.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792054595/ensis/products/shdoeaqymxuvugque21s.webp"
       ],
-      "stock": 0,
+      "stock": 2,
       "tags": [
         "premium wooden spa service trolley",
         "wooden spa trolley",
@@ -8378,17 +8382,17 @@
       "isActive": true,
       "isFeatured": false,
       "createdAt": "2026-07-07T12:03:30.007Z",
-      "updatedAt": "2026-10-09T04:34:48.960Z",
+      "updatedAt": "2026-10-15T09:09:30.250Z",
       "__v": 0,
       "gstRate": 18,
-      "hsnCode": "",
+      "hsnCode": "94093000",
       "orderBy": 27
     },
     {
       "overview": {
         "productPricingFeatures": [],
         "emiOptions": false,
-        "customSize": false,
+        "customSize": true,
         "idealFor": "Storing Towels, Oils, Herbal Products, Spa Accessories, Therapy Essentials in Spas, Wellness Centres, Ayurvedic Clinics, Salons, Resorts, and Therapy Rooms.",
         "productSpecifications": [
           {
@@ -8437,7 +8441,7 @@
       "slug": "wooden-utility-trolley",
       "code": "ENS-028",
       "description": "Crafted from premium Rubber Wood, this Spa Service Trolley measures 850 × 500 × 900 mm (L × W × H) and features a natural wood-grain finish, raised top utility tray, spacious drawer, two open storage shelves, side handle, and four lockable caster wheels for smooth mobility and professional use.",
-      "shortDescription": "Premium Wooden Spa Service Trolley crafted from durable Rubber Wood with a natural wood-grain finish, raised top utility tray, spacious drawer, two open storage shelves, side handle, and four lockable caster wheels for organized storage and smooth professional mobility.",
+      "shortDescription": "Premium Rubber Wood Spa Trolley with a natural finish, utility tray, spacious drawer, two storage shelves, side handle, and lockable caster wheels.",
       "price": 21000,
       "category": {
         "_id": "6ac5f4f0ce67ab3bfd85012c",
@@ -8448,11 +8452,15 @@
         "updatedAt": "2026-10-07T07:29:52.913Z",
         "__v": 0
       },
-      "subcategory": "",
+      "subcategory": "Wooden Spa Service Trolley with Storage Shelves & Caster Wheels",
       "material": "Rubber Wood",
-      "weight": "",
+      "weight": "10",
       "images": [
-        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1783486640/ensis/products/yapa2slmd7pvji55dqwq.webp"
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1783486640/ensis/products/yapa2slmd7pvji55dqwq.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792055611/ensis/products/pxczpvsvelp7dirsypte.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792055615/ensis/products/s37vrhhiojpp6ay7bbml.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792055620/ensis/products/tfot6rr7ygymiy3izxyl.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792055626/ensis/products/sowg82hdn2trflunxff5.webp"
       ],
       "stock": 20,
       "tags": [
@@ -8475,17 +8483,17 @@
       "isActive": true,
       "isFeatured": false,
       "createdAt": "2026-07-08T04:59:23.695Z",
-      "updatedAt": "2026-10-09T04:34:54.474Z",
+      "updatedAt": "2026-10-15T09:16:36.940Z",
       "__v": 0,
       "gstRate": 18,
-      "hsnCode": "",
+      "hsnCode": "94093000",
       "orderBy": 28
     },
     {
       "overview": {
         "productPricingFeatures": [],
         "emiOptions": false,
-        "customSize": false,
+        "customSize": true,
         "idealFor": "Towels, Medicines, Brass Vessels, Herbal Potlis, Organizing Ayurvedic oils, Therapy accessories during Panchkarma, Abhyanga, Shirodhara, Pizhichil, Kati Basti, and Spa Treatments in Ayurvedic Hospitals, Wellness Centres, Clinics, Luxury Spas, and Therapy Rooms.",
         "productSpecifications": [
           {
@@ -8534,12 +8542,12 @@
         }
       },
       "_id": "6ac4c082ce67ab3bfd84dc98",
-      "title": "PREMIUM CARVED PANCHKARMA SERVICE TROLLEY",
+      "title": "CARVED PANCHKARMA <br>SERVICE TROLLEY",
       "slug": "premium-carved-panchkarma-service-trolley",
       "code": "ENS-029",
-      "hsnCode": "",
+      "hsnCode": "94093000",
       "description": "Crafted from premium handcarved Teak Wood, this Panchkarma Service Trolley measures 1100 × 550 × 950 mm (L × W × H) and features a natural handpolished finish, intricately carved panels, spacious top utility tray, three open storage shelves, brass side handle, decorative brass hardware, and four heavy-duty lockable caster wheels for smooth mobility and professional Ayurvedic use.",
-      "shortDescription": "Premium Carved Panchkarma Service Trolley crafted from hand-carved Teak Wood with a natural hand-polished finish, intricately carved panels, spacious utility tray, three open storage shelves, brass side handle, decorative brass hardware, and four heavy-duty lockable caster wheels for organized and smooth professional Ayurvedic service.",
+      "shortDescription": "Premium Hand-Carved Teak Wood Panchkarma Trolley with a polished finish, carved panels, utility tray, three storage shelves, brass fittings, and lockable caster wheels.",
       "price": 26000,
       "gstRate": 5,
       "category": {
@@ -8553,9 +8561,13 @@
       },
       "subcategory": "",
       "material": "Teak Wood",
-      "weight": "",
+      "weight": "16",
       "images": [
-        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1791279217/ensis/products/i1djdohxmvudxkh2esi8.webp"
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1791279217/ensis/products/i1djdohxmvudxkh2esi8.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792056133/ensis/products/czpffkiai2rvlflwipyz.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792056144/ensis/products/jumpo7q5xzjxkntkg0ff.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792056152/ensis/products/riimqyp2fvg0u6rbd4w5.webp",
+        "https://res.cloudinary.com/ddjhixcwh/image/upload/v1792056162/ensis/products/j4jtbwzngobgsdq1jixe.webp"
       ],
       "stock": 29,
       "tags": [
@@ -8579,7 +8591,7 @@
       "isFeatured": false,
       "orderBy": 29,
       "createdAt": "2026-10-06T09:33:54.758Z",
-      "updatedAt": "2026-10-09T04:38:52.711Z",
+      "updatedAt": "2026-10-15T09:25:23.179Z",
       "__v": 0
     },
     {
@@ -13736,5 +13748,100 @@
       "updatedAt": "2026-08-25T11:34:43.561Z",
       "__v": 0
     }
-  ]
+  ],
+  "pageOrder": {
+    "home": [
+      "home.hero",
+      "home.wellnessSection",
+      "home.features",
+      "home.fullWidthFeatures",
+      "home.wellnessRoomSetups",
+      "home.turnkeySolutions",
+      "home.productsGrid",
+      "home.manufacturingAndProjects",
+      "home.globalPresence",
+      "home.testimonials",
+      "home.blogInsights",
+      "home.readyToBuild"
+    ],
+    "about": [
+      "about.hero",
+      "layout.footer",
+      "layout.header",
+      "about.statsStrip",
+      "about.ourStory",
+      "about.whyChooseEnsis",
+      "about.ourExpertise",
+      "about.industriesWeServe",
+      "about.ourTurnkeyProcess",
+      "about.testimonials",
+      "about.founderVision",
+      "about.letsBuild"
+    ],
+    "turnkey": [
+      "turnkey.banner",
+      "turnkey.features_strip",
+      "turnkey.whatIsTurnkey",
+      "turnkey.completeSolutions",
+      "turnkey.facilities",
+      "turnkey.customized",
+      "turnkey.featuredProjects",
+      "turnkey.readyToBuild"
+    ],
+    "consultancy": [
+      "consultancy.hero",
+      "consultancy.features",
+      "consultancy.whatWeOffer",
+      "consultancy.whyChooseOurProcess",
+      "consultancy.readyToGetStarted"
+    ],
+    "product": [
+      "product.hero",
+      "product.featureStrip",
+      "product.productsection",
+      "product.trustedBy",
+      "product.whyChoose",
+      "product.testimonials"
+    ],
+    "projects": [
+      "projects.banner",
+      "projects.features_strip",
+      "projects.ourProjects",
+      "projects.whyPartner",
+      "projects.ourClients",
+      "projects.contactSection"
+    ],
+    "blog": [
+      "blog.features_strip",
+      "blog.hero",
+      "blog.allBlogs",
+      "blog.featuredArticles",
+      "blog.mediaResources",
+      "blog.voiceOfExperts",
+      "blog.stayInspired",
+      "blog.supportWellness"
+    ],
+    "career": [
+      "career.banner",
+      "career.features",
+      "career.whyWork",
+      "career.section",
+      "career.testimonials",
+      "career.benefits",
+      "career.talentCommunity"
+    ],
+    "contact": [
+      "contact.hero",
+      "contact.getInTouch",
+      "contact.featuresStrip",
+      "contact.premiumMap",
+      "contact.ctaBanner"
+    ],
+    "enquiry": [
+      "enquiry.features_strip",
+      "enquiry.page",
+      "enquiry.ctaBanner",
+      "enquiry.getInTouch"
+    ]
+  }
 }

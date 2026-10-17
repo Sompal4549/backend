@@ -120,8 +120,8 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
   if (!refreshTokenValue) {
     throw new AppError(401, 'Refresh token missing');
   }
-  const accessToken = await refreshAccessToken(refreshTokenValue, res);
-  successResponse(res, { accessToken }, 'Access token refreshed');
+  const tokens = await refreshAccessToken(refreshTokenValue, res);
+  successResponse(res, tokens, 'Access token refreshed');
 });
 
 export const sendEmailOtp = asyncHandler(async (req: Request, res: Response) => {

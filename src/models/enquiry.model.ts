@@ -16,9 +16,14 @@ export interface IEnquiry extends Document {
   attachmentUrl?: string;
   preferredContact?: string;
   agreeToContact: boolean;
+  pincode?: string;
+  alternatePhone?: string;
+  subject?: string;
   status: 'pending' | 'contacted' | 'resolved' | 'cancelled' | 'closed' | 'new' | 'qualified';
   isRead: boolean;
   notes?: string;
+  /** Website form it came from: enquiry, contact, products */
+  source?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,10 +32,14 @@ const EnquirySchema: Schema = new Schema(
   {
     fullName: { type: String, required: true },
     mobileNumber: { type: String, required: true },
-    email: { type: String, required: true },
+    // Required by the public form's validator; empty for chatbot callback leads (phone only)
+    email: { type: String, default: '' },
     companyOrganization: { type: String },
     state: { type: String },
     city: { type: String },
+    pincode: { type: String },
+    alternatePhone: { type: String },
+    subject: { type: String },
     projectType: { type: String, required: true },
     projectSize: { type: String },
     budgetRange: { type: String },
@@ -47,6 +56,7 @@ const EnquirySchema: Schema = new Schema(
     },
     isRead: { type: Boolean, default: false },
     notes: { type: String },
+    source: { type: String, default: 'other' },
   },
   {
     timestamps: true,

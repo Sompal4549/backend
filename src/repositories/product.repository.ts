@@ -1,5 +1,6 @@
+import { isObjectIdString } from '../utils/object-id';
 import { ProductModel, IProduct } from '../models/product.model';
-import { FilterQuery, SortOrder, Types } from 'mongoose';
+import { FilterQuery, SortOrder } from 'mongoose';
 
 type ProductSort = string | { [key: string]: SortOrder | { $meta: any } } | [string, SortOrder][];
 
@@ -17,14 +18,13 @@ export const getActiveProductById = async (id: string) => {
 
 export const getActiveProductByIdOrSlug = async (idOrSlug: string) => {
   try {
-    const query = Types.ObjectId.isValid(idOrSlug)
+    // A 12-character slug such as "wooden-stool" is not an id (Types.ObjectId.isValid accepts it)
+    const query = isObjectIdString(idOrSlug)
       ? { _id: idOrSlug, isActive: true }
       : { slug: idOrSlug, isActive: true };
 
     const product = await ProductModel.findOne(query)
       .populate('category reviews');
-
-    console.log(product);
 
     return product;
   } catch (err) {

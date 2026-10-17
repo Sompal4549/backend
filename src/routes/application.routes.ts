@@ -12,6 +12,8 @@ import {
 import { resumeUpload } from '../middlewares/upload.middleware';
 import { errorResponse } from '../utils/api-response';
 import multer from 'multer';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 export const applicationRouter = Router();
 
@@ -27,10 +29,11 @@ applicationRouter.post(
   },
   createApplication
 );
-applicationRouter.get("/", getApplications);
+// Reading and managing applications is for the admin only (candidates' personal data)
+applicationRouter.get("/", authMiddleware, adminMiddleware, getApplications);
 
-applicationRouter.get("/:id", getApplication);
+applicationRouter.get("/:id", authMiddleware, adminMiddleware, getApplication);
 
-applicationRouter.put("/:id", updateApplication);
+applicationRouter.put("/:id", authMiddleware, adminMiddleware, updateApplication);
 
-applicationRouter.delete("/:id", deleteApplication);
+applicationRouter.delete("/:id", authMiddleware, adminMiddleware, deleteApplication);

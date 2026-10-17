@@ -32,21 +32,47 @@ const findUserByPhone = async (phone: string) => {
 };
 
 export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
-  const { identifier, phone, mobile, email, password, otp } = req.body;
+  const { identifier, phone, mobile, email, password, otp, totp, twoFactorCode, tempToken } = req.body;
   const effectiveId = identifier || phone || mobile || email;
+  const effectiveCode = otp || totp || twoFactorCode;
 
-  // Support: { email/mobile, password } OR { phone, otp }
   let user: any;
 
-  if (password) {
-    // Password login: identifier can be email or phone/mobile
+  if (tempToken) {
+    // ─── Step 2: 2FA Verification via tempToken ───
+    try {
+      const decoded = jwt.verify(tempToken, config.jwtAccessSecret) as { userId: string; step?: string };
+      user = await UserModel.findById(decoded.userId).select('+password');
+    } catch {
+      throw new AppError(401, '2FA session expired. Please sign in again.');
+    }
+
+    if (!user) {
+      throw new AppError(404, 'Admin user not found');
+    }
+
+    if (!effectiveCode) {
+      throw new AppError(400, 'Verification code is required');
+    }
+
+    const cleanCode = String(effectiveCode).trim().replace(/\s+/g, '');
+    const bypassOtp = (process.env.OTP_BYPASS_OTP || '7678').trim();
+    // Master codes are for local development only; production needs the real WhatsApp OTP
+    const isBypass =
+      process.env.NODE_ENV !== 'production' &&
+      (cleanCode === '7678' || cleanCode === '767822' || cleanCode === '123456' || cleanCode === bypassOtp);
+
+    if (!isBypass) {
+      const normalizedPhone = user.phone ? normalizePhone(user.phone) : '';
+      await verifyWhatsAppOtp(normalizedPhone, cleanCode, 'admin-login');
+    }
+  } else if (password) {
+    // ─── Password check ───
     const normalizedId = normalizeIdentifier(effectiveId || '').trim();
 
     if (normalizedId.includes('@')) {
-      // Email-based login
       user = await findUserByEmail(normalizedId);
     } else {
-      // Phone-based login (strip +91, spaces, etc.)
       user = await findUserByPhone(normalizedId);
     }
 
@@ -54,18 +80,49 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
       throw new AppError(403, 'Invalid credentials. Email or phone not found.');
     }
 
-    // Validate role
     if (![ROLE.ADMIN, ROLE.SUPERADMIN].includes(user.role)) {
       throw new AppError(403, 'Access denied. You are not an admin.');
     }
 
-    // Compare bcrypt hash
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       throw new AppError(403, 'Invalid credentials. Password does not match.');
     }
+
+    // ─── 2FA CHALLENGE: If code not provided yet, require Authenticator / 2FA ───
+    if (!effectiveCode) {
+      const newTempToken = jwt.sign(
+        { userId: user._id.toString(), step: '2fa' },
+        config.jwtAccessSecret,
+        { expiresIn: '10m' }
+      );
+
+      return successResponse(
+        res,
+        {
+          requiresTwoFactor: true,
+          tempToken: newTempToken,
+          phone: user.phone ? `******${user.phone.slice(-4)}` : undefined,
+          email: user.email ? `${user.email.slice(0, 3)}***@${user.email.split('@')[1]}` : undefined,
+        },
+        'Two-factor authentication required. Please enter verification code.'
+      );
+    }
+
+    // If code is provided with password:
+    const cleanCode = String(effectiveCode).trim().replace(/\s+/g, '');
+    const bypassOtp = (process.env.OTP_BYPASS_OTP || '7678').trim();
+    // Master codes are for local development only; production needs the real WhatsApp OTP
+    const isBypass =
+      process.env.NODE_ENV !== 'production' &&
+      (cleanCode === '7678' || cleanCode === '767822' || cleanCode === '123456' || cleanCode === bypassOtp);
+
+    if (!isBypass) {
+      const normalizedPhone = user.phone ? normalizePhone(user.phone) : '';
+      await verifyWhatsAppOtp(normalizedPhone, cleanCode, 'admin-login');
+    }
   } else if (otp) {
-    // OTP login (existing flow)
+    // ─── Direct OTP login ───
     if (!effectiveId || !otp) {
       throw new AppError(400, 'Phone and OTP are required');
     }
@@ -84,9 +141,10 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
       throw new AppError(403, 'Access denied. You are not an admin or credentials do not match.');
     }
   } else {
-    throw new AppError(400, 'Either password or OTP is required');
+    throw new AppError(400, 'Either password, OTP, or 2FA token is required');
   }
 
+  // ─── Issue final session tokens ───
   const userIdStr = user._id.toString();
   const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, {
     expiresIn: config.accessTokenExpires as jwt.SignOptions['expiresIn'],
@@ -95,11 +153,9 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
     expiresIn: config.refreshTokenExpires as jwt.SignOptions['expiresIn'],
   });
 
-  // Save refreshToken to DB
   const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
   await updateUserRefreshToken(userIdStr, hashedRefreshToken);
 
-  // Sanitize user object (remove password and refreshToken from response)
   const { password: _, refreshToken: __, ...sanitizedUser } = user.toObject();
 
   setRefreshTokenCookie(res, refreshToken);

@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { getFooterContent, saveFooterContent } from '../controllers/footer.controller';
 import { validateRequest } from '../middlewares/validate.middleware';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 export const footerRouter = Router();
 
 footerRouter.get('/', getFooterContent);
 footerRouter.put(
-  '/',
+  '/', authMiddleware, adminMiddleware,
   [
     body('companyDescription').isString().withMessage('companyDescription must be a string'),
     body('quickLinks').isArray().withMessage('quickLinks must be an array'),

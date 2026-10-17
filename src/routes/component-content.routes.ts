@@ -14,6 +14,8 @@ import {
   saveComponentContent,
 } from '../controllers/component-content.controller';
 import { validateRequest } from '../middlewares/validate.middleware';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 export const componentContentRouter = Router();
 
@@ -30,7 +32,7 @@ componentContentRouter.get(
 componentContentRouter.get('/home/:key', [param('key').notEmpty().withMessage('Component key is required')], validateRequest, getHomeComponentContent);
 
 componentContentRouter.post(
-  '/home',
+  '/home', authMiddleware, adminMiddleware,
   [
     body('key').notEmpty().withMessage('Component key is required'),
     body('label').notEmpty().withMessage('Label is required'),
@@ -41,7 +43,7 @@ componentContentRouter.post(
 );
 
 componentContentRouter.put(
-  '/home/:id',
+  '/home/:id', authMiddleware, adminMiddleware,
   [
     param('id').isMongoId().withMessage('Valid content id is required'),
     body('key').optional().notEmpty().withMessage('Component key is required'),
@@ -54,7 +56,7 @@ componentContentRouter.put(
 );
 
 componentContentRouter.delete(
-  '/home/:id',
+  '/home/:id', authMiddleware, adminMiddleware,
   [param('id').isMongoId().withMessage('Valid content id is required')],
   validateRequest,
   removeHomeComponent
@@ -63,7 +65,7 @@ componentContentRouter.delete(
 componentContentRouter.get('/:key', [param('key').notEmpty().withMessage('Component key is required')], validateRequest, getComponentContent);
 
 componentContentRouter.post(
-  '/',
+  '/', authMiddleware, adminMiddleware,
   [
     body('key').notEmpty().withMessage('Component key is required'),
     body('label').notEmpty().withMessage('Label is required'),
@@ -76,7 +78,7 @@ componentContentRouter.post(
 );
 
 componentContentRouter.put(
-  '/:id',
+  '/:id', authMiddleware, adminMiddleware,
   [
     param('id').isMongoId().withMessage('Valid content id is required'),
     body('key').optional().notEmpty().withMessage('Component key is required'),
@@ -90,7 +92,7 @@ componentContentRouter.put(
 );
 
 componentContentRouter.delete(
-  '/:id',
+  '/:id', authMiddleware, adminMiddleware,
   [param('id').isMongoId().withMessage('Valid content id is required')],
   validateRequest,
   removeComponentContent

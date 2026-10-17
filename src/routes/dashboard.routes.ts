@@ -34,6 +34,13 @@ dashboardRouter.get('/site-status', getSiteStatusController);
 export const enquiryListRouter = Router();
 enquiryListRouter.use(authMiddleware, adminMiddleware);
 enquiryListRouter.get('/', listEnquiriesController);
+enquiryListRouter.get('/admin', listEnquiriesController);
+enquiryListRouter.put(
+  '/admin/:id/status',
+  [param('id').isMongoId().withMessage('Valid enquiry ID is required')],
+  validateRequest,
+  updateEnquiryController
+);
 enquiryListRouter.put(
   '/:id',
   [

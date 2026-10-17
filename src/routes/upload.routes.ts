@@ -3,6 +3,8 @@ import multer from 'multer';
 import { uploadFile, listFiles } from '../controllers/upload.controller';
 import { config } from '../config/app.config';
 import { errorResponse } from '../utils/api-response';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 export const uploadRouter = Router();
 
@@ -26,7 +28,7 @@ const uploader = multer({
   },
 });
 
-uploadRouter.post('/', (req, res, next) => {
+uploadRouter.post('/', authMiddleware, adminMiddleware, (req, res, next) => {
   uploader.single('file')(req, res, (error) => {
     if (!error) {
       next();

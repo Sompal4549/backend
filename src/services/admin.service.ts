@@ -129,7 +129,7 @@ export const listAllEnquiries = async () => findAllEnquiries();
 
 export const adminUpdateEnquiry = async (
   enquiryId: string,
-  update: { status?: string; isRead?: boolean }
+  update: { status?: string; isRead?: boolean; notes?: string }
 ) => {
   const enquiry = await updateEnquiryById(enquiryId, update as any);
   if (!enquiry) {

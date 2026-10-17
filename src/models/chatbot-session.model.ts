@@ -12,6 +12,18 @@ export interface IChatbotSession extends Document {
   phone?: string;
   messages: IChatbotMessage[];
   capturedLead: boolean;
+  /** When the lead's mobile number was verified with the WhatsApp OTP */
+  phoneVerifiedAt?: Date;
+  /** Website page the chat was started from */
+  pageUrl?: string;
+  visitor?: { ip?: string; userAgent?: string };
+  /** "manual" = enquiry added by hand in the admin's Inbox & Leads */
+  source: 'chat' | 'manual';
+  manual?: { channel?: string; category?: string; type?: string; topic?: string; detail?: string; email?: string };
+  /** The Website Enquiries record created from the chat's callback form */
+  enquiryId?: string;
+  /** The team's follow-up on this chat (assignment, status, notes), owned by the admin */
+  workflow?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +44,13 @@ const chatbotSessionSchema = new Schema<IChatbotSession>(
     phone: { type: String, trim: true },
     messages: { type: [messageSchema], default: [] },
     capturedLead: { type: Boolean, default: false },
+    phoneVerifiedAt: { type: Date },
+    pageUrl: { type: String, trim: true },
+    visitor: { ip: String, userAgent: String },
+    source: { type: String, enum: ['chat', 'manual'], default: 'chat' },
+    manual: { channel: String, category: String, type: { type: String }, topic: String, detail: String, email: String },
+    enquiryId: { type: String },
+    workflow: { type: Schema.Types.Mixed },
   },
   { timestamps: true }
 );

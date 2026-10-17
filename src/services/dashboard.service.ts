@@ -128,6 +128,7 @@ export const listEnquiries = async (options: {
   limit?: number;
   search?: string;
   status?: string;
+  source?: string;
 }): Promise<EnquiryListResult> => {
   const page = Math.max(options.page && options.page > 0 ? options.page : 1, 1);
   const limit = Math.min(Math.max(options.limit && options.limit > 0 ? options.limit : 20, 1), 1000);
@@ -135,10 +136,20 @@ export const listEnquiries = async (options: {
   const filter: Record<string, unknown> = {};
   if (options.search) {
     const regex = { $regex: options.search, $options: 'i' };
-    filter.$or = [{ fullName: regex }, { email: regex }, { city: regex }, { projectType: regex }];
+    filter.$or = [
+      { fullName: regex },
+      { email: regex },
+      { mobileNumber: regex },
+      { city: regex },
+      { companyOrganization: regex },
+      { projectType: regex },
+    ];
   }
   if (options.status) {
     filter.status = options.status;
+  }
+  if (options.source) {
+    filter.source = options.source;
   }
 
   const [docs, total] = await Promise.all([
@@ -162,11 +173,24 @@ export const listEnquiries = async (options: {
       city: enquiry.city ?? null,
       state: enquiry.state ?? null,
       companyOrganization: enquiry.companyOrganization ?? null,
+      organization: enquiry.companyOrganization ?? null,
       projectType: enquiry.projectType,
+      interest: enquiry.projectType ?? null,
+      category: enquiry.source === 'contact' ? 'contact' : 'csr',
       projectSize: enquiry.projectSize ?? null,
       budgetRange: enquiry.budgetRange ?? null,
+      servicesRequired: enquiry.servicesRequired ?? [],
+      timeline: enquiry.timeline ?? null,
+      preferredContact: enquiry.preferredContact ?? null,
+      attachmentUrl: enquiry.attachmentUrl ?? null,
+      agreeToContact: !!enquiry.agreeToContact,
+      source: enquiry.source ?? 'other',
+      isRead: !!enquiry.isRead,
       message: enquiry.message,
       status: enquiry.status,
+      pincode: (enquiry as any).pincode ?? null,
+      alternatePhone: (enquiry as any).alternatePhone ?? null,
+      subject: (enquiry as any).subject || enquiry.projectType || null,
       notes: enquiry.notes ?? null,
       createdAt: enquiry.createdAt instanceof Date ? enquiry.createdAt.toISOString() : String(enquiry.createdAt ?? ''),
       updatedAt: enquiry.updatedAt instanceof Date ? enquiry.updatedAt.toISOString() : String(enquiry.updatedAt ?? ''),

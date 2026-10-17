@@ -6,7 +6,8 @@ import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
 
 export const getCareers = asyncHandler(async (_req: Request, res: Response) => {
-  const careers = await CareerModel.find().sort({ createdAt: -1 }).lean();
+  // The website lists open jobs only (drafts and closed jobs stay in the admin)
+  const careers = await CareerModel.find({ status: 'active' }).sort({ featuredJob: -1, createdAt: -1 }).lean();
   successResponse(res, careers, 'Careers retrieved');
 });
 
