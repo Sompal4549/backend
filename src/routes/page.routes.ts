@@ -11,6 +11,7 @@ import Settings from '../models/settings.model';
 import { ComponentContentModel } from '../models/component-content.model';
 import { mapItemsToAliases, preserveImageShapes } from '../utils/cms-items';
 import { isObjectIdString } from '../utils/object-id';
+import { escapeRegex } from '../utils/escape-regex';
 
 const CONFIG_KEY_TO_PAGE_SLUG: Record<string, string> = {
   landingPage: 'home',
@@ -76,7 +77,7 @@ pageRouter.get('/:slug', asyncHandler(async (req: Request, res: Response) => {
     $or: [
       { slug: { $in: candidates } },
       { configKey: req.params.slug },
-      { pageName: new RegExp('^' + req.params.slug + '$', 'i') },
+      { pageName: new RegExp('^' + escapeRegex(req.params.slug) + '$', 'i') },
     ],
   });
   if (!page) throw new AppError(404, 'Page not found');

@@ -8,6 +8,7 @@ import ApplicationModel from '../models/applicationModel';
 import { ComponentContentModel } from '../models/component-content.model';
 import { NavigationModel } from '../models/navigation.model';
 import { config } from '../config/app.config';
+import { escapeRegex } from '../utils/escape-regex';
 
 type SourceStatus = 'connected' | 'not_connected' | 'error';
 
@@ -135,7 +136,7 @@ export const listEnquiries = async (options: {
 
   const filter: Record<string, unknown> = {};
   if (options.search) {
-    const regex = { $regex: options.search, $options: 'i' };
+    const regex = { $regex: escapeRegex(options.search), $options: 'i' };
     filter.$or = [
       { fullName: regex },
       { email: regex },

@@ -5,6 +5,7 @@ import { ChatbotConfigModel } from '../models/chatbot-config.model';
 import { asyncHandler } from '../utils/async-handler';
 import { successResponse } from '../utils/api-response';
 import { AppError } from '../utils/app-error';
+import { escapeRegex } from '../utils/escape-regex';
 
 /*
  * Admin chatbot pages (Overview, Inbox & Leads, Conversations, Leads, Reports) read chats in the
@@ -68,8 +69,6 @@ const dateFilter = (req: Request) => {
   if (to && !Number.isNaN(to.getTime())) range.$lte = to;
   return Object.keys(range).length ? { updatedAt: range } : {};
 };
-
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // GET /admin/chats?from&to&search&page&limit&source=all
 export const listChats = asyncHandler(async (req: Request, res: Response) => {
