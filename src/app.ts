@@ -50,6 +50,7 @@ import { analyticsRouter } from './routes/analytics.routes';
 import { dropdownsRouter } from './routes/dropdowns.routes';
 import { settingsRouter } from './routes/settings.routes';
 import { chatbotManagerRouter } from './routes/chatbot-manager.routes';
+import { faqRouter } from './routes/faq.routes';
 
 export const createApp = () => {
   const app = express();
@@ -73,6 +74,24 @@ export const createApp = () => {
   });
   app.use(limiter);
 
+  // Login, password reset and OTP endpoints get a much tighter per-IP budget to stop
+  // OTP / password brute-forcing (refresh-token, /me and logout are not counted)
+  const SENSITIVE_AUTH_PATH =
+    /^\/api(\/v1)?\/(auth\/(login|register|verify-2fa|forgot-password|reset-password|email-otp|whatsapp-otp|send-|verify-)|admin\/(login|forgot-password|reset-password|verify-2fa)|otp\/|verify\/)/;
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: config.env === 'development' ? 1000 : 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many attempts. Please try again after some time.' },
+    skip: (req) => {
+      const ip = req.ip || '';
+      const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+      return isLocal || !SENSITIVE_AUTH_PATH.test(req.path);
+    },
+  });
+  app.use(authLimiter);
+
   // ─── Security Headers ───────────────────────────────────────────────────────
   app.use(
     helmet({
@@ -81,17 +100,30 @@ export const createApp = () => {
     })
   );
 
-  // ─── CORS — allow frontend & admin origins (Organic blueprint) ──────────────
-  // Explicit Preflight Handler first: echoes the requested headers so that
-  // Authorization / x-admin-page survive credentialed preflights (a literal
-  // "*" is ignored by browsers when credentials: true).
+  // ─── CORS — only the Ensis website and admin (plus localhost while developing) ─
+  // Requests without an Origin (server-side fetches, curl, webhooks) are not CORS requests.
+  const allowedOrigins = new Set(config.corsOrigin);
+  const isAllowedOrigin = (origin?: string) => {
+    if (!origin) return true;
+    if (allowedOrigins.has(origin)) return true;
+    if (/^https:\/\/([a-z0-9-]+\.)*ensis\.in$/i.test(origin)) return true;
+    return !config.isProduction && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+  };
+
+  // Explicit preflight handler first: echoes the requested headers so that
+  // Authorization / x-admin-page survive credentialed preflights.
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.method === 'OPTIONS') {
-      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-      res.header('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || '*');
-      res.header('Access-Control-Allow-Credentials', 'true');
-      res.status(200).end();
+      const origin = req.headers.origin;
+      if (origin && isAllowedOrigin(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Vary', 'Origin');
+        res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+        res.header('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || '*');
+        res.header('Access-Control-Allow-Credentials', 'true');
+      }
+      // Without the headers the browser blocks the real request from an unknown site
+      res.status(204).end();
       return;
     }
     next();
@@ -99,7 +131,7 @@ export const createApp = () => {
 
   app.use(
     cors({
-      origin: true,
+      origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     })
@@ -257,6 +289,7 @@ export const createApp = () => {
   mountRoute('/analytics', analyticsRouter);
   mountRoute('/dropdowns', dropdownsRouter);
   mountRoute('/settings', settingsRouter);
+  mountRoute('/faqs', faqRouter);
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });

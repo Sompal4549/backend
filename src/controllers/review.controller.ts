@@ -1,5 +1,16 @@
 import { Request, Response } from 'express';
-import { addReview, addReviewForCustomer, editReview, removeReview, getProductReviews, getAllReviews } from '../services/review.service';
+import {
+  addReview,
+  addReviewForCustomer,
+  editReview,
+  removeReview,
+  getProductReviews,
+  getAllReviews,
+  moderateReview,
+  bulkModerateReviews,
+  bulkRemoveReviews,
+} from '../services/review.service';
+import { ROLE } from '../constants/roles.constants';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AuthRequest } from '../middlewares/auth.middleware';
@@ -42,8 +53,9 @@ export const getReviews = asyncHandler(async (req: Request, res: Response) => {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       const token = authHeader.split(' ')[1];
-      const payload = jwt.verify(token, config.jwtAccessSecret) as { userId: string };
-      currentUserId = payload.userId;
+      const payload = jwt.verify(token, config.jwtAccessSecret) as { userId?: string; leadId?: string };
+      // Website customers carry leadId; staff carry userId
+      currentUserId = payload.leadId || payload.userId || null;
     } catch (err) {
       // Ignore token errors for public reviews query
     }
@@ -79,7 +91,26 @@ export const updateReview = asyncHandler(async (req: AuthRequest, res: Response)
   successResponse(res, review, 'Review updated');
 });
 
+const isAdminRequest = (req: AuthRequest) => {
+  const role = (req.user as { role?: string } | undefined)?.role;
+  return role === ROLE.ADMIN || role === ROLE.SUPERADMIN;
+};
+
 export const deleteReview = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const review = await removeReview(req.user!.id, req.params.id);
+  const review = await removeReview(req.user!.id, req.params.id, isAdminRequest(req));
   successResponse(res, review, 'Review deleted');
+});
+
+export const moderateReviewHandler = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const review = await moderateReview(req.params.id, req.body.status, req.user!.id);
+  successResponse(res, review, req.body.status === 'approved' ? 'Review published' : 'Review hidden');
+});
+
+export const bulkReviewsHandler = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { ids, action } = req.body as { ids: string[]; action: 'approve' | 'reject' | 'delete' };
+  const result =
+    action === 'delete'
+      ? await bulkRemoveReviews(ids)
+      : await bulkModerateReviews(ids, action === 'approve' ? 'approved' : 'rejected', req.user!.id);
+  successResponse(res, result, `${ids.length} review${ids.length === 1 ? '' : 's'} updated`);
 });

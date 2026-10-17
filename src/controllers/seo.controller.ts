@@ -46,14 +46,34 @@ export const getAdvancedSeo = asyncHandler(async (_req: Request, res: Response) 
 });
 
 export const upsertAdvancedSeo = asyncHandler(async (req: Request, res: Response) => {
-  const { sitemap, robots, searchConsole, analytics } = req.body;
-  const seo = await seoService.upsertSeoBySlug("advanced-seo", {
-    "advanced.sitemap": sitemap,
-    "advanced.robotsTxt": robots,
-    "advanced.searchConsole": searchConsole,
-    "advanced.analytics": analytics,
-    title: "Advanced SEO",
-    description: "Advanced SEO Settings",
-  });
+  const { sitemap, robots, searchConsole, analytics } = req.body || {};
+  const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  // Only the sections sent are written, and only their known fields, so a partial save never wipes the rest
+  const update: Record<string, unknown> = { title: "Advanced SEO", description: "Advanced SEO Settings" };
+  if (sitemap && typeof sitemap === "object") {
+    update["advanced.sitemap"] = {
+      url: text(sitemap.url),
+      autoGenerate: sitemap.autoGenerate !== false,
+      excludePaths: text(sitemap.excludePaths),
+    };
+  }
+  if (robots && typeof robots === "object") {
+    update["advanced.robotsTxt"] = { content: typeof robots.content === "string" ? robots.content : "" };
+  }
+  if (searchConsole && typeof searchConsole === "object") {
+    update["advanced.searchConsole"] = {
+      googleVerification: text(searchConsole.googleVerification),
+      bingVerification: text(searchConsole.bingVerification),
+    };
+  }
+  if (analytics && typeof analytics === "object") {
+    update["advanced.analytics"] = {
+      gaId: text(analytics.gaId),
+      gtmId: text(analytics.gtmId),
+      fbPixelId: text(analytics.fbPixelId),
+      clarityId: text(analytics.clarityId),
+    };
+  }
+  const seo = await seoService.upsertSeoBySlug("advanced-seo", update);
   successResponse(res, seo, "Advanced SEO updated");
 });

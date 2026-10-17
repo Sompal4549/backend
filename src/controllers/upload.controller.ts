@@ -18,12 +18,9 @@ export const uploadFile = asyncHandler(async (req: Request, res: Response) => {
   const isImage = mime.startsWith('image/');
   const isSvg = mime === 'image/svg+xml';
 
-  // Validate file size for images (2MB-5MB range)
+  // Images up to 5MB; small files (logos, icons) are fine — everything is re-encoded to webp below
   if (isImage && !isSvg) {
     const fileSizeMB = file.buffer.length / (1024 * 1024);
-    if (fileSizeMB < 2) {
-      throw new AppError(400, 'Image file size must be at least 2MB');
-    }
     if (fileSizeMB > 5) {
       throw new AppError(400, 'Image file size must not exceed 5MB');
     }

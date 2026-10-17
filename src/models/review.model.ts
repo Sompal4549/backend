@@ -6,6 +6,8 @@ export interface IReview extends Document {
   rating: number;
   title?: string;
   comment: string;
+  /** Name shown with the review, saved when it is written (customers are Leads, admins are Users) */
+  authorName?: string;
   status: 'pending' | 'approved' | 'rejected';
   verifiedBuyer: boolean;
   moderatedAt?: Date;
@@ -19,6 +21,7 @@ const reviewSchema = new Schema<IReview>(
     rating: { type: Number, required: true, min: 1, max: 5 },
     title: { type: String },
     comment: { type: String, required: true },
+    authorName: { type: String, trim: true },
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     verifiedBuyer: { type: Boolean, default: false },
     moderatedAt: { type: Date },

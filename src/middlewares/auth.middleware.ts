@@ -23,52 +23,15 @@ const pageContext = (req: AuthRequest) => ({
 });
 
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  const isDev = process.env.NODE_ENV !== 'production';
-
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      if (isDev) {
-        const devAdmin = await UserModel.findOne({ role: { $in: ['superadmin', 'admin'] } });
-        if (devAdmin) {
-          req.user = devAdmin;
-          return runWithActivityContext(
-            {
-              userId: String(devAdmin._id),
-              userName: devAdmin.name || 'Super Admin',
-              userRole: devAdmin.role || 'superadmin',
-              ...pageContext(req),
-            },
-            next
-          );
-        }
-      }
       errorResponse(res, 'Authorization token required', 401);
       return;
     }
 
     const token = authHeader.split(' ')[1];
-    let payload: { userId?: string; leadId?: string; role?: string };
-    try {
-      payload = jwt.verify(token, config.jwtAccessSecret) as { userId?: string; leadId?: string; role?: string };
-    } catch (jwtErr) {
-      if (isDev) {
-        const devAdmin = await UserModel.findOne({ role: { $in: ['superadmin', 'admin'] } });
-        if (devAdmin) {
-          req.user = devAdmin;
-          return runWithActivityContext(
-            {
-              userId: String(devAdmin._id),
-              userName: devAdmin.name || 'Super Admin',
-              userRole: devAdmin.role || 'superadmin',
-              ...pageContext(req),
-            },
-            next
-          );
-        }
-      }
-      throw jwtErr;
-    }
+    const payload = jwt.verify(token, config.jwtAccessSecret) as { userId?: string; leadId?: string; role?: string };
 
     // Lead token
     if (payload.leadId) {
@@ -91,15 +54,10 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     }
 
     // Admin/Superadmin token
-    let user: any = await UserModel.findById(payload.userId).select('+refreshToken');
+    const user = await UserModel.findById(payload.userId).select('+refreshToken');
     if (!user) {
-      if (isDev) {
-        user = await UserModel.findOne({ role: { $in: ['superadmin', 'admin'] } }).select('+refreshToken');
-      }
-      if (!user) {
-        errorResponse(res, 'Invalid token user', 401);
-        return;
-      }
+      errorResponse(res, 'Invalid token user', 401);
+      return;
     }
     req.user = user;
     runWithActivityContext(

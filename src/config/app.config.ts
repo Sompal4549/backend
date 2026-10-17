@@ -23,17 +23,36 @@ const getList = (key: string, defaultValue: string[]): string[] => {
   return value ? value.split(',').map((item) => item.trim()).filter(Boolean) : defaultValue;
 };
 
+const isProduction = getString('NODE_ENV', 'development') === 'production';
+const DEFAULT_ACCESS_SECRET = 'access-secret-change-me';
+const DEFAULT_REFRESH_SECRET = 'refresh-secret-change-me';
+const accessSecret = getFirstString(['JWT_ACCESS_SECRET', 'JWT_SECRET'], DEFAULT_ACCESS_SECRET);
+
+// Domains the website and admin are served from; CORS_ORIGIN adds to these instead of replacing them
+const DEFAULT_CORS_ORIGINS = [
+  'http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174',
+  'https://ensis-admin-omak.vercel.app', 'https://ensis-frontend-jtom.vercel.app',
+  'https://web.ensis.in', 'https://admin.ensis.in', 'https://ensis.in', 'https://www.ensis.in',
+];
+
 export const config = {
   env: getString('NODE_ENV', 'development'),
+  isProduction,
   port: Number(getString('PORT', '5000')),
   mongoUri: getFirstString(['MONGO_URI_MAIN'], 'mongodb://localhost:27017/ensis'),
-  jwtAccessSecret: getFirstString(['JWT_ACCESS_SECRET', 'JWT_SECRET'], 'access-secret-change-me'),
-  jwtRefreshSecret: getFirstString(['JWT_REFRESH_SECRET'], 'refresh-secret-change-me'),
+  jwtAccessSecret: accessSecret,
+  // Never fall back to the public default when an access secret exists: derive the refresh secret from it
+  jwtRefreshSecret: getFirstString(
+    ['JWT_REFRESH_SECRET'],
+    accessSecret === DEFAULT_ACCESS_SECRET ? DEFAULT_REFRESH_SECRET : `${accessSecret}:refresh`
+  ),
+  usesDefaultJwtSecret: accessSecret === DEFAULT_ACCESS_SECRET,
   accessTokenExpires: getString('ACCESS_TOKEN_EXPIRES', '15m'),
   refreshTokenExpires: getString('REFRESH_TOKEN_EXPIRES', '7d'),
-  cookieSecure: getBoolean('COOKIE_SECURE', false),
+  // HTTPS-only cookies in production unless explicitly switched off
+  cookieSecure: getBoolean('COOKIE_SECURE', isProduction),
   cookieSameSite: getString('COOKIE_SAME_SITE', 'lax'),
-  corsOrigin: getList('CORS_ORIGIN', ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174','https://ensis-admin-omak.vercel.app','https://ensis-frontend-jtom.vercel.app','https://web.ensis.in','https://admin.ensis.in']),
+  corsOrigin: Array.from(new Set([...DEFAULT_CORS_ORIGINS, ...getList('CORS_ORIGIN', [])].map((o) => o.replace(/\/$/, '')))),
   uploadDir: getString('UPLOAD_DIR', 'src/uploads'),
   uploadMaxFileSizeBytes: getNumber('UPLOAD_MAX_FILE_SIZE_BYTES', 100 * 1024 * 1024),
   uploadMaxFiles: getNumber('UPLOAD_MAX_FILES', 6),
@@ -68,4 +87,34 @@ export const config = {
   cloudinaryCloudName: getString('CLOUDINARY_CLOUD_NAME'),
   cloudinaryApiKey: getString('CLOUDINARY_API_KEY'),
   cloudinaryApiSecret: getString('CLOUDINARY_API_SECRET'),
+  // The fixed test OTP for OTP_BYPASS_NUMBERS works only outside production unless this is "true"
+  otpBypassInProduction: getBoolean('OTP_BYPASS_IN_PRODUCTION', false),
+};
+
+/**
+ * Startup check. Problems that would make production insecure stop the server;
+ * missing optional services only log a warning.
+ */
+export const checkEnvironment = (): void => {
+  const fatal: string[] = [];
+  const warnings: string[] = [];
+
+  if (config.isProduction) {
+    if (config.usesDefaultJwtSecret) fatal.push('JWT_ACCESS_SECRET (or JWT_SECRET) is not set — tokens would be signed with a public default secret.');
+    if (!process.env.MONGO_URI_MAIN) fatal.push('MONGO_URI_MAIN is not set.');
+    if (!process.env.JWT_REFRESH_SECRET) warnings.push('JWT_REFRESH_SECRET is not set — a secret derived from JWT_ACCESS_SECRET is used.');
+    if (!config.cookieSecure) warnings.push('COOKIE_SECURE=false in production — login cookies are sent without the Secure flag.');
+    if (process.env.OTP_BYPASS_NUMBERS && config.otpBypassInProduction) warnings.push('OTP_BYPASS_IN_PRODUCTION=true — the listed test numbers can log in with a fixed OTP.');
+  }
+  if (!config.razorpayKeyId || !config.razorpayKeySecret) warnings.push('Razorpay keys missing — online payments are disabled.');
+  if (!config.razorpayWebhookSecret) warnings.push('RAZORPAY_WEBHOOK_SECRET missing — Razorpay webhooks will be rejected (orders paid but closed tab stay pending).');
+  if (!config.cloudinaryCloudName || !config.cloudinaryApiKey || !config.cloudinaryApiSecret) warnings.push('Cloudinary keys missing — image uploads will fail.');
+  if (!config.smtpHost) warnings.push('SMTP_HOST missing — emails are only printed to the console.');
+  if (!config.whatsappApiKey) warnings.push('OPUS_API_KEY missing — WhatsApp messages are only printed to the console.');
+
+  warnings.forEach((w) => console.warn(`[env] ${w}`));
+  if (fatal.length) {
+    fatal.forEach((f) => console.error(`[env] ${f}`));
+    throw new Error('Unsafe production configuration — fix the [env] errors above.');
+  }
 };
