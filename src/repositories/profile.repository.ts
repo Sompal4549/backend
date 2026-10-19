@@ -1,17 +1,15 @@
 import { AppError } from '../utils/app-error';
 import { UserModel, IUser } from '../models/user.model';
+import { pick } from '../utils/pick';
 
-// Ye fields user khud update nahi kar sakta
-const PROTECTED_FIELDS = ['password', 'refreshToken', 'role', 'emailVerified', 'phoneVerified'];
+const PROFILE_ALLOWED_FIELDS = ['name', 'phone', 'avatar'] as const;
 
 export const getUserById = async (id: string) => {
   return UserModel.findById(id).select('-password -refreshToken');
 };
 
 export const updateUserProfile = async (id: string, payload: Partial<IUser>) => {
-  // Sensitive fields ko hata do payload se
-  const safePayload = { ...payload } as any;
-  PROTECTED_FIELDS.forEach((field) => delete safePayload[field]);
+  const safePayload = pick(payload, PROFILE_ALLOWED_FIELDS);
 
   if (Object.keys(safePayload).length === 0) {
     throw new AppError(400, 'No valid fields to update');

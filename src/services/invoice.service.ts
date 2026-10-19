@@ -406,25 +406,33 @@ export const updateInvoice = async (id: string, payload: Partial<IInvoice>) => {
     throw new AppError(404, 'Invoice not found');
   }
 
+  // Mass assignment protection: invoiceNumber, createdBy, and lead cannot be overwritten
+  const cleanPayload = { ...payload };
+  delete (cleanPayload as any).invoiceNumber;
+  delete (cleanPayload as any).createdBy;
+  delete (cleanPayload as any).lead;
+  delete (cleanPayload as any)._id;
+  delete (cleanPayload as any).id;
+
   // Recalculate if items changed
-  if (payload.items && payload.items.length > 0) {
-    const items = payload.items.map((item) => {
+  if (cleanPayload.items && cleanPayload.items.length > 0) {
+    const items = cleanPayload.items.map((item) => {
       const amount = item.quantity * item.unitPrice;
       return { ...item, amount };
     });
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const tax = items.reduce((sum, item) => sum + (item.amount * item.gstRate) / 100, 0);
-    const discount = payload.discount ?? (invoice.discount || 0);
-    const shipping = payload.shipping ?? (invoice.shipping || 0);
+    const discount = cleanPayload.discount ?? (invoice.discount || 0);
+    const shipping = cleanPayload.shipping ?? (invoice.shipping || 0);
     const totalAmount = Math.max(0, subtotal + tax - discount + shipping);
 
-    payload.items = items as any;
-    payload.subtotal = subtotal;
-    payload.tax = tax;
-    payload.totalAmount = totalAmount;
+    cleanPayload.items = items as any;
+    cleanPayload.subtotal = subtotal;
+    cleanPayload.tax = tax;
+    cleanPayload.totalAmount = totalAmount;
   }
 
-  return updateInvoiceById(id, payload);
+  return updateInvoiceById(id, cleanPayload);
 };
 
 export const removeInvoice = async (id: string) => {

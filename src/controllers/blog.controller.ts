@@ -5,6 +5,13 @@ import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
 import { notifySubscribers } from '../services/newsletter.service';
+import { pick } from '../utils/pick';
+
+const BLOG_EDITABLE_FIELDS = [
+  'title', 'slug', 'author', 'isActive', 'tags', 'isFeatured', 'orderBy',
+  'isVoiceOfExperts', 'isPopular', 'category', 'robots', 'banner', 'blogImage',
+  'ctaBanner', 'article', 'aboutTheAuthor', 'onThisPage', 'cities', 'seo',
+] as const;
 
 // GET /blogs: published posts for the website; ?all=1 (admin list) also returns drafts
 export const getAllBlogs = asyncHandler(async (req: Request, res: Response) => {
@@ -63,7 +70,8 @@ export const recordBlogView = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const createBlog = asyncHandler(async (req: Request, res: Response) => {
-  const blog = await BlogModel.create(req.body);
+  const cleanData = pick(req.body, BLOG_EDITABLE_FIELDS);
+  const blog = await BlogModel.create(cleanData);
 
   // Jab naya blog bane, subscribers ko notification jaye
   notifySubscribers(blog.title, blog.slug).catch(console.error);
@@ -72,7 +80,8 @@ export const createBlog = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateBlog = asyncHandler(async (req: Request, res: Response) => {
-  const blog = await BlogModel.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const cleanData = pick(req.body, BLOG_EDITABLE_FIELDS);
+  const blog = await BlogModel.findByIdAndUpdate(req.params.id, cleanData, { new: true, runValidators: true });
   if (!blog) {
     throw new AppError(404, 'Blog not found');
   }

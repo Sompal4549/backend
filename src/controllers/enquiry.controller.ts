@@ -25,23 +25,33 @@ export const submitEnquiry = asyncHandler(async (req: Request, res: Response) =>
     attachmentUrl = uploadResult.url;
   }
 
-  const rawBody = { ...(req.body || {}) };
-  const servicesRequired = Array.isArray(rawBody.servicesRequired)
-    ? rawBody.servicesRequired
-    : typeof rawBody.servicesRequired === 'string'
-      ? JSON.parse(rawBody.servicesRequired)
-      : [];
+  const rawBody = req.body || {};
+  let servicesRequired: string[] = [];
+  if (Array.isArray(rawBody.servicesRequired)) {
+    servicesRequired = rawBody.servicesRequired;
+  } else if (typeof rawBody.servicesRequired === 'string') {
+    try {
+      servicesRequired = JSON.parse(rawBody.servicesRequired);
+    } catch {
+      servicesRequired = [rawBody.servicesRequired];
+    }
+  }
 
   const cityAndState = typeof rawBody.cityAndState === 'string' ? rawBody.cityAndState.trim() : '';
   const splitLocation = cityAndState
     ? cityAndState.split(',').map((part: string) => part.trim()).filter(Boolean)
     : [];
 
-  const enquiryData = {
-    ...rawBody,
-    attachmentUrl,
+  const enquiryData: Partial<IEnquiry> = {
+    fullName: rawBody.fullName || rawBody.name || '',
+    mobileNumber: rawBody.mobileNumber || rawBody.phone || '',
+    email: rawBody.email || '',
+    projectType: rawBody.projectType || 'General Enquiry',
+    message: rawBody.message || '',
+    projectSize: rawBody.projectSize || '',
+    budgetRange: rawBody.budgetRange || '',
+    timeline: rawBody.timeline || '',
     companyOrganization: rawBody.companyOrganization || '',
-    cityAndState: undefined,
     state: rawBody.state || (splitLocation[1] ?? ''),
     city: rawBody.city || (splitLocation[0] ?? ''),
     pincode: rawBody.pincode || rawBody.zipcode || '',
@@ -50,11 +60,8 @@ export const submitEnquiry = asyncHandler(async (req: Request, res: Response) =>
     servicesRequired,
     preferredContact: rawBody.preferredContact || 'whatsapp',
     source: ENQUIRY_SOURCES.includes(rawBody.source) ? rawBody.source : 'other',
-    // Never trusted from the public form
-    status: undefined,
-    isRead: undefined,
-    notes: undefined,
     agreeToContact: rawBody.agreeToContact === true || rawBody.agreeToContact === 'true',
+    attachmentUrl,
   };
 
   const enquiry = await createEnquiry(enquiryData);
