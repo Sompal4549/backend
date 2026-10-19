@@ -423,14 +423,34 @@ export const getApplicationById = asyncHandler(async (req: Request, res: Respons
   // Generate signed links for attached documents
   const docsWithSignedUrls = (application.documents || []).map((doc) => ({
     ...doc,
-    downloadUrl: generateSignedUrl(doc.fileId),
+    downloadUrl: generateSignedUrl(doc.fileId, 120),
   }));
+
+  let cvDownloadUrl: string | undefined;
+  if (application.screeningId) {
+    const sc = await ScreeningModel.findOne({ screeningId: application.screeningId }).lean();
+    if (sc?.cv?.fileId) {
+      cvDownloadUrl = generateSignedUrl(sc.cv.fileId, 120);
+    }
+  }
+
+  let photoSignedUrl: string | undefined;
+  const pUrl = application.profile?.photoUrl;
+  if (pUrl) {
+    if (pUrl.startsWith('priv_') || (!pUrl.startsWith('http') && !pUrl.startsWith('/'))) {
+      photoSignedUrl = generateSignedUrl(pUrl, 120);
+    } else {
+      photoSignedUrl = pUrl;
+    }
+  }
 
   successResponse(
     res,
     {
       ...application,
       documents: docsWithSignedUrls,
+      cvDownloadUrl,
+      photoSignedUrl,
     },
     'Application details retrieved'
   );
