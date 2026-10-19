@@ -16,6 +16,20 @@ export interface ICareer extends Document {
   status: 'active' | 'closed';
   slug?: string;
   jobStatus?: JobStatus;
+  shortDescription?: string;
+  coverImage?: string;
+  aiCheckPoints?: string[];
+  responsibilities?: string[];
+  requirements?: string[];
+  educationRequirements?: string;
+  experienceMin?: number;
+  experienceMax?: number;
+  eligibilityThreshold?: number;
+  partialMatchMin?: number;
+  showMatchScoreToCandidate?: boolean;
+  showMatchBreakdown?: boolean;
+  featuredJob?: boolean;
+  applicationClosingDate?: string;
   [key: string]: unknown;
 }
 
@@ -31,9 +45,25 @@ const CareerSchema: Schema = new Schema(
     slug: { type: String, index: true },
     jobStatus: { type: String, enum: ['DRAFT', 'OPEN', 'CLOSED'] },
   },
-  // The admin's job form has many optional fields (description, skills, CTC, screening settings…);
-  // they are stored as sent, see careers-admin.controller for the allowed keys
   { timestamps: true, strict: false }
 );
+
+CareerSchema.pre('validate', function (next) {
+  if (!this.get('type') && this.get('employmentType')) {
+    this.set('type', this.get('employmentType'));
+  }
+  if (!this.get('experience')) {
+    const min = this.get('experienceMin');
+    const max = this.get('experienceMax');
+    if (min && max) {
+      this.set('experience', `${min} – ${max} Years`);
+    } else if (min) {
+      this.set('experience', `${min}+ Years`);
+    } else {
+      this.set('experience', 'Any');
+    }
+  }
+  next();
+});
 
 export const CareerModel = mongoose.model<ICareer>('Career', CareerSchema, 'career_management');
