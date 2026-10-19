@@ -130,7 +130,23 @@ export const submitApplication = asyncHandler(async (req: Request, res: Response
   }
 
   // Verify Job
-  const job = await CareerModel.findById(body.jobId).catch(() => null);
+  let job: any = null;
+  if (body.jobId === 'general' || body.jobId === 'ensis-general-talent') {
+    job = {
+      _id: 'general',
+      title: 'General Application - Talent Community',
+      department: 'Talent Pool',
+      location: 'Pan India',
+      status: 'active',
+      jobStatus: 'OPEN',
+    };
+  } else {
+    job = await CareerModel.findById(body.jobId).catch(() => null);
+    if (!job && typeof body.jobId === 'string') {
+      job = await CareerModel.findOne({ slug: body.jobId }).catch(() => null);
+    }
+  }
+
   if (!job) {
     throw new AppError(404, 'Job not found');
   }
@@ -141,10 +157,38 @@ export const submitApplication = asyncHandler(async (req: Request, res: Response
   }
 
   // Verify Screening
-  const screening = await ScreeningModel.findOne({
+  let screening = await ScreeningModel.findOne({
     screeningId: body.screeningId,
-    jobId: String(job._id),
   });
+
+  // If screening record is not in database (e.g. analyzed via storefront analyzer / fallback),
+  // but a valid screeningResult was sent in the body, create the screening record
+  if (!screening && body.screeningResult && typeof body.screeningResult.score === 'number') {
+    const sr = body.screeningResult;
+    screening = await ScreeningModel.create({
+      screeningId: body.screeningId,
+      jobId: String(job._id),
+      jobTitle: job.title,
+      status: 'done',
+      progress: 100,
+      cv: {
+        fileName: body.screeningCvName || 'candidate_cv.pdf',
+        size: 1024,
+        uploadedAt: new Date(),
+      },
+      result: {
+        score: sr.score,
+        level: sr.level || (sr.score >= 70 ? 'eligible' : sr.score >= 50 ? 'partial' : 'not_eligible'),
+        thresholds: sr.thresholds || { eligibleMin: 70, partialMin: 50 },
+        breakdown: sr.breakdown || {},
+        strengths: sr.strengths || [],
+        gaps: sr.gaps || [],
+        suggestions: sr.suggestions || [],
+        profile: sr.profile || profile,
+      },
+      completedAt: new Date(),
+    }).catch(() => null);
+  }
 
   if (!screening) {
     throw new AppError(404, 'Associated screening record not found for this role');
@@ -164,18 +208,42 @@ export const submitApplication = asyncHandler(async (req: Request, res: Response
 
   // Check duplicate application within 30 days
   const candidateEmail = String(profile.email).toLowerCase().trim();
+  const rawPhone = String(profile.phone || '').replace(/\D/g, '');
+  const candidatePhone = rawPhone.length >= 10 ? rawPhone.slice(-10) : rawPhone;
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+  const duplicateOrConditions: any[] = [
+    { email: candidateEmail },
+    { 'profile.email': candidateEmail },
+  ];
+  if (candidatePhone) {
+    duplicateOrConditions.push(
+      { phone: new RegExp(escapeRegex(candidatePhone) + '$') },
+      { 'profile.phone': new RegExp(escapeRegex(candidatePhone) + '$') }
+    );
+  }
+
   const existingApp = await CareerApplicationModel.findOne({
-    jobId: String(job._id),
-    $or: [{ email: candidateEmail }, { 'profile.email': candidateEmail }],
-    createdAt: { $gte: thirtyDaysAgo },
+    $and: [
+      {
+        $or: [
+          { jobId: String(job._id) },
+          { jobTitle: job.title },
+        ],
+      },
+      {
+        $or: duplicateOrConditions,
+      },
+      {
+        createdAt: { $gte: thirtyDaysAgo },
+      },
+    ],
   });
 
   if (existingApp) {
     throw new AppError(
       409,
-      'An application for this role with this email was already submitted in the last 30 days'
+      `You have already submitted an application for ${job.title} within the last 30 days. Your Application ID is ${existingApp.applicationId || 'ENS-CAR'}. Please wait for our HR team to review your existing submission.`
     );
   }
 

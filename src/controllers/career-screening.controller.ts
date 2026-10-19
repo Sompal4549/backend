@@ -31,7 +31,27 @@ export const startScreening = asyncHandler(async (req: Request, res: Response) =
   }
 
   // Verify Job
-  const job = await CareerModel.findById(jobId).lean().catch(() => null);
+  let job: any = null;
+  if (jobId === 'general' || jobId === 'ensis-general-talent') {
+    job = {
+      _id: 'general',
+      title: 'General Application - Talent Community',
+      department: 'Talent Pool',
+      location: 'Pan India',
+      status: 'active',
+      jobStatus: 'OPEN',
+      eligibilityThreshold: 70,
+      partialMatchMin: 50,
+      showMatchScoreToCandidate: true,
+      showMatchBreakdown: true,
+    };
+  } else {
+    job = await CareerModel.findById(jobId).lean().catch(() => null);
+    if (!job && typeof jobId === 'string') {
+      job = await CareerModel.findOne({ slug: jobId }).lean().catch(() => null);
+    }
+  }
+
   if (!job) {
     throw new AppError(404, 'Job not found');
   }
