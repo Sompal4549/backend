@@ -32,10 +32,7 @@ export const seedAdmin = async (): Promise<UserDocument> => {
     existing.email = DEFAULT_ADMIN.email;
     existing.phone = DEFAULT_ADMIN.phone;
     existing.role = DEFAULT_ADMIN.role;
-    // Force password hashing by clearing and re-setting
-    existing.password = undefined; // Clear existing so pre-save hook runs
-    const salt = await bcrypt.genSalt(10);
-    existing.password = await bcrypt.hash(DEFAULT_ADMIN.password, salt);
+    existing.password = DEFAULT_ADMIN.password;
     existing.emailVerified = true;
     existing.phoneVerified = true;
     await existing.save();

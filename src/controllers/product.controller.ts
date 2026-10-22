@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { pick } from '../utils/pick';
 import {
   listProducts,
   getProduct,
@@ -11,6 +12,13 @@ import {
   restoreProduct,
   permanentDeleteProduct,
 } from '../services/product.service';
+
+const PRODUCT_EDITABLE_FIELDS = [
+  'title', 'slug', 'code', 'hsnCode', 'description', 'shortDescription',
+  'price', 'discountPrice', 'gstRate', 'category', 'subcategory', 'subCategory',
+  'material', 'weight', 'images', 'stock', 'tags', 'isActive', 'isFeatured',
+  'orderBy', 'overview', 'cities',
+] as const;
 
 export const getProducts = asyncHandler(async (req: AuthRequest, res: Response) => {
   const result = await listProducts(req.query);
@@ -23,24 +31,33 @@ export const getProductById = asyncHandler(async (req: AuthRequest, res: Respons
 });
 
 export const createProduct = asyncHandler(async (req: AuthRequest, res: Response) => {
-  if (typeof req.body.tags === 'string') {
-    req.body.tags = req.body.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+  const cleanData = pick(req.body, PRODUCT_EDITABLE_FIELDS);
+  if (typeof cleanData.tags === 'string') {
+    cleanData.tags = cleanData.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
   }
-  const product = await createNewProduct(req.body);
+  if (cleanData.subCategory && !cleanData.subcategory) {
+    cleanData.subcategory = cleanData.subCategory;
+  }
+  const product = await createNewProduct(cleanData);
   successResponse(res, product, 'Product created', 201);
 });
 
 export const updateProductHandler = asyncHandler(async (req: AuthRequest, res: Response) => {
-  if (typeof req.body.tags === 'string') {
-    req.body.tags = req.body.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+  const cleanData = pick(req.body, PRODUCT_EDITABLE_FIELDS);
+  if (typeof cleanData.tags === 'string') {
+    cleanData.tags = cleanData.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
   }
   // Clean up empty optional fields
-  if (req.body.subCategory === '' || req.body.subcategory === '') {
-    req.body.subCategory = undefined;
-    req.body.subcategory = undefined;
+  if (cleanData.subCategory === '' || cleanData.subcategory === '') {
+    cleanData.subCategory = undefined;
+    cleanData.subcategory = undefined;
+  } else if (cleanData.subCategory && !cleanData.subcategory) {
+    cleanData.subcategory = cleanData.subCategory;
   }
+
+  const expectedUpdatedAt = req.body?.updatedAt;
   const userId = (req.user as any)?._id?.toString();
-  const product = await updateProduct(req.params.id, req.body, userId);
+  const product = await updateProduct(req.params.id, cleanData, userId, expectedUpdatedAt);
   successResponse(res, product, 'Product updated');
 });
 

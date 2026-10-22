@@ -1,7 +1,7 @@
 import { AppError } from '../utils/app-error';
 import { createProduct, getActiveProductByIdOrSlug, updateProductById, deleteProductById, getProducts, countProducts, searchProducts } from '../repositories/product.repository';
 import { getPagination } from '../utils/pagination';
-import { IProduct } from '../models/product.model';
+import { IProduct, ProductModel } from '../models/product.model';
 import { createProductBackup } from './product-backup.service';
 
 export const listProducts = async (query: any) => {
@@ -45,7 +45,25 @@ export const createNewProduct = async (payload: Partial<IProduct>) => {
   return createProduct(payload);
 };
 
-export const updateProduct = async (productId: string, payload: Partial<IProduct>, updatedBy?: string) => {
+export const updateProduct = async (
+  productId: string,
+  payload: Partial<IProduct>,
+  updatedBy?: string,
+  expectedUpdatedAt?: string | Date
+) => {
+  const current = await ProductModel.findById(productId);
+  if (!current) {
+    throw new AppError(404, 'Product not found');
+  }
+
+  if (expectedUpdatedAt && (current as any).updatedAt) {
+    const expectedTime = new Date(expectedUpdatedAt).getTime();
+    const currentTime = new Date((current as any).updatedAt).getTime();
+    if (!isNaN(expectedTime) && currentTime - expectedTime > 1000) {
+      throw new AppError(409, 'Product has been modified by someone else. Please reload and try again.');
+    }
+  }
+
   // Auto-backup before every update so previous state is always recoverable
   await createProductBackup(productId, updatedBy, 'auto-before-update').catch(() => {
     // Backup failure should not block the update

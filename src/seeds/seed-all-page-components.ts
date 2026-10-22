@@ -451,8 +451,19 @@ export const ALL_PAGE_COMPONENTS = [
     index: 1,
     isActive: true,
     data: {
-      title: "Build the Future of Wellness With Us",
-      subtitle: "Join our passionate team of woodworkers, designers, engineers, and consultants."
+      eyebrow: "CAREERS AT ENSIS",
+      headingLines: ["Design Spaces", "for a Healthier"],
+      highlight: "Tomorrow",
+      description: "Be a part of a passionate team that designs and delivers wellness furniture and solutions for spas, wellness centers and healthcare spaces across the world.",
+      ctaText: "Explore Opportunities",
+      ctaHref: "#openings",
+      backgroundImage: "",
+      highlights: [
+        { icon: "bulb", label: "Meaningful Work", title: "Meaningful", subtitle: "Work", image: "" },
+        { icon: "users", label: "Collaborative Team", title: "Collaborative", subtitle: "Team", image: "" },
+        { icon: "growth", label: "Growth Opportunities", title: "Growth", subtitle: "Opportunities", image: "" },
+        { icon: "heart", label: "Real Impact on Lives", title: "Real Impact", subtitle: "on Lives", image: "" }
+      ]
     }
   },
   {
@@ -462,7 +473,14 @@ export const ALL_PAGE_COMPONENTS = [
     description: "Core workplace statistics and team achievements.",
     index: 2,
     isActive: true,
-    data: {}
+    data: {
+      stats: [
+        { title: "Meaningful", subtitle: "Work", label: "Meaningful Work", icon: "bulb", image: "" },
+        { title: "Collaborative", subtitle: "Team", label: "Collaborative Team", icon: "users", image: "" },
+        { title: "Growth", subtitle: "Opportunities", label: "Growth Opportunities", icon: "growth", image: "" },
+        { title: "Real Impact", subtitle: "on Lives", label: "Real Impact on Lives", icon: "heart", image: "" }
+      ]
+    }
   },
   {
     key: "career.whyWork",

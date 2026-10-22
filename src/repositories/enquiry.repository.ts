@@ -1,4 +1,5 @@
 import { EnquiryModel, IEnquiry } from '../models/enquiry.model';
+import { escapeRegex } from '../utils/escape-regex';
 
 export const createEnquiry = async (data: Partial<IEnquiry>) => {
   return EnquiryModel.create(data);
@@ -25,7 +26,7 @@ export const getEnquiryPaginated = async (options: {
   }
 
   if (options.search) {
-    const searchRegex = { $regex: options.search, $options: 'i' };
+    const searchRegex = { $regex: escapeRegex(options.search), $options: 'i' };
     filter.$or = [
       { fullName: searchRegex },
       { email: searchRegex },

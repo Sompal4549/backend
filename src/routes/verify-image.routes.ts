@@ -1,67 +1,87 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { asyncHandler } from '../utils/async-handler';
+import { verifyCandidateProfilePhoto } from '../services/ai-profile-photo.service';
+
+export const verifyImageRouter = Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 /**
- * POST /verify-image — { imageBase64: "data:image/...;base64,..." }
- * Checks a career applicant's profile photo with Gemini vision: one real adult face, upright,
- * clear and appropriate. Answers { success, reason } in the shape ApplicationFormModal expects.
+ * POST /api/v1/verify-image
+ * Supports:
+ * 1. Multipart/form-data: file field "photo" or "image", with candidateGender, candidateAge, candidateDob, candidateName
+ * 2. JSON: { imageBase64: "data:image/...;base64,...", gender, age, dateOfBirth, candidateName }
  */
-export const verifyImageRouter = Router();
-
-const MAX_BYTES = 8 * 1024 * 1024;
-const AI_TIMEOUT_MS = 20000;
-
-const PROMPT = `You check profile photos for a job application.
-Accept only if ALL are true: it is a real photograph (not a drawing, logo, screenshot or document), exactly one adult human face is clearly visible, the face is upright and not heavily covered, the image is reasonably sharp, and the content is appropriate.
-Reply with JSON only: {"ok": true} or {"ok": false, "reason": "<one short sentence telling the applicant what to fix>"}`;
-
 verifyImageRouter.post(
   '/',
+  upload.single('photo'),
   asyncHandler(async (req: Request, res: Response) => {
-    const raw = typeof req.body?.imageBase64 === 'string' ? req.body.imageBase64 : '';
-    const match = raw.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
-    if (!match) {
-      res.status(400).json({ success: false, reason: 'Please upload a JPG, PNG or WEBP photo.' });
-      return;
-    }
-    const [, mimeType, data] = match;
-    if (Buffer.byteLength(data, 'base64') > MAX_BYTES) {
-      res.status(400).json({ success: false, reason: 'Photo is too large. Please upload one under 8 MB.' });
-      return;
-    }
+    let buffer: Buffer | null = null;
+    let mimeType = 'image/jpeg';
 
-    const key = process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY;
-    if (!key) {
-      // Without an AI provider only the browser's size and blur checks apply
-      res.json({ success: true, checked: false });
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: PROMPT }, { inline_data: { mime_type: mimeType, data } }] }],
-            generationConfig: { responseMimeType: 'application/json', temperature: 0 },
-          }),
-          signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-        }
-      );
-      const body: any = await response.json();
-      const text: string = body?.candidates?.[0]?.content?.parts?.find((p: any) => typeof p?.text === 'string')?.text || '';
-      const verdict = JSON.parse(text.replace(/^```(?:json)?|```$/g, '').trim());
-      if (verdict?.ok === true) {
-        res.json({ success: true, checked: true });
+    if (req.file) {
+      buffer = req.file.buffer;
+      mimeType = req.file.mimetype || 'image/jpeg';
+    } else if (req.body?.imageBase64 && typeof req.body.imageBase64 === 'string') {
+      const raw = req.body.imageBase64;
+      const match = raw.match(/^data:(image\/(?:jpeg|jpg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+      if (match) {
+        mimeType = match[1];
+        buffer = Buffer.from(match[2], 'base64');
       } else {
-        res.json({ success: false, reason: verdict?.reason || 'Please upload a clear, upright photo of your own face.' });
+        // Raw base64 string without data prefix
+        buffer = Buffer.from(raw, 'base64');
       }
-    } catch (error) {
-      // The AI being unreachable must not block every applicant; the browser checks still ran
-      console.error('[verify-image] AI check failed:', error instanceof Error ? error.message : error);
-      res.json({ success: true, checked: false });
     }
+
+    if (!buffer || buffer.length === 0) {
+      res.status(400).json({
+        success: false,
+        ok: false,
+        approved: false,
+        reason: 'Please upload a valid JPG, PNG or WEBP image file.',
+        rejection_reasons: ['No valid image data provided.'],
+      });
+      return;
+    }
+
+    if (buffer.length > MAX_BYTES) {
+      res.status(400).json({
+        success: false,
+        ok: false,
+        approved: false,
+        reason: 'Photo is too large. Please upload one under 10 MB.',
+        rejection_reasons: ['File size exceeds 10 MB limit.'],
+      });
+      return;
+    }
+
+    const candidateGender = (req.body?.candidateGender || req.body?.gender || '').trim();
+    const candidateAge = req.body?.candidateAge || req.body?.age || '';
+    const candidateDob = (req.body?.candidateDob || req.body?.dateOfBirth || '').trim();
+    const candidateName = (req.body?.candidateName || req.body?.name || '').trim();
+
+    const result = await verifyCandidateProfilePhoto(buffer, mimeType, {
+      candidateGender,
+      candidateAge,
+      candidateDob,
+      candidateName,
+    });
+
+    // Provide both new schema and backward-compatible fields
+    res.json({
+      success: result.approved,
+      ok: result.approved,
+      approved: result.approved,
+      photoUrl: result.photoUrl,
+      confidence: result.confidence,
+      detected: result.detected,
+      checks: result.checks,
+      rejection_reasons: result.rejection_reasons,
+      reason: result.rejection_reasons[0] || (result.approved ? '' : result.feedback),
+      feedback: result.feedback,
+    });
   })
 );

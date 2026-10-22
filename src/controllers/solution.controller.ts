@@ -4,6 +4,12 @@ import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
 import { normalizeCityPages } from '../models/city-page.schema';
+import { pick } from '../utils/pick';
+
+const SOLUTION_EDITABLE_FIELDS = [
+  'title', 'slug', 'isActive', 'isFeatured', 'orderBy', 'robots',
+  'hero', 'stats', 'approach', 'spaces', 'services', 'process', 'cta', 'seo', 'cities',
+] as const;
 
 export const getAllSolutions = asyncHandler(async (_req: Request, res: Response) => {
   const solutions = await SolutionModel.find({ isActive: true }).sort({ orderBy: 1, createdAt: -1 });
@@ -32,14 +38,20 @@ export const getSolutionBySlug = asyncHandler(async (req: Request, res: Response
 });
 
 export const createSolution = asyncHandler(async (req: Request, res: Response) => {
-  const solution = await SolutionModel.create({ ...req.body, cities: normalizeCityPages(req.body.cities) });
+  const cleanData = pick(req.body, SOLUTION_EDITABLE_FIELDS);
+  if ('cities' in cleanData) {
+    cleanData.cities = normalizeCityPages(cleanData.cities);
+  }
+  const solution = await SolutionModel.create(cleanData);
   successResponse(res, solution, 'Solution created', 201);
 });
 
 export const updateSolution = asyncHandler(async (req: Request, res: Response) => {
-  const body = { ...req.body };
-  if ('cities' in body) body.cities = normalizeCityPages(body.cities);
-  const solution = await SolutionModel.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
+  const cleanData = pick(req.body, SOLUTION_EDITABLE_FIELDS);
+  if ('cities' in cleanData) {
+    cleanData.cities = normalizeCityPages(cleanData.cities);
+  }
+  const solution = await SolutionModel.findByIdAndUpdate(req.params.id, cleanData, { new: true, runValidators: true });
   if (!solution) throw new AppError(404, 'Solution not found');
   successResponse(res, solution, 'Solution updated');
 });

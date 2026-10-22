@@ -11,6 +11,13 @@ import Settings from '../models/settings.model';
 import { ComponentContentModel } from '../models/component-content.model';
 import { mapItemsToAliases, preserveImageShapes } from '../utils/cms-items';
 import { isObjectIdString } from '../utils/object-id';
+import { escapeRegex } from '../utils/escape-regex';
+import { pick } from '../utils/pick';
+
+const PAGE_EDITABLE_FIELDS = [
+  'configKey', 'pageName', 'title', 'slug', 'status', 'visibility',
+  'author', 'updatedBy', 'sections', 'seo', 'scripts',
+] as const;
 
 const CONFIG_KEY_TO_PAGE_SLUG: Record<string, string> = {
   landingPage: 'home',
@@ -76,7 +83,7 @@ pageRouter.get('/:slug', asyncHandler(async (req: Request, res: Response) => {
     $or: [
       { slug: { $in: candidates } },
       { configKey: req.params.slug },
-      { pageName: new RegExp('^' + req.params.slug + '$', 'i') },
+      { pageName: new RegExp('^' + escapeRegex(req.params.slug) + '$', 'i') },
     ],
   });
   if (!page) throw new AppError(404, 'Page not found');
@@ -126,31 +133,33 @@ pageRouter.put(
           ],
         };
 
+    const cleanPayload = pick(req.body, PAGE_EDITABLE_FIELDS);
+    if (cleanPayload.title && !cleanPayload.pageName) {
+      cleanPayload.pageName = cleanPayload.title;
+    }
+    delete cleanPayload.title;
+
     const updatePayload: Record<string, any> = {
-      ...req.body,
+      ...cleanPayload,
       updatedAt: new Date(),
     };
-
-    if (req.body.title && !updatePayload.pageName) {
-      updatePayload.pageName = req.body.title;
-    }
 
     let updatedPage = await Page.findOneAndUpdate(query, { $set: updatePayload }, { new: true });
 
     if (!updatedPage) {
       // Upsert if not found
-      const configKey = req.body.configKey || rawKey;
+      const configKey = cleanPayload.configKey || rawKey;
       updatedPage = await Page.create({
         configKey,
-        pageName: req.body.pageName || req.body.title || rawKey,
-        slug: req.body.slug || (rawKey.startsWith('/') ? rawKey : `/${rawKey}`),
-        status: req.body.status || 'Published',
-        visibility: req.body.visibility || 'Public',
-        author: req.body.author || 'Admin',
-        updatedBy: req.body.updatedBy || 'Admin',
-        sections: req.body.sections || [],
-        seo: req.body.seo || {},
-        ...req.body,
+        pageName: cleanPayload.pageName || rawKey,
+        slug: cleanPayload.slug || (rawKey.startsWith('/') ? rawKey : `/${rawKey}`),
+        status: cleanPayload.status || 'Published',
+        visibility: cleanPayload.visibility || 'Public',
+        author: cleanPayload.author || 'Admin',
+        updatedBy: cleanPayload.updatedBy || 'Admin',
+        sections: cleanPayload.sections || [],
+        seo: cleanPayload.seo || {},
+        ...cleanPayload,
       });
     }
 

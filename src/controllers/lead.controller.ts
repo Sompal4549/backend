@@ -6,6 +6,7 @@ import { asyncHandler } from "../utils/async-handler";
 import { AppError } from "../utils/app-error";
 import { successResponse } from "../utils/api-response";
 import { AuthRequest } from "../middlewares/auth.middleware";
+import { escapeRegex } from "../utils/escape-regex";
 
 // Fields an admin may set on a lead (never refreshToken / orders)
 const EDITABLE_FIELDS: Array<keyof ILead> = [
@@ -27,7 +28,6 @@ const pickEditable = (body: Record<string, unknown>) => {
   return data;
 };
 
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const today = () => new Date().toISOString().slice(0, 10);
 
 const assertUnique = async (data: Record<string, unknown>, exceptId?: string) => {
@@ -47,6 +47,7 @@ export const createLead = asyncHandler(async (req: AuthRequest, res: Response) =
   await assertUnique(data);
   // Sensible defaults so a quick lead only needs the basics
   const lead = await LeadModel.create({
+    companyName: data.companyName || "Individual",
     officialEmail: data.email,
     title: "Mr./Ms.",
     typeOfBusiness: "Other",

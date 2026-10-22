@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/async-handler';
 import { successResponse } from '../utils/api-response';
 import { AppError } from '../utils/app-error';
 import { generateSlug } from '../utils/generate-slug';
+import { generateJobDescriptionWithAI } from '../services/ai-cv.service';
 
 /*
  * Admin Job Postings (ensis-admin lib/careersApi.ts JobPosting). Jobs live in the Career collection;
@@ -22,6 +23,7 @@ const JOB_FIELDS = [
   'cvUploadMandatory', 'candidatePhotoMandatory', 'allowFresherCandidates', 'allowCurrentlyNotEmployed',
   'allowCvReplacement', 'eligibilityThreshold', 'partialMatchMin', 'partialMatchMax', 'showMatchScoreToCandidate',
   'showMatchBreakdown', 'featuredJob', 'applicationOpenDate', 'applicationClosingDate', 'tags', 'slug',
+  'coverImage', 'shortDescription', 'aiCheckPoints',
 ];
 const STATUSES: JobStatus[] = ['DRAFT', 'OPEN', 'CLOSED'];
 
@@ -33,8 +35,19 @@ const experienceLabel = (min?: unknown, max?: unknown) => {
   return 'Any';
 };
 
+export const ensureUniqueSlug = async (rawSlug: string, excludeId?: string): Promise<string> => {
+  let slug = generateSlug(rawSlug);
+  let candidate = slug;
+  let counter = 2;
+  while (await CareerModel.exists({ slug: candidate, _id: { $ne: excludeId } })) {
+    candidate = `${slug}-${counter}`;
+    counter++;
+  }
+  return candidate;
+};
+
 /** Admin body → stored job, keeping the website's fields in step */
-const fromAdmin = (body: Record<string, unknown>, current?: Record<string, unknown>) => {
+const fromAdmin = async (body: Record<string, unknown>, current?: Record<string, unknown>) => {
   const doc: Record<string, unknown> = {};
   for (const key of JOB_FIELDS) if (body[key] !== undefined) doc[key] = body[key];
   const merged = { ...(current || {}), ...doc };
@@ -52,7 +65,12 @@ const fromAdmin = (body: Record<string, unknown>, current?: Record<string, unkno
 
   doc.type = String(merged.employmentType || merged.type || 'Full Time');
   doc.experience = experienceLabel(merged.experienceMin, merged.experienceMax);
-  if (!merged.slug && merged.title) doc.slug = generateSlug(String(merged.title));
+
+  const desiredSlug = String(doc.slug || merged.slug || (merged.title ? generateSlug(String(merged.title)) : ''));
+  if (desiredSlug) {
+    doc.slug = await ensureUniqueSlug(desiredSlug, current?._id ? String(current._id) : undefined);
+  }
+
   return doc;
 };
 
@@ -100,7 +118,8 @@ export const createJob = asyncHandler(async (req: Request, res: Response) => {
   if (!String(body.title || '').trim()) throw new AppError(400, 'Job title is required');
   if (!String(body.department || '').trim()) throw new AppError(400, 'Department is required');
   if (!String(body.location || '').trim()) throw new AppError(400, 'Location is required');
-  const job = await CareerModel.create(fromAdmin(body));
+  const jobData = await fromAdmin(body);
+  const job = await CareerModel.create(jobData);
   successResponse(res, toAdmin(job.toObject()), 'Job created', 201);
 });
 
@@ -108,7 +127,8 @@ export const createJob = asyncHandler(async (req: Request, res: Response) => {
 export const updateJob = asyncHandler(async (req: Request, res: Response) => {
   const current = await CareerModel.findById(req.params.id).lean().catch(() => null);
   if (!current) throw new AppError(404, 'Job not found');
-  const job = await CareerModel.findByIdAndUpdate(req.params.id, { $set: fromAdmin(req.body || {}, current as any) }, { new: true }).lean();
+  const updateData = await fromAdmin(req.body || {}, current as any);
+  const job = await CareerModel.findByIdAndUpdate(req.params.id, { $set: updateData }, { new: true }).lean();
   successResponse(res, toAdmin(job), 'Job updated');
 });
 
@@ -117,4 +137,14 @@ export const deleteJob = asyncHandler(async (req: Request, res: Response) => {
   const job = await CareerModel.findByIdAndDelete(req.params.id).catch(() => null);
   if (!job) throw new AppError(404, 'Job not found');
   successResponse(res, { message: 'Job deleted' }, 'Job deleted');
+});
+
+// POST /careers/admin/jobs/generate-description
+export const generateJobDescription = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body || {};
+  if (!String(body.title || '').trim()) {
+    throw new AppError(400, 'Job title is required');
+  }
+  const result = await generateJobDescriptionWithAI(body);
+  successResponse(res, result, 'Job description generated successfully');
 });

@@ -125,6 +125,11 @@ settingsRouter.put(
     const website = (req.query.website as string) || req.body.website || 'ensis';
     const bodyPayload = { ...req.body };
     delete bodyPayload.website;
+    delete bodyPayload._id;
+    delete bodyPayload.id;
+    delete bodyPayload.createdAt;
+    delete bodyPayload.updatedAt;
+    delete bodyPayload.__v;
 
     let doc = await Settings.findOne({ website });
     const currentData = doc ? doc.data || {} : {};
