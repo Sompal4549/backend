@@ -20,6 +20,7 @@ import {
   getApplicationById,
   getFileSignedUrl,
   listApplications,
+  resendApplicationEmails,
   submitApplication,
   updateApplicationStatus,
   uploadPrivateFile,
@@ -95,6 +96,7 @@ router.get('/admin/applications', authMiddleware, adminMiddleware, listApplicati
 router.get('/admin/applications-board', authMiddleware, adminMiddleware, listApplications);
 router.get('/admin/applications/:id', authMiddleware, adminMiddleware, getApplicationById);
 router.patch('/admin/applications/:id/status', authMiddleware, adminMiddleware, updateApplicationStatus);
+router.post('/admin/applications/:id/resend-email', authMiddleware, adminMiddleware, resendApplicationEmails);
 
 // Admin Files & Signed URLs
 router.get('/admin/files/:fileId/signed-url', authMiddleware, adminMiddleware, getFileSignedUrl);

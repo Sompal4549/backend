@@ -593,6 +593,63 @@ export const updateApplicationStatus = asyncHandler(async (req: Request, res: Re
   successResponse(res, application, 'Application status updated');
 });
 
+// POST /careers/admin/applications/:id/resend-email
+export const resendApplicationEmails = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const rawTo = String(req.body?.to || 'both').toLowerCase();
+  const to: 'hr' | 'candidate' | 'both' =
+    rawTo === 'hr' || rawTo === 'candidate' ? rawTo : 'both';
+
+  const application = await CareerApplicationModel.findOne({
+    $or: [{ applicationId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }],
+  });
+
+  if (!application) {
+    throw new AppError(404, 'Application not found');
+  }
+
+  let job = await CareerModel.findById(application.jobId);
+  if (!job) {
+    // Fallback so emails can still render if the job posting was removed
+    job = { title: application.jobTitle } as any;
+  }
+
+  const results: Record<string, { sent: boolean; error?: string }> = {};
+
+  if (to !== 'candidate') {
+    try {
+      await sendHrNotificationEmail(application, job as any);
+      results.hr = { sent: true };
+    } catch (err) {
+      results.hr = { sent: false, error: (err as Error).message };
+    }
+  }
+
+  if (to !== 'hr') {
+    try {
+      await sendCandidateConfirmationEmail(application, job as any);
+      results.candidate = { sent: true };
+    } catch (err) {
+      results.candidate = { sent: false, error: (err as Error).message };
+    }
+  }
+
+  const adminEmail = (req as any).user?.email || 'Admin';
+  application.internalNotes.push({
+    note: `Application email(s) re-sent (${to}) by ${adminEmail}`,
+    createdAt: new Date(),
+    author: adminEmail,
+  });
+  await application.save();
+
+  const allSent = Object.values(results).every((r) => r.sent);
+  successResponse(
+    res,
+    { resent: results },
+    allSent ? 'Email(s) resent successfully' : 'Email resend completed with errors — check results'
+  );
+});
+
 // GET /careers/admin/files/:fileId/signed-url
 export const getFileSignedUrl = asyncHandler(async (req: Request, res: Response) => {
   const { fileId } = req.params;
