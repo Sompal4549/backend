@@ -43,7 +43,13 @@ const createTransporter = () => {
   });
 };
 
-export const sendEmail = async (to: string, subject: string, text: string, html?: string): Promise<void> => {
+export const sendEmail = async (
+  to: string,
+  subject: string,
+  text: string,
+  html?: string,
+  attachments?: nodemailer.SendMailOptions['attachments']
+): Promise<void> => {
   if (config.emailProvider === 'console') {
     console.info(`[Console Email] To: ${to} | Subject: ${subject}`);
     console.info(`Content (Text): ${text}`);
@@ -57,6 +63,7 @@ export const sendEmail = async (to: string, subject: string, text: string, html?
     subject,
     text,
     html: html || undefined,
+    attachments: attachments || undefined,
   });
 };
 

@@ -56,7 +56,7 @@ export function formatNameWithSpaces(nameStr?: string | null): { fullName: strin
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
     .replace(/[-_]/g, ' ')
-    .replace(/\b(cv|resume|doc|docx|pdf)\b/gi, '')
+    .replace(/\b(cv|resume|doc|docx|pdf|new|final|updated|latest|copy|my|version|v\d+|\d+)\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -99,8 +99,10 @@ export async function extractTextFromCv(buffer: Buffer, fileName: string): Promi
     }
   }
 
-  // Raw buffer string fallback if document parser yielded little text
-  if (!extractedText.trim()) {
+  // Raw buffer fallback only for legacy .doc (mammoth can't read it and it stores plain text).
+  // PDF/DOCX are compressed binaries — their raw bytes are noise, and sending that noise to the AI
+  // made it echo the example JSON from the prompt as if it were a real evaluation.
+  if (!extractedText.trim() && lowerName.endsWith('.doc')) {
     try {
       const raw = buffer.toString('utf-8');
       extractedText = raw.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ');
@@ -156,7 +158,102 @@ export function extractContactHeuristics(rawText: string, fileName: string = '')
   return { fullName, email, phone, linkedin };
 }
 
-export async function evaluateCvWithGemini(
+async function callOpenAiForCvEvaluation(prompt: string): Promise<any> {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an AI Candidate Evaluator for ENSIS. You must respond with valid JSON strictly matching the requested schema without any markdown formatting.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.1,
+        response_format: { type: 'json_object' },
+      }),
+      signal: AbortSignal.timeout(45000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`[AI CV] OpenAI (${model}) HTTP ${res.status}:`, errText);
+      return null;
+    }
+
+    const data: any = await res.json();
+    const content = data.choices?.[0]?.message?.content?.trim();
+    if (content) {
+      return JSON.parse(content);
+    }
+  } catch (err) {
+    console.warn('[AI CV] OpenAI request failed:', (err as Error).message);
+  }
+  return null;
+}
+
+async function callGeminiForCvEvaluation(prompt: string): Promise<any> {
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY)?.trim();
+  if (!apiKey) return null;
+
+  const configuredModel = process.env.GEMINI_MODEL?.trim();
+  const candidateModels = [
+    ...(configuredModel ? [configuredModel] : []),
+    'gemini-2.5-flash',
+    'gemini-flash-latest',
+    'gemini-flash-lite-latest',
+    'gemini-1.5-flash',
+  ];
+
+  for (const model of candidateModels) {
+    try {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 2048,
+            responseMimeType: 'application/json',
+          },
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (res.ok) {
+        const data: any = await res.json();
+        const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (responseText) {
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+          }
+        }
+      } else {
+        const errText = await res.text();
+        console.warn(`[AI CV] Gemini (${model}) HTTP ${res.status}:`, errText);
+      }
+    } catch (err) {
+      console.warn(`[AI CV] Gemini model ${model} error:`, (err as Error).message);
+    }
+  }
+  return null;
+}
+
+export async function evaluateCvWithAI(
   job: any,
   cvText: string,
   fileName: string
@@ -169,7 +266,6 @@ export async function evaluateCvWithGemini(
   suggestions: string[];
 }> {
   const heuristics = extractContactHeuristics(cvText, fileName);
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY;
 
   const jobTitle = job.title || 'Role';
   const jobExp = job.experience || `${job.experienceMin || 2} - ${job.experienceMax || 5} Years`;
@@ -265,66 +361,105 @@ Return ONLY valid JSON matching this exact structure:
   ]
 }`;
 
+  const configuredProvider = (process.env.CV_AI_PROVIDER || process.env.AI_PROVIDER || 'auto').toLowerCase().trim();
+
   let parsed: any = null;
+  let activeProviderName = '';
 
-  if (apiKey) {
-    const candidateModels = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
-    for (const model of candidateModels) {
-      try {
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const res = await fetch(geminiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 2048,
-              responseMimeType: 'application/json',
-            },
-          }),
-          signal: AbortSignal.timeout(30000),
-        });
-
-        if (res.ok) {
-          const data: any = await res.json();
-          const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          if (responseText) {
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              parsed = JSON.parse(jsonMatch[0]);
-              break;
-            }
-          }
-        }
-      } catch (err) {
-        console.warn(`[AI CV] Gemini model ${model} error:`, (err as Error).message);
-      }
+  if (configuredProvider === 'openai') {
+    parsed = await callOpenAiForCvEvaluation(prompt);
+    if (parsed) {
+      activeProviderName = `OpenAI (${process.env.OPENAI_MODEL || 'gpt-4o-mini'})`;
+    } else {
+      console.warn('[AI CV] OpenAI evaluation failed or returned empty; attempting fallback to Gemini...');
+      parsed = await callGeminiForCvEvaluation(prompt);
+      if (parsed) activeProviderName = `Gemini (fallback)`;
     }
+  } else if (configuredProvider === 'gemini') {
+    parsed = await callGeminiForCvEvaluation(prompt);
+    if (parsed) {
+      activeProviderName = `Gemini (${process.env.GEMINI_MODEL || 'gemini-2.5-flash'})`;
+    } else {
+      console.warn('[AI CV] Gemini evaluation failed or returned empty; attempting fallback to OpenAI...');
+      parsed = await callOpenAiForCvEvaluation(prompt);
+      if (parsed) activeProviderName = `OpenAI (fallback)`;
+    }
+  } else {
+    // 'auto' mode: prefer OpenAI if key is present, otherwise Gemini
+    if (process.env.OPENAI_API_KEY) {
+      parsed = await callOpenAiForCvEvaluation(prompt);
+      if (parsed) activeProviderName = `OpenAI (${process.env.OPENAI_MODEL || 'gpt-4o-mini'})`;
+    }
+    if (!parsed && (process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY)) {
+      parsed = await callGeminiForCvEvaluation(prompt);
+      if (parsed) activeProviderName = `Gemini (${process.env.GEMINI_MODEL || 'gemini-2.5-flash'})`;
+    }
+  }
+
+  if (activeProviderName) {
+    console.log(`[AI CV] Evaluated CV using AI provider: ${activeProviderName}`);
   }
 
   if (!parsed) {
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not configured on the server.');
+    const hasOpenAi = Boolean(process.env.OPENAI_API_KEY);
+    const hasGemini = Boolean(process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY);
+    if (!hasOpenAi && !hasGemini) {
+      throw new Error('Neither OPENAI_API_KEY nor GEMINI_API_KEY is configured in backend/.env.');
     }
-    throw new Error('AI screening evaluation service is currently unavailable. Please try again.');
+    throw new Error(`AI screening evaluation failed with provider "${configuredProvider}". Please check API key status, network, and quota.`);
   }
 
-  // Sanitize and normalize profile
-  const rawName = (parsed.fullName && !parsed.fullName.includes('Candidate Full Name'))
-    ? parsed.fullName
-    : heuristics.fullName;
+  // A reply identical to the example JSON above means the model had nothing real to evaluate
+  const b = parsed.breakdown || {};
+  const echoedTemplate =
+    Number(parsed.score) === 78 &&
+    [b.education, b.experience, b.technical_skills, b.creative_thinking, b.communication, b.portfolio, b.location]
+      .map(Number)
+      .join(',') === '80,75,82,70,85,70,90';
+  if (echoedTemplate) {
+    throw new Error(
+      "We couldn't evaluate your CV reliably. Please make sure it is a text-based PDF or Word (DOCX) file and try again."
+    );
+  }
+
+  // Sanitize and normalize profile. The model sometimes echoes the example values from the
+  // JSON template above when a field is missing from the CV — treat those as "not found"
+  // so the candidate fills them in on the review step instead of submitting placeholders.
+  const PLACEHOLDER_VALUES = new Set([
+    'candidate full name',
+    'candidate@example.com',
+    '+91 9876543210',
+    'yyyy-mm-dd',
+    'city, state',
+    'https://linkedin.com/in/profile',
+    'linkedin.com/in/profile',
+  ]);
+  const real = (value: unknown): string | undefined => {
+    const v = typeof value === 'string' ? value.trim() : '';
+    if (!v || PLACEHOLDER_VALUES.has(v.toLowerCase())) return undefined;
+    return v;
+  };
+  const realEmail = (value: unknown) => {
+    const v = real(value);
+    return v && !/@example\.(com|org)$/i.test(v) ? v : undefined;
+  };
+  const realPhone = (value: unknown) => {
+    const v = real(value);
+    return v && v.replace(/\D/g, '').slice(-10) !== '9876543210' ? v : undefined;
+  };
+
+  const rawName = real(parsed.fullName) || heuristics.fullName;
   const { fullName } = formatNameWithSpaces(rawName);
 
   const candidateProfile: ICandidateProfile = {
     fullName,
-    email: (parsed.email && !parsed.email.includes('example.com')) ? parsed.email : (heuristics.email || 'candidate@ensis.in'),
-    phone: (parsed.phone && !parsed.phone.includes('9876543210')) ? parsed.phone : (heuristics.phone || '+91 98765 00000'),
-    dateOfBirth: parsed.dateOfBirth || undefined,
+    email: realEmail(parsed.email) || heuristics.email || '',
+    phone: realPhone(parsed.phone) || heuristics.phone || '',
+    dateOfBirth: real(parsed.dateOfBirth),
     gender: ['Male', 'Female', 'Other'].includes(parsed.gender) ? parsed.gender : undefined,
-    currentLocation: parsed.currentLocation || job.location || 'Delhi NCR',
-    permanentAddress: parsed.permanentAddress || undefined,
-    linkedin: parsed.linkedin || heuristics.linkedin || undefined,
+    currentLocation: real(parsed.currentLocation),
+    permanentAddress: real(parsed.permanentAddress),
+    linkedin: real(parsed.linkedin) || heuristics.linkedin || undefined,
     education: Array.isArray(parsed.education)
       ? parsed.education.map((e: any) => ({
           qualification: String(e.qualification || 'Graduate'),
@@ -412,6 +547,8 @@ Return ONLY valid JSON matching this exact structure:
   };
 }
 
+export const evaluateCvWithGemini = evaluateCvWithAI;
+
 export async function processScreeningAsync(
   screeningId: string,
   jobId: string,
@@ -457,6 +594,14 @@ export async function processScreeningAsync(
     // Step 1: Read CV
     await updateProgress(15, 'read_cv', []);
     const cvText = await extractTextFromCv(buffer, fileName);
+
+    // Scanned/image-only CVs have no extractable text; stop here instead of letting the AI guess
+    const readableWords = (cvText.match(/[A-Za-z]{3,}/g) || []).length;
+    if (readableWords < 40) {
+      throw new Error(
+        "We couldn't read the text in your CV — it may be a scanned image. Please upload a text-based PDF or a Word (DOCX) file."
+      );
+    }
 
     // Step 2: Match Skills
     await updateProgress(35, 'match_skills', ['read_cv']);
@@ -566,4 +711,256 @@ export async function processScreeningAsync(
       }
     );
   }
+}
+
+/**
+ * Generates structured Job Description (The Opportunity, Key Responsibilities,
+ * Who Can Apply, Skills, KRAs, KPIs) using OpenAI / Gemini with smart domain fallback.
+ */
+export async function generateJobDescriptionWithAI(params: {
+  title: string;
+  department?: string;
+  location?: string;
+  experienceMin?: number;
+  experienceMax?: number;
+  educationRequirements?: string;
+  employmentType?: string;
+  workplaceType?: string;
+  designation?: string;
+  company?: string;
+}): Promise<any> {
+  const {
+    title,
+    department = 'General',
+    location = 'Delhi NCR',
+    experienceMin = 2,
+    experienceMax = 5,
+    educationRequirements = 'Graduate',
+    employmentType = 'Full Time',
+    workplaceType = 'On-site',
+  } = params;
+
+  const prompt = `You are a Senior Talent Acquisition & Organizational Design Leader for ENSIS Wellness (luxury wellness spaces, treatment furniture, and Ayurvedic equipment).
+Generate a structured, professional job description for this role:
+- Role Title: ${title}
+- Department: ${department}
+- Location: ${location}
+- Experience: ${experienceMin} to ${experienceMax} years
+- Education Requirements: ${educationRequirements}
+- Employment Type: ${employmentType} (${workplaceType})
+
+CRITICAL RULES:
+- "opportunity": concise high-impact summary under 25 words (maximum 25 words).
+- "keyResponsibilities": array of 4 to 6 strong bullet points starting with action verbs.
+- "whoCanApply": array of 4 to 6 qualification criteria bullets.
+- "requiredSkills": array of 5 to 7 key skills.
+- "preferredSkills": array of 3 to 5 bonus skills.
+- "targetIndustrySegments": array of 3 to 5 relevant industry sectors.
+- "specificExperience": 1 clear sentence describing required niche experience.
+- "reportingTo": title of reporting manager (e.g. "Head of Technology", "Director of Design", "Operations Head").
+- "kras": array of 3 objects with { "label": string, "result": string }.
+- "kpis": array of 3 objects with { "label": string, "measurement": string }.
+- "referenceIndustries": array of 2 to 4 industries.
+- "screeningQuestions": array of 3 to 5 screening questions.
+
+Respond with ONLY valid JSON:
+{
+  "opportunity": "string (under 25 words)",
+  "keyResponsibilities": ["string"],
+  "whoCanApply": ["string"],
+  "requiredSkills": ["string"],
+  "preferredSkills": ["string"],
+  "targetIndustrySegments": ["string"],
+  "specificExperience": "string",
+  "reportingTo": "string",
+  "kras": [{ "label": "string", "result": "string" }],
+  "kpis": [{ "label": "string", "measurement": "string" }],
+  "referenceIndustries": ["string"],
+  "screeningQuestions": ["string"]
+}`;
+
+  let parsed: any = null;
+  try {
+    if (process.env.OPENAI_API_KEY) {
+      parsed = await callOpenAiForCvEvaluation(prompt);
+    }
+    if (!parsed && (process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY)) {
+      parsed = await callGeminiForCvEvaluation(prompt);
+    }
+  } catch (err) {
+    console.warn('[AI Job Gen] LLM call failed, switching to intelligent fallback:', (err as Error).message);
+  }
+
+  if (parsed && parsed.opportunity && Array.isArray(parsed.keyResponsibilities) && parsed.keyResponsibilities.length > 0) {
+    const words = parsed.opportunity.trim().split(/\s+/);
+    if (words.length > 25) {
+      parsed.opportunity = words.slice(0, 24).join(' ') + '.';
+    }
+    return parsed;
+  }
+
+  // Intelligent domain fallback
+  const tLower = title.toLowerCase();
+  const isTech = tLower.includes('software') || tLower.includes('developer') || tLower.includes('engineer') || tLower.includes('frontend') || tLower.includes('full stack') || tLower.includes('tech') || tLower.includes('react');
+  const isDesign = tLower.includes('design') || tLower.includes('interior') || tLower.includes('product') || tLower.includes('spatial') || tLower.includes('architect');
+  const isSales = tLower.includes('sale') || tLower.includes('business') || tLower.includes('partnership') || tLower.includes('client') || tLower.includes('marketing');
+
+  if (isTech) {
+    return {
+      opportunity: "Engineer luxury wellness digital experiences, responsive applications, and AI screening workflows for global users.",
+      keyResponsibilities: [
+        "Architect and develop high-performance web applications using React, Next.js, and TypeScript.",
+        "Collaborate with UI/UX designers to translate Figma luxury mockups into pixel-perfect code.",
+        "Integrate secure REST APIs, authentication state, and AI screening services.",
+        "Optimize Core Web Vitals, SEO performance, and responsive layout across all viewports.",
+        "Maintain high test coverage, clean code quality, and reliable CI/CD deployment pipelines."
+      ],
+      whoCanApply: [
+        `${experienceMin}+ years of production experience in React, Next.js, and modern TypeScript.`,
+        `Degree in ${educationRequirements} or equivalent proven engineering portfolio.`,
+        "Strong foundation in asynchronous state management and component architecture.",
+        "Hands-on experience with RESTful APIs, database integrations, and performance optimization.",
+        "Excellent communication skills and eagerness to build world-class luxury wellness software."
+      ],
+      requiredSkills: ["React", "Next.js", "TypeScript", "Tailwind CSS", "REST APIs", "Git"],
+      preferredSkills: ["Node.js", "AI APIs (OpenAI/Gemini)", "SEO Optimization", "CI/CD"],
+      targetIndustrySegments: ["Ecommerce & Luxury Retail", "HealthTech & Wellness", "SaaS & Cloud Platforms"],
+      specificExperience: `Demonstrated track record of delivering responsive, production-ready web apps with Next.js and TypeScript.`,
+      reportingTo: "Head of Engineering",
+      kras: [
+        { label: "Frontend Architecture", result: "Scalable, high-performance web applications" },
+        { label: "Code Quality & Delivery", result: "99.9% uptime with zero critical regressions" },
+        { label: "User Experience", result: "Sub-second page loads and seamless mobile UX" }
+      ],
+      kpis: [
+        { label: "Sprint Delivery Rate", measurement: ">= 90% planned sprint points delivered" },
+        { label: "Lighthouse Performance Score", measurement: ">= 90 across mobile and desktop" },
+        { label: "Bug Escape Rate", measurement: "< 2 critical bugs per release" }
+      ],
+      referenceIndustries: ["Technology", "Ecommerce", "Digital Agencies"],
+      screeningQuestions: [
+        "Describe your experience with Next.js App Router and server-side rendering.",
+        "How do you optimize Core Web Vitals and frontend bundle performance?",
+        "Have you integrated AI APIs or real-time streaming in production?"
+      ]
+    };
+  }
+
+  if (isDesign) {
+    return {
+      opportunity: "Design luxury wellness furniture, ergonomic treatment solutions, and serene spa spaces combining aesthetics and comfort.",
+      keyResponsibilities: [
+        "Create innovative wellness furniture concepts, 3D visualizations, and production drawings.",
+        "Collaborate with manufacturing and sourcing teams to ensure structural integrity and craftsmanship.",
+        "Research ergonomic principles and sustainable materials for holistic wellness environments.",
+        "Present design concepts and spatial setups to luxury hospitality clients and architects.",
+        "Oversee prototyping, sample sign-offs, and quality assurance benchmarks."
+      ],
+      whoCanApply: [
+        `${experienceMin}+ years of experience in furniture, industrial, or spatial luxury design.`,
+        `Degree in ${educationRequirements} (Product, Industrial, or Interior Design).`,
+        "Proficiency in 3D CAD modeling tools (AutoCAD, SolidWorks, Rhino, or SketchUp).",
+        "Strong visual portfolio showcasing executed furniture or luxury wellness projects.",
+        "Passion for ergonomic wellness design and holistic aesthetics."
+      ],
+      requiredSkills: ["Product Design", "3D CAD Modeling", "AutoCAD", "SketchUp / Rhino", "Material Exploration"],
+      preferredSkills: ["Rendering & VR", "Joinery & Woodwork", "Luxury Hospitality Design"],
+      targetIndustrySegments: ["Luxury Furniture & Decor", "Spa & Wellness Resorts", "Ayurvedic Healthcare"],
+      specificExperience: `Proven experience designing ergonomic furniture or turnkey wellness spa environments.`,
+      reportingTo: "Director of Design & Innovation",
+      kras: [
+        { label: "Design Excellence", result: "Award-winning wellness furniture and spaces" },
+        { label: "Prototyping Feasibility", result: "100% manufacturable technical blueprints" },
+        { label: "Client Satisfaction", result: "High adoption by luxury spa and resort clients" }
+      ],
+      kpis: [
+        { label: "New Concept Development", measurement: "4 new product lines per fiscal year" },
+        { label: "First-pass Prototyping Yield", measurement: ">= 85% approval on first sample" },
+        { label: "Client Project Approval", measurement: ">= 90% client approval on 3D proposals" }
+      ],
+      referenceIndustries: ["Luxury Furniture", "Architecture & Interiors", "Hospitality"],
+      screeningQuestions: [
+        "Share a highlight from your portfolio involving furniture or spatial design.",
+        "Which 3D modeling and rendering software are you most proficient in?",
+        "How do you balance aesthetic luxury with ergonomic durability in physical products?"
+      ]
+    };
+  }
+
+  if (isSales) {
+    return {
+      opportunity: "Drive client relationships and revenue growth for luxury wellness and institutional spa projects.",
+      keyResponsibilities: [
+        "Identify and cultivate relationships with luxury hotels, wellness resorts, and architectural firms.",
+        "Present ENSIS wellness products and customized spatial solutions to decision-makers.",
+        "Prepare consultative proposals, negotiate commercial contracts, and close enterprise deals.",
+        "Collaborate with design and operations teams to guarantee seamless project fulfillment.",
+        "Track sales pipeline metrics and deliver predictable revenue against quarterly targets."
+      ],
+      whoCanApply: [
+        `${experienceMin}+ years of B2B sales or business development experience in luxury/hospitality/wellness.`,
+        `Degree in ${educationRequirements} (Business, Marketing, or related field).`,
+        "Proven track record of exceeding revenue quotas and managing high-ticket accounts.",
+        "Articulate communicator with strong executive presence and consultative selling skills.",
+        "Willingness to travel for client meetings and major trade exhibitions."
+      ],
+      requiredSkills: ["B2B Sales", "Client Relationship Management", "Contract Negotiation", "Lead Generation", "CRM"],
+      preferredSkills: ["Luxury Hospitality Network", "Spa Industry Knowledge", "Strategic Partnerships"],
+      targetIndustrySegments: ["Luxury Hospitality & Resorts", "Wellness & Ayurvedic Centers", "Interior Architecture"],
+      specificExperience: `Demonstrated success in high-value B2B consultative selling or luxury wellness partnerships.`,
+      reportingTo: "VP of Business Development",
+      kras: [
+        { label: "Revenue Target Achievement", result: "Consistent achievement of quarterly sales quotas" },
+        { label: "Account Expansion", result: "Long-term relationships with key hospitality chains" },
+        { label: "Pipeline Quality", result: "High-conversion pipeline with active enterprise leads" }
+      ],
+      kpis: [
+        { label: "Quarterly Revenue Quota", measurement: ">= 100% target met" },
+        { label: "Proposal Conversion Rate", measurement: ">= 30% proposals won" },
+        { label: "Client Retention / Repeat Rate", measurement: ">= 80% repeat business" }
+      ],
+      referenceIndustries: ["Hospitality & Resorts", "Luxury Retail", "Architectural Consulting"],
+      screeningQuestions: [
+        "What is the largest deal or contract you personally closed in a B2B environment?",
+        "How do you approach outreach and relationship-building with high-net-worth clients or luxury brands?",
+        "Which CRM systems and sales methodologies are you experienced with?"
+      ]
+    };
+  }
+
+  return {
+    opportunity: `Drive impact and growth at ENSIS as ${title}, creating inspiring wellness solutions for global clients.`,
+    keyResponsibilities: [
+      `Lead and execute core strategic initiatives for the ${department} department.`,
+      "Collaborate across multidisciplinary teams to ensure operational and delivery excellence.",
+      "Engage with clients and stakeholders to deliver high-touch luxury wellness solutions.",
+      "Maintain standards of premium craftsmanship, compliance, and brand integrity.",
+      "Monitor KPIs, identify process improvements, and contribute to team growth."
+    ],
+    whoCanApply: [
+      `${experienceMin}+ years of relevant experience in ${department} or related domain.`,
+      `Qualification in ${educationRequirements} or equivalent professional track record.`,
+      "Proven problem-solving, organizational, and interpersonal capabilities.",
+      "Ability to thrive in an innovation-led, high-quality wellness brand environment.",
+      "Commitment to excellence and customer-centric delivery."
+    ],
+    requiredSkills: ["Strategic Planning", "Project Management", "Team Leadership", "Communication", "Problem Solving"],
+    preferredSkills: ["Cross-functional Coordination", "Data-driven Decision Making", "Client Advisory"],
+    targetIndustrySegments: ["Luxury Wellness & Healthcare", "Hospitality & Resorts", "Premium Lifestyle Products"],
+    specificExperience: `Proven experience matching core requirements of the ${title} role.`,
+    reportingTo: "Department Head",
+    kras: [
+      { label: "Operational Excellence", result: "High-quality delivery within timelines" },
+      { label: "Team & Process Leadership", result: "Scalable SOPs and team mentoring" }
+    ],
+    kpis: [
+      { label: "Quarterly Objective Completion", measurement: ">= 90% of targets achieved" },
+      { label: "Stakeholder Satisfaction", measurement: ">= 95% positive feedback" }
+    ],
+    referenceIndustries: ["Wellness & Health", "Hospitality", "Corporate Operations"],
+    screeningQuestions: [
+      `What makes you uniquely suited for the ${title} position at ENSIS?`,
+      "Describe a challenging project you successfully led from concept to completion."
+    ]
+  };
 }

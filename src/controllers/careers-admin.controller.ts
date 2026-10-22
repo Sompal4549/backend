@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/async-handler';
 import { successResponse } from '../utils/api-response';
 import { AppError } from '../utils/app-error';
 import { generateSlug } from '../utils/generate-slug';
+import { generateJobDescriptionWithAI } from '../services/ai-cv.service';
 
 /*
  * Admin Job Postings (ensis-admin lib/careersApi.ts JobPosting). Jobs live in the Career collection;
@@ -136,4 +137,14 @@ export const deleteJob = asyncHandler(async (req: Request, res: Response) => {
   const job = await CareerModel.findByIdAndDelete(req.params.id).catch(() => null);
   if (!job) throw new AppError(404, 'Job not found');
   successResponse(res, { message: 'Job deleted' }, 'Job deleted');
+});
+
+// POST /careers/admin/jobs/generate-description
+export const generateJobDescription = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body || {};
+  if (!String(body.title || '').trim()) {
+    throw new AppError(400, 'Job title is required');
+  }
+  const result = await generateJobDescriptionWithAI(body);
+  successResponse(res, result, 'Job description generated successfully');
 });

@@ -5,6 +5,7 @@ import * as careerController from '../controllers/career.controller';
 import {
   createJob,
   deleteJob,
+  generateJobDescription,
   getJob,
   listJobs,
   updateJob,
@@ -71,6 +72,58 @@ router.get('/settings', getPublicSettings);
 // Private Candidate Uploads (Contract §4.1)
 router.post('/uploads', upload.single('file'), uploadPrivateFile);
 
+// Candidate AI Profile Photo Verification
+router.post(
+  '/verify-photo',
+  upload.single('photo'),
+  async (req, res, next) => {
+    try {
+      const { verifyCandidateProfilePhoto } = await import('../services/ai-profile-photo.service');
+      const file = req.file;
+      let buffer: Buffer | null = file ? file.buffer : null;
+      let mimeType = file?.mimetype || 'image/jpeg';
+
+      if (!buffer && req.body?.imageBase64) {
+        const raw = req.body.imageBase64;
+        const match = raw.match(/^data:(image\/(?:jpeg|jpg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+        if (match) {
+          mimeType = match[1];
+          buffer = Buffer.from(match[2], 'base64');
+        } else {
+          buffer = Buffer.from(raw, 'base64');
+        }
+      }
+
+      if (!buffer) {
+        res.status(400).json({ success: false, approved: false, reason: 'Please upload an image file in "photo" field.' });
+        return;
+      }
+
+      const result = await verifyCandidateProfilePhoto(buffer, mimeType, {
+        candidateGender: req.body?.candidateGender || req.body?.gender,
+        candidateAge: req.body?.candidateAge || req.body?.age,
+        candidateDob: req.body?.candidateDob || req.body?.dateOfBirth,
+        candidateName: req.body?.candidateName || req.body?.name,
+      });
+
+      res.json({
+        success: result.approved,
+        ok: result.approved,
+        approved: result.approved,
+        photoUrl: result.photoUrl,
+        confidence: result.confidence,
+        detected: result.detected,
+        checks: result.checks,
+        rejection_reasons: result.rejection_reasons,
+        reason: result.rejection_reasons[0] || (result.approved ? '' : result.feedback),
+        feedback: result.feedback,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // Candidate Applications (Contract §4)
 router.post('/applications', submitApplication);
 
@@ -85,6 +138,7 @@ router.post('/:jobId/screenings', screeningLimiter, upload.single('cv'), startSc
 
 // Admin Jobs
 router.get('/admin/jobs', authMiddleware, adminMiddleware, listJobs);
+router.post('/admin/jobs/generate-description', authMiddleware, adminMiddleware, generateJobDescription);
 router.post('/admin/jobs', authMiddleware, adminMiddleware, createJob);
 router.get('/admin/jobs/:id', authMiddleware, adminMiddleware, getJob);
 router.patch('/admin/jobs/:id', authMiddleware, adminMiddleware, updateJob);
