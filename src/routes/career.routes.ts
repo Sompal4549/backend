@@ -17,13 +17,16 @@ import {
   startScreening,
 } from '../controllers/career-screening.controller';
 import {
+  addApplicationNote,
   downloadPrivateFile,
   exportApplicationsCsv,
   getApplicationById,
   getFileSignedUrl,
   listApplications,
+  listApplicationsBoard,
   resendApplicationEmails,
   submitApplication,
+  updateApplicationHr,
   updateApplicationStatus,
   uploadPrivateFile,
 } from '../controllers/career-application.controller';
@@ -159,9 +162,13 @@ router.delete('/admin/jobs/:id', authMiddleware, adminMiddleware, deleteJob);
 // Admin Applications
 router.get('/admin/applications/export.csv', authMiddleware, adminMiddleware, exportApplicationsCsv);
 router.get('/admin/applications', authMiddleware, adminMiddleware, listApplications);
-router.get('/admin/applications-board', authMiddleware, adminMiddleware, listApplications);
+// Flat board rows for the admin "Applications & AI Response" screen (NOT the paginated list)
+router.get('/admin/applications-board', authMiddleware, adminMiddleware, listApplicationsBoard);
 router.get('/admin/applications/:id', authMiddleware, adminMiddleware, getApplicationById);
 router.patch('/admin/applications/:id/status', authMiddleware, adminMiddleware, updateApplicationStatus);
+// HR workflow on the Applications & AI Response board
+router.patch('/admin/applications/:id/hr', authMiddleware, adminMiddleware, updateApplicationHr);
+router.post('/admin/applications/:id/notes', authMiddleware, adminMiddleware, addApplicationNote);
 router.post('/admin/applications/:id/resend-email', authMiddleware, adminMiddleware, resendApplicationEmails);
 
 // Admin Files & Signed URLs

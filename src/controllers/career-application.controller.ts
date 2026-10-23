@@ -9,7 +9,11 @@ import { ScreeningModel } from '../models/screening.model';
 import {
   ApplicationStatus,
   CareerApplicationModel,
+  HrStatus,
+  HR_STATUSES,
 } from '../models/career-application.model';
+import { ApplicationEventModel } from '../models/application-event.model';
+import { CareerSettingsModel } from '../models/career-settings.model';
 import { getNextApplicationId } from '../models/career-counter.model';
 import {
   generateSignedUrl,
@@ -17,6 +21,7 @@ import {
   savePrivateFile,
   verifySignedUrlSignature,
 } from '../services/private-upload.service';
+import { sendEmail } from '../services/email.service';
 import {
   sendCandidateConfirmationEmail,
   sendCandidateStatusUpdateEmail,
@@ -559,6 +564,13 @@ export const getApplicationById = asyncHandler(async (req: Request, res: Respons
   const rawStatus = String(raw.status || 'received').toLowerCase();
   const normalizedStatus = rawStatus === 'reviewed' ? 'shortlisted' : rawStatus;
 
+  const events = await ApplicationEventModel.find({
+    applicationId: application.applicationId,
+  })
+    .sort({ createdAt: -1 })
+    .limit(200)
+    .lean();
+
   successResponse(
     res,
     {
@@ -572,6 +584,7 @@ export const getApplicationById = asyncHandler(async (req: Request, res: Respons
       documents: docsWithSignedUrls,
       cvDownloadUrl,
       photoSignedUrl,
+      events,
     },
     'Application details retrieved'
   );
@@ -738,4 +751,392 @@ export const downloadPrivateFile = asyncHandler(async (req: Request, res: Respon
 
   const fileStream = fs.createReadStream(fileDoc.storagePath);
   fileStream.pipe(res);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin "Applications & AI Response" board (ensis-admin applications-ai-response page)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const boardDate = (d?: Date) =>
+  d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '';
+const boardTime = (d?: Date) =>
+  d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }) : '';
+
+const aiResultLabel = (level?: string, score?: number): 'Eligible' | 'Partial Match' | 'Not Eligible' => {
+  if (level === 'eligible') return 'Eligible';
+  if (level === 'partial') return 'Partial Match';
+  if (level === 'not_eligible') return 'Not Eligible';
+  const s = Number(score) || 0;
+  // Same bands as Career Settings defaults (eligible ≥ 70, partial ≥ 50)
+  return s >= 70 ? 'Eligible' : s >= 50 ? 'Partial Match' : 'Not Eligible';
+};
+
+// GET /careers/admin/applications-board
+// One flat row per candidate in the exact shape the admin page's CandidateApplication
+// interface expects (NOT the paginated {items,...} envelope of listApplications).
+export const listApplicationsBoard = asyncHandler(async (_req: Request, res: Response) => {
+  const [applications, careers, screenings] = await Promise.all([
+    CareerApplicationModel.find().sort({ createdAt: -1 }).lean(),
+    CareerModel.find({}, 'title department slug').lean(),
+    // Screenings that never became an application ("CV Uploaded" stage on the board)
+    ScreeningModel.find({ status: 'done' }).sort({ createdAt: -1 }).lean(),
+  ]);
+
+  const jobById = new Map(careers.map((j: any) => [String(j._id), j]));
+  const appliedScreeningIds = new Set(applications.map((a: any) => String(a.screeningId || '')));
+
+  const rows: any[] = applications.map((app: any) => {
+    const profile = app.profile || {};
+    const sr = app.screeningResult || {};
+    const exp = Array.isArray(profile.experience) ? profile.experience : [];
+    const job = jobById.get(String(app.jobId));
+    const score = Math.round(Number(sr.score ?? app.aiScore ?? 0)) || 0;
+    return {
+      id: app.applicationId,
+      source: 'application',
+      name: profile.fullName || app.fullName || 'Unnamed candidate',
+      email: profile.email || app.email || '',
+      phone: profile.phone || app.phone || '',
+      avatar: profile.photoUrl || '',
+      location: profile.currentLocation || app.currentLocation || '',
+      experienceYrs: app.experience || (exp.length ? `${exp.length} role(s)` : ''),
+      currentCompany: exp[0]?.organization || '',
+      currentDesignation: exp[0]?.designation || '',
+      currentCtc: '',
+      expectedCtc: app.details?.expectedCtc || app.expectedCTC || '',
+      noticePeriod: app.details?.noticePeriod || app.noticePeriod || '',
+      willingToRelocate: (app.details?.willingToRelocate ?? app.willingToRelocate === 'Yes') ? 'Yes' : 'No',
+      skills: (Array.isArray(profile.skills) ? profile.skills : []).map((s: any) =>
+        typeof s === 'string' ? s : s?.name || ''
+      ).filter(Boolean),
+      cvUrl: '', // filled in below (needs screening lookup)
+      cvFileName: '',
+      cvFileSize: 0,
+      position: app.jobTitle || job?.title || 'Unknown position',
+      department: job?.department || app.department || '',
+      jobCode: job?.slug || app.jobId || '',
+      jobId: app.jobId || '',
+      aiScore: score,
+      aiResult: aiResultLabel(sr.level, score),
+      aiAnalysisSummary: sr.summary || app.aiSummary || '',
+      strengths: Array.isArray(sr.strengths) ? sr.strengths : [],
+      gaps: Array.isArray(sr.gaps) ? sr.gaps : [],
+      stage: 'Submitted',
+      status: app.status || 'received',
+      hrStatus: HR_STATUSES.includes(app.hrStatus) ? app.hrStatus : 'Not Forwarded',
+      updatedByHrOn: app.hrUpdatedAt
+        ? `${boardDate(app.hrUpdatedAt)}, ${boardTime(app.hrUpdatedAt)}${app.hrUpdatedBy ? ` by ${app.hrUpdatedBy}` : ''}`
+        : '',
+      whyInterested: '',
+      notes: app.notes || '',
+      hrForward: app.hrForward || null,
+      appliedAt: app.createdAt,
+      appliedOn: boardDate(app.createdAt),
+      appliedTime: boardTime(app.createdAt),
+    } as any;
+  });
+
+  // Attach CV signed URLs via the screening each application came from
+  const screeningIds = applications.map((a: any) => String(a.screeningId || '')).filter(Boolean);
+  const screeningsForApps = screeningIds.length
+    ? await ScreeningModel.find({ screeningId: { $in: screeningIds } }).lean()
+    : [];
+  const screeningById = new Map(screeningsForApps.map((s: any) => [String(s.screeningId), s]));
+  applications.forEach((app: any, i: number) => {
+    const sc = screeningById.get(String(app.screeningId || ''));
+    if (sc?.cv?.fileId) {
+      rows[i].cvUrl = generateSignedUrl(sc.cv.fileId, 60 * 24);
+      rows[i].cvFileName = sc.cv.fileName || '';
+      rows[i].cvFileSize = Number(sc.cv.size) || 0;
+    } else if (app.resume) {
+      rows[i].cvUrl = app.resume;
+    }
+  });
+
+  // CV checks that never became an application: newest per candidate+job
+  const seenCv = new Set<string>();
+  for (const sc of screenings as any[]) {
+    if (appliedScreeningIds.has(String(sc.screeningId))) continue;
+    const sr: any = sc.result;
+    const profile = sr?.profile;
+    if (!sr || !profile) continue;
+    const key = `${(profile.email || '').toLowerCase()}|${sc.jobId}`;
+    if (seenCv.has(key)) continue;
+    seenCv.add(key);
+
+    const job = jobById.get(String(sc.jobId));
+    const score = Math.round(Number(sr.score) || 0) || 0;
+    const at: Date = sc.updatedAt || sc.createdAt;
+    rows.push({
+      id: String(sc.screeningId),
+      source: 'cv',
+      name: profile.fullName || 'Unnamed candidate',
+      email: profile.email || '',
+      phone: profile.phone || '',
+      avatar: profile.photoUrl || '',
+      location: profile.currentLocation || '',
+      experienceYrs: '',
+      currentCompany: '',
+      currentDesignation: '',
+      currentCtc: '',
+      expectedCtc: '',
+      noticePeriod: '',
+      willingToRelocate: '',
+      skills: (Array.isArray(profile.skills) ? profile.skills : []).map((s: any) =>
+        typeof s === 'string' ? s : s?.name || ''
+      ).filter(Boolean),
+      cvUrl: sc.cv?.fileId ? generateSignedUrl(sc.cv.fileId, 60 * 24) : '',
+      cvFileName: sc.cv?.fileName || '',
+      cvFileSize: Number(sc.cv?.size) || 0,
+      position: job?.title || 'Unknown position',
+      department: job?.department || '',
+      jobCode: job?.slug || String(sc.jobId || ''),
+      jobId: String(sc.jobId || ''),
+      aiScore: score,
+      aiResult: aiResultLabel(sr.level, score),
+      aiAnalysisSummary: sr.summary || '',
+      strengths: Array.isArray(sr.strengths) ? sr.strengths : [],
+      gaps: Array.isArray(sr.gaps) ? sr.gaps : [],
+      stage: 'CV Uploaded',
+      status: 'CV_UPLOADED',
+      hrStatus: 'Not Forwarded',
+      updatedByHrOn: '',
+      whyInterested: '',
+      notes: '',
+      hrForward: null,
+      appliedAt: at,
+      appliedOn: boardDate(at),
+      appliedTime: boardTime(at),
+    });
+  }
+
+  rows.sort((a, b) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime());
+
+  successResponse(res, rows, 'Applications board loaded');
+});
+
+const findApplicationForAdmin = async (id: string) => {
+  let application = await CareerApplicationModel.findOne({ applicationId: id });
+  if (!application && /^[0-9a-fA-F]{24}$/.test(id)) application = await CareerApplicationModel.findById(id);
+  return application;
+};
+
+const SHAREABLE = [
+  'Application Form Details',
+  'Uploaded CV (Resume)',
+  'AI Analysis Result',
+  'Screening Questions & Answers',
+];
+
+const escHtml = (v: unknown) =>
+  String(v ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string
+);
+
+const buildHrForwardEmail = (application: any, share: string[], note: string, forwardedBy: string) => {
+  const profile = application.profile || {};
+  const sr = application.screeningResult || {};
+  const score = Math.round(Number(sr.score ?? application.aiScore ?? 0)) || 0;
+  const row = (label: string, value: unknown) =>
+    `<tr><td style="padding:4px 10px 4px 0;font-size:11px;color:#64748b;white-space:nowrap;">${escHtml(label)}</td><td style="padding:4px 0;font-size:12px;color:#0f172a;font-weight:600;">${escHtml(value) || '—'}</td></tr>`;
+
+  const sharedRows: string[] = [];
+  if (share.includes('Application Form Details')) {
+    sharedRows.push(
+      row('Application ID', application.applicationId),
+      row('Position', application.jobTitle),
+      row('Name', profile.fullName || application.fullName),
+      row('Email', profile.email || application.email),
+      row('Phone', profile.phone || application.phone),
+      row('Location', profile.currentLocation || application.currentLocation),
+      row('Notice Period', application.details?.noticePeriod || application.noticePeriod),
+      row('Expected CTC', application.details?.expectedCtc || application.expectedCTC),
+      row('Why Interested', application.whyInterested || application.additional?.whyJoin || '')
+    );
+  }
+  if (share.includes('AI Analysis Result')) {
+    sharedRows.push(
+      `<tr><td colspan="2" style="padding:10px 0 2px;font-size:12px;font-weight:700;color:#0f5a3c;">AI Analysis</td></tr>`,
+      row('Match Score', `${score}%`),
+      row('Result', aiResultLabel(sr.level, score)),
+      row('Summary', sr.summary || application.aiSummary || ''),
+      (Array.isArray(sr.strengths) && sr.strengths.length ? row('Strengths', sr.strengths.join('; ')) : ''),
+      (Array.isArray(sr.gaps) && sr.gaps.length ? row('Gaps', sr.gaps.join('; ')) : '')
+    );
+  }
+
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;">
+      <h2 style="color:#0f5a3c;font-size:16px;margin:0 0 4px;">Application Forwarded to HR</h2>
+      <p style="font-size:12px;color:#475569;margin:0 0 12px;">
+        <strong>${escHtml(forwardedBy)}</strong> shared a candidate application with you.
+      </p>
+      <table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;margin-bottom:10px;">${sharedRows.join('')}</table>
+      ${share.includes('Uploaded CV (Resume)') ? `<p style="font-size:12px;color:#0f5a3c;font-weight:600;margin:0 0 8px;">✓ Candidate CV attached to this email.</p>` : ''}
+      ${note ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;font-size:12px;color:#334155;margin:10px 0;"><strong>Note:</strong> ${escHtml(note)}</div>` : ''}
+      <p style="font-size:11px;color:#94a3b8;margin:14px 0 0;">Shared items: ${escHtml(share.join(', '))}</p>
+      <p style="font-size:11px;color:#94a3b8;margin:4px 0 0;">— Talent Acquisition Team, ENSIS</p>
+    </div>`.trim();
+
+  const textBody = [
+    'Application Forwarded to HR',
+    `Application: ${application.applicationId} — ${profile.fullName || application.fullName} (${application.jobTitle})`,
+    `Score: ${score}%`,
+    note ? `Note: ${note}` : '',
+    `Shared: ${share.join(', ')}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return { html, textBody, score };
+};
+
+// PATCH /careers/admin/applications/:id/hr — HR status change and/or "Forward to HR" email
+export const updateApplicationHr = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { hrStatus, note, changedBy, forward } = req.body || {};
+
+  if (!hrStatus || !HR_STATUSES.includes(hrStatus)) {
+    throw new AppError(400, `hrStatus must be one of: ${HR_STATUSES.join(', ')}`);
+  }
+
+  const application = await findApplicationForAdmin(String(id));
+  if (!application) {
+    throw new AppError(404, 'Application not found');
+  }
+
+  const oldHrStatus: HrStatus = application.hrStatus || 'Not Forwarded';
+  application.hrStatus = hrStatus;
+  application.hrUpdatedAt = new Date();
+  application.hrUpdatedBy = String(changedBy || '').trim() || 'Admin';
+
+  // "Forward to HR" form: recipients must be configured HR emails; CV is attached; email sent now.
+  let mail: { to: string[]; share: string[]; note: string } | null = null;
+  if (forward && typeof forward === 'object' && Array.isArray(forward.recipients)) {
+    const settings = await CareerSettingsModel.findOne().lean();
+    const configured = (settings as any)?.hrEmails?.map((e: string) => e.toLowerCase()) || [];
+    const requested = forward.recipients
+      .map((e: unknown) => String(e || '').trim().toLowerCase())
+      .filter(Boolean);
+    const chosen = requested.filter((e: string) => configured.includes(e));
+    if (chosen.length === 0) {
+      throw new AppError(400, 'Choose at least one configured HR recipient (from Career Settings).');
+    }
+    const share = (Array.isArray(forward.share) ? forward.share : [])
+      .map((s: unknown) => String(s || ''))
+      .filter((s: string) => SHAREABLE.includes(s));
+    if (share.length === 0) {
+      throw new AppError(400, 'Choose at least one item to share.');
+    }
+    mail = { to: chosen, share, note: String(forward.note || '').trim() };
+    application.hrForward = {
+      recipients: chosen,
+      share,
+      note: mail.note,
+      forwardedAt: application.hrUpdatedAt,
+      forwardedBy: application.hrUpdatedBy,
+    };
+    if (String(note || '').trim() === '') {
+      application.internalNotes.push({
+        note: `Forwarded to HR (${chosen.join(', ')}). Shared: ${share.join(', ')}${mail.note ? `. Note: ${mail.note}` : ''}`,
+        createdAt: new Date(),
+        author: application.hrUpdatedBy,
+      });
+    }
+  }
+
+  if (String(note || '').trim()) {
+    application.internalNotes.push({
+      note: String(note).trim(),
+      createdAt: new Date(),
+      author: application.hrUpdatedBy,
+    });
+  }
+
+  await application.save();
+
+  await ApplicationEventModel.create({
+    applicationId: application.applicationId,
+    oldStatus: `HR: ${oldHrStatus}`,
+    newStatus: `HR: ${hrStatus}`,
+    changedBy: application.hrUpdatedBy,
+    note: String(note || '').trim() || `HR status changed to ${hrStatus}`,
+  });
+
+  // Send the forward email (with CV attachment when shared) outside the response critical path
+  let email: { sent: boolean; skipped?: boolean; error?: string } | null = null;
+  let recipients: { to: string[]; cc: string[]; bcc: string[] } | null = null;
+  if (mail) {
+    recipients = { to: mail.to, cc: [], bcc: [] };
+    try {
+      const { html, textBody } = buildHrForwardEmail(application, mail.share, mail.note, application.hrUpdatedBy);
+      const attachments: { filename: string; content: Buffer; contentType?: string }[] = [];
+      if (mail.share.includes('Uploaded CV (Resume)') && application.screeningId) {
+        const sc = await ScreeningModel.findOne({ screeningId: application.screeningId }).lean();
+        if (sc?.cv?.fileId) {
+          try {
+            const fileDoc = await getPrivateFile(sc.cv.fileId);
+            if (fs.existsSync(fileDoc.storagePath)) {
+              attachments.push({
+                filename: sc.cv.fileName || fileDoc.fileName || 'resume.pdf',
+                content: fs.readFileSync(fileDoc.storagePath),
+                contentType: fileDoc.mimeType,
+              });
+            }
+          } catch {
+            // CV attach is best-effort; email still goes out without it
+          }
+        }
+      }
+      await sendEmail(
+        mail.to.join(', '),
+        `Application Forwarded: ${application.profile?.fullName || application.fullName || 'Candidate'} — ${application.jobTitle}`,
+        textBody,
+        html,
+        attachments.length ? attachments : undefined
+      );
+      email = { sent: true };
+    } catch (err) {
+      email = { sent: false, error: (err as Error).message };
+    }
+  }
+
+  successResponse(
+    res,
+    {
+      application,
+      email,
+      recipients,
+    },
+    `HR status updated to ${hrStatus}`
+  );
+});
+
+// POST /careers/admin/applications/:id/notes
+export const addApplicationNote = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const note = String(req.body?.note || '').trim();
+  if (!note) {
+    throw new AppError(400, 'Note cannot be empty.');
+  }
+
+  const application = await findApplicationForAdmin(String(id));
+  if (!application) {
+    throw new AppError(404, 'Application not found');
+  }
+
+  const by = String(req.body?.changedBy || '').trim() || 'Admin';
+  application.notes = [application.notes, `[${new Date().toISOString()}] ${by}: ${note}`].filter(Boolean).join('\n');
+  application.internalNotes.push({ note, createdAt: new Date(), author: by });
+  await application.save();
+
+  await ApplicationEventModel.create({
+    applicationId: application.applicationId,
+    oldStatus: application.status,
+    newStatus: application.status,
+    changedBy: by,
+    note,
+  });
+
+  successResponse(res, application, 'Note added');
 });

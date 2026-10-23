@@ -53,6 +53,35 @@ export interface IApplicationInterview {
   instructions?: string;
 }
 
+export type HrStatus =
+  | 'Not Forwarded'
+  | 'Sent to HR'
+  | 'Under Review'
+  | 'Shortlisted'
+  | 'Interview'
+  | 'Selected'
+  | 'On Hold'
+  | 'Rejected';
+
+export const HR_STATUSES: HrStatus[] = [
+  'Not Forwarded',
+  'Sent to HR',
+  'Under Review',
+  'Shortlisted',
+  'Interview',
+  'Selected',
+  'On Hold',
+  'Rejected',
+];
+
+export interface IHrForwardInfo {
+  recipients: string[];
+  share: string[];
+  note?: string;
+  forwardedAt?: Date;
+  forwardedBy?: string;
+}
+
 export interface IStatusHistoryItem {
   status: ApplicationStatus;
   changedAt: Date;
@@ -82,6 +111,12 @@ export interface ICareerApplication extends Document {
   statusHistory: IStatusHistoryItem[];
   internalNotes: IInternalNoteItem[];
   interview?: IApplicationInterview;
+
+  // HR workflow (admin "Applications & AI Response" board)
+  hrStatus: HrStatus;
+  hrUpdatedAt?: Date;
+  hrUpdatedBy?: string;
+  hrForward?: IHrForwardInfo;
 
   // Flattened legacy fields for backward compatibility
   fullName: string;
@@ -151,6 +186,16 @@ const CareerApplicationSchema = new Schema<ICareerApplication>(
       linkOrLocation: String,
       instructions: String,
     },
+
+    hrStatus: {
+      type: String,
+      enum: HR_STATUSES,
+      default: 'Not Forwarded',
+      index: true,
+    },
+    hrUpdatedAt: { type: Date },
+    hrUpdatedBy: { type: String },
+    hrForward: { type: Schema.Types.Mixed },
 
     // Legacy fields
     fullName: { type: String, index: true },
