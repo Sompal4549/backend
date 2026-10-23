@@ -51,6 +51,7 @@ import { dropdownsRouter } from './routes/dropdowns.routes';
 import { settingsRouter } from './routes/settings.routes';
 import { chatbotManagerRouter } from './routes/chatbot-manager.routes';
 import { faqRouter } from './routes/faq.routes';
+import { lazyInfraRouter } from './modules/infrastructure/infra.permissions';
 
 export const createApp = () => {
   const app = express();
@@ -138,6 +139,12 @@ export const createApp = () => {
   );
 
   app.use(compression());
+
+  // Infrastructure collector pushes are mounted before the global 50 MB parser: they carry their own 256 KB cap
+  app.use(
+    ['/api/v1/infrastructure/ingest', '/api/infrastructure/ingest'],
+    lazyInfraRouter(() => import('./modules/infrastructure/infra.ingest.routes'), 'infraIngestRouter')
+  );
 
   // ─── Body Parsers / Cookies ─────────────────────────────────────────────────
   app.use(cookieParser());
@@ -244,7 +251,7 @@ export const createApp = () => {
   });
 
   // ─── Routes (mounted on both /api and /api/v1) ──────────────────────────────
-  const mountRoute = (routePath: string, router: express.Router) => {
+  const mountRoute = (routePath: string, router: express.Router | express.RequestHandler) => {
     app.use(`/api/v1${routePath}`, router);
     app.use(`/api${routePath}`, router);
   };
@@ -290,6 +297,7 @@ export const createApp = () => {
   mountRoute('/dropdowns', dropdownsRouter);
   mountRoute('/settings', settingsRouter);
   mountRoute('/faqs', faqRouter);
+  mountRoute('/infrastructure', lazyInfraRouter(() => import('./modules/infrastructure/infra.routes')));
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });

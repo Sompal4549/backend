@@ -58,7 +58,7 @@ const ICON_FILES: Record<string, [string, number, number]> = {
   badge_star: ['clean_badge_star.png', 115, 115],
   badge_gear: ['clean_badge_gear.png', 132, 132],
   badge_info_blue: ['clean_badge_info_blue.png', 39, 39],
-  badge_headset: ['clean_badge_headset.png', 132, 132],
+  badge_headset: ['clean_badge_headset.jpeg', 45, 46],
   // Section badges — green (candidate email)
   badge_doc_green: ['application_details_document_badge.png', 42, 42],
   badge_chart_green: ['ai_screening_chart_badge.png', 48, 48],

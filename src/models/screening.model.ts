@@ -32,6 +32,8 @@ export interface ICandidateProfile {
   fullName: string;
   email: string;
   phone: string;
+  /** Every distinct number found in the CV, so the OTP step can offer each of them. */
+  phones?: string[];
   dateOfBirth?: string;
   gender?: 'Male' | 'Female' | 'Other';
   currentLocation?: string;
@@ -67,6 +69,9 @@ export interface IScreeningResult {
     partial: number;
   };
   breakdown: IBreakdownItem[];
+  summary?: string;
+  /** Job requirements the candidate meets, shown on the eligibility screen. */
+  requirementsMet?: string[];
   strengths: string[];
   gaps: string[];
   suggestions: string[];

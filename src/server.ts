@@ -5,6 +5,12 @@ import { config, checkEnvironment } from './config/app.config';
 const startServer = async (): Promise<void> => {
   checkEnvironment();
   await connectDatabase();
+  if (process.env.INFRASTRUCTURE_ENABLED === 'true') {
+    const { initInfrastructure } = await import('./modules/infrastructure/infra.init');
+    await initInfrastructure().catch((err) => {
+      console.warn('Infrastructure init warning:', err);
+    });
+  }
   const app = createApp();
 
   const server = app.listen(config.port, () => {

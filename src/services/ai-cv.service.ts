@@ -8,7 +8,6 @@ import {
   ScreeningModel,
   StepKey,
 } from '../models/screening.model';
-import { CareerModel } from '../models/career.model';
 
 const BREAKDOWN_CONFIG: Record<BreakdownKey, { label: string; sublabel: string; defaultScore: number }> = {
   education: {
@@ -118,6 +117,7 @@ export function extractContactHeuristics(rawText: string, fileName: string = '')
   fullName: string;
   email: string | null;
   phone: string | null;
+  phones: string[];
   linkedin: string | null;
 } {
   // Extract email
@@ -130,18 +130,22 @@ export function extractContactHeuristics(rawText: string, fileName: string = '')
     if (valid) email = valid.toLowerCase();
   }
 
-  // Extract phone
-  let phone: string | null = null;
+  // Extract phones (up to 4 distinct numbers, deduped on the last 10 digits)
+  const phones: string[] = [];
   const phoneMatches = rawText.match(/(?<!\d)(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,5}\)?[\s.-]?\d{3,5}[\s.-]?\d{3,5}(?!\d)/g);
   if (phoneMatches && phoneMatches.length > 0) {
+    const seen = new Set<string>();
     for (const match of phoneMatches) {
       const digits = match.replace(/\D/g, '');
-      if (digits.length >= 10 && digits.length <= 13) {
-        phone = match.trim();
-        break;
-      }
+      if (digits.length < 10 || digits.length > 13) continue;
+      const key = digits.slice(-10);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      phones.push(match.trim());
+      if (phones.length >= 4) break;
     }
   }
+  const phone = phones[0] || null;
 
   // Extract LinkedIn
   let linkedin: string | null = null;
@@ -155,7 +159,7 @@ export function extractContactHeuristics(rawText: string, fileName: string = '')
 
   const { fullName } = formatNameWithSpaces(fileName.replace(/\.[^/.]+$/, ''));
 
-  return { fullName, email, phone, linkedin };
+  return { fullName, email, phone, phones, linkedin };
 }
 
 async function callOpenAiForCvEvaluation(prompt: string): Promise<any> {
@@ -261,6 +265,8 @@ export async function evaluateCvWithAI(
   candidateProfile: ICandidateProfile;
   score: number;
   breakdown: Record<BreakdownKey, number>;
+  summary: string;
+  requirementsMet: string[];
   strengths: string[];
   gaps: string[];
   suggestions: string[];
@@ -303,6 +309,8 @@ Instructions:
    - portfolio
    - location
 4. Provide:
+   - summary: one sentence on the overall fit for this role
+   - requirementsMet: up to 5 short points, each a job requirement the candidate clearly meets
    - strengths: 3-5 bullet points ("You Meet the Key Requirements")
    - gaps: 2-4 bullet points ("Key Gaps in Your Profile")
    - suggestions: 2-4 actionable suggestions ("Key Suggestions to Improve Your Match")
@@ -349,6 +357,10 @@ Return ONLY valid JSON matching this exact structure:
     "portfolio": 70,
     "location": 90
   },
+  "summary": "Solid fit with relevant domain experience",
+  "requirementsMet": [
+    "Relevant degree in the required field"
+  ],
   "strengths": [
     "Relevant background matching core job requirements",
     "Strong technical and coordination foundation"
@@ -451,10 +463,16 @@ Return ONLY valid JSON matching this exact structure:
   const rawName = real(parsed.fullName) || heuristics.fullName;
   const { fullName } = formatNameWithSpaces(rawName);
 
+  const phone = realPhone(parsed.phone) || heuristics.phone || '';
+  const phones = [phone, ...heuristics.phones].filter(
+    (p, i, all) => p && all.findIndex((q) => q.replace(/\D/g, '').slice(-10) === p.replace(/\D/g, '').slice(-10)) === i
+  );
+
   const candidateProfile: ICandidateProfile = {
     fullName,
     email: realEmail(parsed.email) || heuristics.email || '',
-    phone: realPhone(parsed.phone) || heuristics.phone || '',
+    phone,
+    phones,
     dateOfBirth: real(parsed.dateOfBirth),
     gender: ['Male', 'Female', 'Other'].includes(parsed.gender) ? parsed.gender : undefined,
     currentLocation: real(parsed.currentLocation),
@@ -537,10 +555,18 @@ Return ONLY valid JSON matching this exact structure:
     ? parsed.suggestions.map((s: any) => String(s))
     : ['Detail key project milestones and tangible impact metrics on your resume'];
 
+  const summary = real(parsed.summary) || 'Evaluation completed successfully.';
+
+  const requirementsMet = Array.isArray(parsed.requirementsMet) && parsed.requirementsMet.length > 0
+    ? parsed.requirementsMet.map((r: any) => String(r).trim()).filter(Boolean).slice(0, 5)
+    : strengths.slice(0, 5);
+
   return {
     candidateProfile,
     score: rawScore,
     breakdown,
+    summary,
+    requirementsMet,
     strengths,
     gaps,
     suggestions,
@@ -551,7 +577,7 @@ export const evaluateCvWithGemini = evaluateCvWithAI;
 
 export async function processScreeningAsync(
   screeningId: string,
-  jobId: string,
+  job: any,
   buffer: Buffer,
   fileName: string
 ): Promise<void> {
@@ -606,12 +632,6 @@ export async function processScreeningAsync(
     // Step 2: Match Skills
     await updateProgress(35, 'match_skills', ['read_cv']);
 
-    // Fetch Job
-    const job = await CareerModel.findById(jobId).lean();
-    if (!job) {
-      throw new Error('Target job is not available.');
-    }
-
     // Step 3-5: Evaluate with Gemini
     await updateProgress(65, 'check_experience', ['read_cv', 'match_skills']);
     const aiResult = await evaluateCvWithGemini(job, cvText, fileName);
@@ -660,6 +680,8 @@ export async function processScreeningAsync(
         partial: thresholdPartial,
       },
       breakdown: breakdownItems,
+      summary: aiResult.summary,
+      requirementsMet: aiResult.requirementsMet,
       strengths: aiResult.strengths,
       gaps: aiResult.gaps,
       suggestions: aiResult.suggestions,
