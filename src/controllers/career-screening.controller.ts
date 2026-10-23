@@ -108,7 +108,7 @@ export const startScreening = asyncHandler(async (req: Request, res: Response) =
 
   // Start processing in the background
   setImmediate(() => {
-    processScreeningAsync(screeningId, String(job._id), file.buffer, file.originalname).catch(
+    processScreeningAsync(screeningId, job, file.buffer, file.originalname).catch(
       (err) => {
         console.error('[Screening] Background processing unhandled error:', err);
       }
