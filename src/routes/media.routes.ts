@@ -19,6 +19,9 @@ mediaRouter.post('/', authMiddleware, uploadHandler('files'), uploadMedia);
 
 // Gallery listing
 mediaRouter.get('/', authMiddleware, adminMiddleware, listMedia);
+mediaRouter.get('/admin', authMiddleware, adminMiddleware, listMedia);
+mediaRouter.post('/admin', authMiddleware, adminMiddleware, uploadHandler('file'), uploadSingleMedia);
 
 // Delete media
+mediaRouter.delete('/admin/:id', authMiddleware, adminMiddleware, deleteMediaById);
 mediaRouter.delete('/:id', authMiddleware, adminMiddleware, deleteMediaById);

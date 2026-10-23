@@ -207,56 +207,6 @@ async function callOpenAiForCvEvaluation(prompt: string): Promise<any> {
   return null;
 }
 
-async function callGeminiForCvEvaluation(prompt: string): Promise<any> {
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY)?.trim();
-  if (!apiKey) return null;
-
-  const configuredModel = process.env.GEMINI_MODEL?.trim();
-  const candidateModels = [
-    ...(configuredModel ? [configuredModel] : []),
-    'gemini-2.5-flash',
-    'gemini-flash-latest',
-    'gemini-flash-lite-latest',
-    'gemini-1.5-flash',
-  ];
-
-  for (const model of candidateModels) {
-    try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 2048,
-            responseMimeType: 'application/json',
-          },
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-
-      if (res.ok) {
-        const data: any = await res.json();
-        const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (responseText) {
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
-          }
-        }
-      } else {
-        const errText = await res.text();
-        console.warn(`[AI CV] Gemini (${model}) HTTP ${res.status}:`, errText);
-      }
-    } catch (err) {
-      console.warn(`[AI CV] Gemini model ${model} error:`, (err as Error).message);
-    }
-  }
-  return null;
-}
-
 export async function evaluateCvWithAI(
   job: any,
   cvText: string,
@@ -373,53 +323,15 @@ Return ONLY valid JSON matching this exact structure:
   ]
 }`;
 
-  const configuredProvider = (process.env.CV_AI_PROVIDER || process.env.AI_PROVIDER || 'auto').toLowerCase().trim();
-
-  let parsed: any = null;
-  let activeProviderName = '';
-
-  if (configuredProvider === 'openai') {
-    parsed = await callOpenAiForCvEvaluation(prompt);
-    if (parsed) {
-      activeProviderName = `OpenAI (${process.env.OPENAI_MODEL || 'gpt-4o-mini'})`;
-    } else {
-      console.warn('[AI CV] OpenAI evaluation failed or returned empty; attempting fallback to Gemini...');
-      parsed = await callGeminiForCvEvaluation(prompt);
-      if (parsed) activeProviderName = `Gemini (fallback)`;
-    }
-  } else if (configuredProvider === 'gemini') {
-    parsed = await callGeminiForCvEvaluation(prompt);
-    if (parsed) {
-      activeProviderName = `Gemini (${process.env.GEMINI_MODEL || 'gemini-2.5-flash'})`;
-    } else {
-      console.warn('[AI CV] Gemini evaluation failed or returned empty; attempting fallback to OpenAI...');
-      parsed = await callOpenAiForCvEvaluation(prompt);
-      if (parsed) activeProviderName = `OpenAI (fallback)`;
-    }
-  } else {
-    // 'auto' mode: prefer OpenAI if key is present, otherwise Gemini
-    if (process.env.OPENAI_API_KEY) {
-      parsed = await callOpenAiForCvEvaluation(prompt);
-      if (parsed) activeProviderName = `OpenAI (${process.env.OPENAI_MODEL || 'gpt-4o-mini'})`;
-    }
-    if (!parsed && (process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY)) {
-      parsed = await callGeminiForCvEvaluation(prompt);
-      if (parsed) activeProviderName = `Gemini (${process.env.GEMINI_MODEL || 'gemini-2.5-flash'})`;
-    }
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    throw new Error('OPENAI_API_KEY is not configured in backend/.env.');
   }
 
-  if (activeProviderName) {
-    console.log(`[AI CV] Evaluated CV using AI provider: ${activeProviderName}`);
-  }
-
+  const parsed: any = await callOpenAiForCvEvaluation(prompt);
   if (!parsed) {
-    const hasOpenAi = Boolean(process.env.OPENAI_API_KEY);
-    const hasGemini = Boolean(process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY);
-    if (!hasOpenAi && !hasGemini) {
-      throw new Error('Neither OPENAI_API_KEY nor GEMINI_API_KEY is configured in backend/.env.');
-    }
-    throw new Error(`AI screening evaluation failed with provider "${configuredProvider}". Please check API key status, network, and quota.`);
+    throw new Error('AI screening evaluation failed. Please check the OpenAI API key status, network, and quota.');
   }
+  console.log(`[AI CV] Evaluated CV using OpenAI (${process.env.OPENAI_MODEL || 'gpt-4o-mini'})`);
 
   // A reply identical to the example JSON above means the model had nothing real to evaluate
   const b = parsed.breakdown || {};
@@ -573,7 +485,6 @@ Return ONLY valid JSON matching this exact structure:
   };
 }
 
-export const evaluateCvWithGemini = evaluateCvWithAI;
 
 export async function processScreeningAsync(
   screeningId: string,
@@ -632,9 +543,9 @@ export async function processScreeningAsync(
     // Step 2: Match Skills
     await updateProgress(35, 'match_skills', ['read_cv']);
 
-    // Step 3-5: Evaluate with Gemini
+    // Step 3-5: Evaluate with OpenAI
     await updateProgress(65, 'check_experience', ['read_cv', 'match_skills']);
-    const aiResult = await evaluateCvWithGemini(job, cvText, fileName);
+    const aiResult = await evaluateCvWithAI(job, cvText, fileName);
 
     // Step 6: Calculate Score
     await updateProgress(90, 'calculate_score', [
@@ -737,7 +648,7 @@ export async function processScreeningAsync(
 
 /**
  * Generates structured Job Description (The Opportunity, Key Responsibilities,
- * Who Can Apply, Skills, KRAs, KPIs) using OpenAI / Gemini with smart domain fallback.
+ * Who Can Apply, Skills, KRAs, KPIs) using OpenAI with smart domain fallback.
  */
 export async function generateJobDescriptionWithAI(params: {
   title: string;
@@ -805,9 +716,6 @@ Respond with ONLY valid JSON:
   try {
     if (process.env.OPENAI_API_KEY) {
       parsed = await callOpenAiForCvEvaluation(prompt);
-    }
-    if (!parsed && (process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY)) {
-      parsed = await callGeminiForCvEvaluation(prompt);
     }
   } catch (err) {
     console.warn('[AI Job Gen] LLM call failed, switching to intelligent fallback:', (err as Error).message);

@@ -5,6 +5,7 @@ import * as careerController from '../controllers/career.controller';
 import {
   createJob,
   deleteJob,
+  exportJobDocument,
   generateJobDescription,
   getJob,
   listJobs,
@@ -16,13 +17,16 @@ import {
   startScreening,
 } from '../controllers/career-screening.controller';
 import {
+  addApplicationNote,
   downloadPrivateFile,
   exportApplicationsCsv,
   getApplicationById,
   getFileSignedUrl,
   listApplications,
+  listApplicationsBoard,
   resendApplicationEmails,
   submitApplication,
+  updateApplicationHr,
   updateApplicationStatus,
   uploadPrivateFile,
 } from '../controllers/career-application.controller';
@@ -33,6 +37,13 @@ import {
   updateAdminSettings,
   updateResultMessages,
 } from '../controllers/career-settings.controller';
+import {
+  createCareerOption,
+  deleteCareerOption,
+  getAdminCareerOptions,
+  getPublicCareerOptions,
+  updateCareerOption,
+} from '../controllers/career-option.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
 
@@ -68,6 +79,9 @@ router.get('/', careerController.getCareers);
 
 // Public Settings & Contact details
 router.get('/settings', getPublicSettings);
+
+// Public application-form choices (Notice / Joining Period, Expected CTC)
+router.get('/options', getPublicCareerOptions);
 
 // Private Candidate Uploads (Contract §4.1)
 router.post('/uploads', upload.single('file'), uploadPrivateFile);
@@ -140,6 +154,7 @@ router.post('/:jobId/screenings', screeningLimiter, upload.single('cv'), startSc
 router.get('/admin/jobs', authMiddleware, adminMiddleware, listJobs);
 router.post('/admin/jobs/generate-description', authMiddleware, adminMiddleware, generateJobDescription);
 router.post('/admin/jobs', authMiddleware, adminMiddleware, createJob);
+router.get('/admin/jobs/:id/export', authMiddleware, adminMiddleware, exportJobDocument);
 router.get('/admin/jobs/:id', authMiddleware, adminMiddleware, getJob);
 router.patch('/admin/jobs/:id', authMiddleware, adminMiddleware, updateJob);
 router.delete('/admin/jobs/:id', authMiddleware, adminMiddleware, deleteJob);
@@ -147,9 +162,13 @@ router.delete('/admin/jobs/:id', authMiddleware, adminMiddleware, deleteJob);
 // Admin Applications
 router.get('/admin/applications/export.csv', authMiddleware, adminMiddleware, exportApplicationsCsv);
 router.get('/admin/applications', authMiddleware, adminMiddleware, listApplications);
-router.get('/admin/applications-board', authMiddleware, adminMiddleware, listApplications);
+// Flat board rows for the admin "Applications & AI Response" screen (NOT the paginated list)
+router.get('/admin/applications-board', authMiddleware, adminMiddleware, listApplicationsBoard);
 router.get('/admin/applications/:id', authMiddleware, adminMiddleware, getApplicationById);
 router.patch('/admin/applications/:id/status', authMiddleware, adminMiddleware, updateApplicationStatus);
+// HR workflow on the Applications & AI Response board
+router.patch('/admin/applications/:id/hr', authMiddleware, adminMiddleware, updateApplicationHr);
+router.post('/admin/applications/:id/notes', authMiddleware, adminMiddleware, addApplicationNote);
 router.post('/admin/applications/:id/resend-email', authMiddleware, adminMiddleware, resendApplicationEmails);
 
 // Admin Files & Signed URLs
@@ -159,6 +178,12 @@ router.get('/admin/files/:fileId/download', downloadPrivateFile);
 // Admin Career Settings
 router.get('/admin/settings', authMiddleware, adminMiddleware, getAdminSettings);
 router.put('/admin/settings', authMiddleware, adminMiddleware, updateAdminSettings);
+
+// Admin application-form choices (Add by Admin → Dropdowns)
+router.get('/admin/options', authMiddleware, adminMiddleware, getAdminCareerOptions);
+router.post('/admin/options', authMiddleware, adminMiddleware, createCareerOption);
+router.patch('/admin/options/:id', authMiddleware, adminMiddleware, updateCareerOption);
+router.delete('/admin/options/:id', authMiddleware, adminMiddleware, deleteCareerOption);
 
 // Backward compatibility for result messages tab
 router.get('/admin/result-messages', authMiddleware, adminMiddleware, getResultMessages);

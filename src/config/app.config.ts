@@ -87,8 +87,6 @@ export const config = {
   cloudinaryCloudName: getString('CLOUDINARY_CLOUD_NAME'),
   cloudinaryApiKey: getString('CLOUDINARY_API_KEY'),
   cloudinaryApiSecret: getString('CLOUDINARY_API_SECRET'),
-  // The fixed test OTP for OTP_BYPASS_NUMBERS works only outside production unless this is "true"
-  otpBypassInProduction: getBoolean('OTP_BYPASS_IN_PRODUCTION', false),
 };
 
 /**
@@ -104,7 +102,6 @@ export const checkEnvironment = (): void => {
     if (!process.env.MONGO_URI_MAIN) fatal.push('MONGO_URI_MAIN is not set.');
     if (!process.env.JWT_REFRESH_SECRET) warnings.push('JWT_REFRESH_SECRET is not set — a secret derived from JWT_ACCESS_SECRET is used.');
     if (!config.cookieSecure) warnings.push('COOKIE_SECURE=false in production — login cookies are sent without the Secure flag.');
-    if (process.env.OTP_BYPASS_NUMBERS && config.otpBypassInProduction) warnings.push('OTP_BYPASS_IN_PRODUCTION=true — the listed test numbers can log in with a fixed OTP.');
   }
   if (!config.razorpayKeyId || !config.razorpayKeySecret) warnings.push('Razorpay keys missing — online payments are disabled.');
   if (!config.razorpayWebhookSecret) warnings.push('RAZORPAY_WEBHOOK_SECRET missing — Razorpay webhooks will be rejected (orders paid but closed tab stay pending).');

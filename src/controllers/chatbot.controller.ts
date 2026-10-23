@@ -146,7 +146,6 @@ export async function generateBotReply(
     : '';
   const dynamicSystemPrompt = `${ENSIS_SYSTEM_PROMPT}${knowledge}${nameInstruction}${langInstruction}`;
 
-  const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
 
   if (openaiKey) {
@@ -180,41 +179,7 @@ export async function generateBotReply(
         return { reply: limitWords(data.choices[0].message.content), provider: 'openai' };
       }
     } catch {
-      // Fall through to Gemini
-    }
-  }
-
-  if (geminiKey) {
-    try {
-      const contents: any[] = [];
-      for (const item of history.slice(-10)) {
-        contents.push({
-          role: item.role === 'user' ? 'user' : 'model',
-          parts: [{ text: String(item.content || '') }],
-        });
-      }
-      contents.push({ role: 'user', parts: [{ text: userMessage }] });
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: dynamicSystemPrompt }] },
-            contents,
-            generationConfig: { temperature: 0.4, maxOutputTokens: 500 },
-          }),
-          signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-        }
-      );
-
-      const data: any = await response.json();
-      if (response.ok && data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-        return { reply: limitWords(data.candidates[0].content.parts[0].text), provider: 'gemini' };
-      }
-    } catch {
-      // Fall through to fallback
+      // Fall through to the fallback reply
     }
   }
 

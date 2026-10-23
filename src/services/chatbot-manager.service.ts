@@ -61,8 +61,8 @@ export const getManagerService = async () => {
       settings: changedCount(draft.settings, live.settings),
     },
     ai: {
-      configured: !!(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY),
-      model: process.env.OPENAI_API_KEY ? 'gpt-4o-mini' : process.env.GEMINI_API_KEY ? 'gemini-flash-lite-latest' : '',
+      configured: !!process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_API_KEY ? 'gpt-4o-mini' : '',
     },
   };
 };

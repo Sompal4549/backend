@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import {
   adminLogin,
-  adminLoginDev,
   adminLogout,
   adminForgotPassword,
   adminResetPassword,
@@ -35,16 +34,6 @@ adminRouter.post(
   ],
   validateRequest,
   adminLogin
-);
-
-// Development endpoint - no OTP required
-adminRouter.post(
-  '/login/dev',
-  [
-    body('phone').notEmpty().isMobilePhone('any').withMessage('Valid phone is required')
-  ],
-  validateRequest,
-  adminLoginDev
 );
 
 adminRouter.post(

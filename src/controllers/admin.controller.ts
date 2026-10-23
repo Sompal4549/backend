@@ -56,16 +56,8 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
     }
 
     const cleanCode = String(effectiveCode).trim().replace(/\s+/g, '');
-    const bypassOtp = (process.env.OTP_BYPASS_OTP || '7678').trim();
-    // Master codes are for local development only; production needs the real WhatsApp OTP
-    const isBypass =
-      process.env.NODE_ENV !== 'production' &&
-      (cleanCode === '7678' || cleanCode === '767822' || cleanCode === '123456' || cleanCode === bypassOtp);
-
-    if (!isBypass) {
-      const normalizedPhone = user.phone ? normalizePhone(user.phone) : '';
-      await verifyWhatsAppOtp(normalizedPhone, cleanCode, 'admin-login');
-    }
+    const normalizedPhone = user.phone ? normalizePhone(user.phone) : '';
+    await verifyWhatsAppOtp(normalizedPhone, cleanCode, 'admin-login');
   } else if (password) {
     // ─── Password check ───
     const normalizedId = normalizeIdentifier(effectiveId || '').trim();
@@ -111,16 +103,8 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
 
     // If code is provided with password:
     const cleanCode = String(effectiveCode).trim().replace(/\s+/g, '');
-    const bypassOtp = (process.env.OTP_BYPASS_OTP || '7678').trim();
-    // Master codes are for local development only; production needs the real WhatsApp OTP
-    const isBypass =
-      process.env.NODE_ENV !== 'production' &&
-      (cleanCode === '7678' || cleanCode === '767822' || cleanCode === '123456' || cleanCode === bypassOtp);
-
-    if (!isBypass) {
-      const normalizedPhone = user.phone ? normalizePhone(user.phone) : '';
-      await verifyWhatsAppOtp(normalizedPhone, cleanCode, 'admin-login');
-    }
+    const normalizedPhone = user.phone ? normalizePhone(user.phone) : '';
+    await verifyWhatsAppOtp(normalizedPhone, cleanCode, 'admin-login');
   } else if (otp) {
     // ─── Direct OTP login ───
     if (!effectiveId || !otp) {
@@ -160,45 +144,6 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
 
   setRefreshTokenCookie(res, refreshToken);
   successResponse(res, { accessToken, refreshToken, user: sanitizedUser }, 'Admin login successful');
-});
-
-// Development endpoint - bypass OTP for testing
-export const adminLoginDev = asyncHandler(async (req: Request, res: Response) => {
-  if (config.env !== 'development') {
-    throw new AppError(403, 'Dev endpoint only available in development mode');
-  }
-
-  const { phone } = req.body;
-  if (!phone) {
-    throw new AppError(400, 'Phone is required');
-  }
-
-  const normalizedPhone = normalizePhone(phone);
-  const last10 = normalizedPhone.slice(-10);
-  const phoneRegex = new RegExp(`${last10}$`);
-
-  const user = await UserModel.findOne({
-    phone: { $regex: phoneRegex },
-    role: { $in: [ROLE.ADMIN, ROLE.SUPERADMIN] },
-  });
-
-  if (!user) {
-    throw new AppError(404, 'Admin user not found with this phone number');
-  }
-
-  const userIdStr = user._id.toString();
-  const accessToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtAccessSecret, {
-    expiresIn: config.accessTokenExpires as jwt.SignOptions['expiresIn'],
-  });
-  const refreshToken = jwt.sign({ userId: userIdStr, role: user.role }, config.jwtRefreshSecret, {
-    expiresIn: config.refreshTokenExpires as jwt.SignOptions['expiresIn'],
-  });
-
-  const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-  await updateUserRefreshToken(userIdStr, hashedRefreshToken);
-
-  setRefreshTokenCookie(res, refreshToken);
-  successResponse(res, { accessToken, refreshToken, user }, 'Admin login successful (dev mode)');
 });
 
 export const deleteUserByAdmin = asyncHandler(async (req: Request, res: Response) => {
