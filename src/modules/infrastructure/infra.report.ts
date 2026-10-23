@@ -334,8 +334,8 @@ async function gather(from: Date, to: Date, period: ReportPeriod, canBilling: bo
 /* ------------------------------------------------------------------- AI */
 
 async function narrate(facts: ReportFacts, findings: Finding[]): Promise<{ narrative: Narrative | null; status: "ok" | "skipped" | "failed"; provider: string | null; model: string | null; error: string | null }> {
-  const providers = (["openai", "gemini"] as ProviderId[]).filter((p) => providerKey(p));
-  if (!providers.length) return { narrative: null, status: "skipped", provider: null, model: null, error: "No AI provider key is configured on the server." };
+  const providers = (["openai"] as ProviderId[]).filter((p) => providerKey(p));
+  if (!providers.length) return { narrative: null, status: "skipped", provider: null, model: null, error: "OPENAI_API_KEY is not configured on the server." };
 
   // The model sees a trimmed copy: no chart series, no identifiers it does not need, bounded lists.
   const slim = {
@@ -366,7 +366,7 @@ async function narrate(facts: ReportFacts, findings: Finding[]): Promise<{ narra
   const user = `Write the report narrative for this data:\n${JSON.stringify(slim)}`;
 
   const errors: string[] = [];
-  const name = (p: ProviderId) => (p === "openai" ? "OpenAI" : "Gemini");
+  const name = (_p: ProviderId) => "OpenAI";
   for (const provider of providers) {
     const res = await callProvider(provider, { system, user, maxOutputTokens: 3500 });
     if (!res.ok) {

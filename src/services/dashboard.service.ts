@@ -9,6 +9,18 @@ import { ComponentContentModel } from '../models/component-content.model';
 import { NavigationModel } from '../models/navigation.model';
 import { config } from '../config/app.config';
 import { escapeRegex } from '../utils/escape-regex';
+import { growthPercent, AnalyticsSummary, PageSpeedRaw, SearchConsoleSummary } from './google-api.service';
+import {
+  analyticsReadiness,
+  getAnalyticsSummary,
+  getPageSpeedReport,
+  getSearchConsoleSummary,
+  pageSpeedReadiness,
+  publicSiteUrl,
+  resolveIntegrations,
+  searchConsoleReadiness,
+  ResolvedIntegrations,
+} from './integration-settings.service';
 
 type SourceStatus = 'connected' | 'not_connected' | 'error';
 
@@ -16,27 +28,46 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
 
-const percentChange = (current: number, previous: number): number | null => {
-  if (previous <= 0) return null;
-  return Math.round(((current - previous) / previous) * 1000) / 100;
+const percentChange = growthPercent;
+
+const errorText = (error: unknown) => (error instanceof Error ? error.message : 'Unknown error');
+
+/** Google Analytics (GA4) source: real data when configured, otherwise not_connected / error — never invented. */
+const buildAnalyticsSource = async (creds: ResolvedIntegrations): Promise<DashboardSource<AnalyticsSummary>> => {
+  const readiness = analyticsReadiness(creds);
+  if (!readiness.configured) {
+    return sourceOf<AnalyticsSummary>(readiness.isError ? 'error' : 'not_connected', null, readiness.reason);
+  }
+  try {
+    return sourceOf('connected', await getAnalyticsSummary(creds));
+  } catch (error) {
+    return sourceOf<AnalyticsSummary>('error', null, `Google Analytics: ${errorText(error)}`);
+  }
 };
 
-const unavailableSource = () => ({
-  status: 'not_connected' as SourceStatus,
-  updatedAt: new Date().toISOString(),
-  data: null,
-});
+/** Search Console source: real data when configured, otherwise not_connected / error — never invented. */
+const buildSearchConsoleSource = async (creds: ResolvedIntegrations): Promise<DashboardSource<SearchConsoleSummary>> => {
+  const readiness = searchConsoleReadiness(creds);
+  if (!readiness.configured) {
+    return sourceOf<SearchConsoleSummary>(readiness.isError ? 'error' : 'not_connected', null, readiness.reason);
+  }
+  try {
+    return sourceOf('connected', await getSearchConsoleSummary(creds));
+  } catch (error) {
+    return sourceOf<SearchConsoleSummary>('error', null, `Search Console: ${errorText(error)}`);
+  }
+};
 
 /**
  * Live dashboard overview for the admin panel.
- * Shape mirrors ensis-admin's `LiveDashboardOverview` (src/lib/dashboardApi.ts):
- * only `sources.internal` is fed from the CMS database — the remaining sources
- * (analytics / search console / page speed / coverage / site status) are
- * reported as `not_connected` with `data: null` so the panel falls back to its
- * cached values instead of rendering empty blocks.
+ * `internal` and `siteStatus` come from the CMS database and live server checks; `indexCoverage`
+ * is derived from CMS robots settings (not Google data). `analytics`, `searchConsole` and the
+ * lab metrics of `pageSpeed` come from Google APIs configured in Settings → Integrations and
+ * are reported as `not_connected` / `error` (with a message) when unavailable.
  */
 export const buildLiveDashboardOverview = async () => {
   const now = new Date();
+  const creds = await resolveIntegrations();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const [
@@ -52,6 +83,15 @@ export const buildLiveDashboardOverview = async () => {
     enquiriesPrev30,
     recentEnquiries,
     cityBreakdown,
+    actionQuotation,
+    actionTurnkey,
+    actionConsultancy,
+    actionSupport,
+    pageSpeed,
+    indexCoverage,
+    siteStatus,
+    analytics,
+    searchConsole,
   ] = await Promise.all([
     PageModel.countDocuments(),
     BlogModel.countDocuments(),
@@ -70,6 +110,39 @@ export const buildLiveDashboardOverview = async () => {
       { $limit: 5 },
       { $project: { _id: 0, city: '$_id', count: 1 } },
     ]),
+    EnquiryModel.countDocuments({
+      status: { $in: ['pending', 'new'] },
+      $or: [
+        { projectType: { $regex: 'quot|price|cost|rate|order', $options: 'i' } },
+        { message: { $regex: 'quot|price|cost|rate|order', $options: 'i' } },
+      ],
+    }),
+    EnquiryModel.countDocuments({
+      status: { $in: ['pending', 'new'] },
+      $or: [
+        { projectType: { $regex: 'turnkey|setup|clinic|centre|center|resort|layout', $options: 'i' } },
+        { message: { $regex: 'turnkey|setup|clinic|centre|center|resort|layout', $options: 'i' } },
+      ],
+    }),
+    EnquiryModel.countDocuments({
+      status: { $in: ['pending', 'new'] },
+      $or: [
+        { projectType: { $regex: 'consult|nabh|training|sop', $options: 'i' } },
+        { message: { $regex: 'consult|nabh|training|sop', $options: 'i' } },
+      ],
+    }),
+    EnquiryModel.countDocuments({
+      status: { $in: ['pending', 'new'] },
+      $or: [
+        { projectType: { $regex: 'warrant|repair|service|install|support', $options: 'i' } },
+        { message: { $regex: 'warrant|repair|service|install|support', $options: 'i' } },
+      ],
+    }),
+    buildPageSpeedSource(creds),
+    buildIndexCoverageSource(),
+    buildSiteStatusSource(),
+    buildAnalyticsSource(creds),
+    buildSearchConsoleSource(creds),
   ]);
 
   const recentSubmissions = recentEnquiries.map((enquiry) => ({
@@ -103,13 +176,19 @@ export const buildLiveDashboardOverview = async () => {
           },
           recentSubmissions,
           topLocations,
+          actionRequired: {
+            exhibitor: actionQuotation,
+            buyer: actionTurnkey,
+            sponsor: actionConsultancy,
+            visitor: actionSupport,
+          },
         },
       },
-      analytics: unavailableSource(),
-      searchConsole: unavailableSource(),
-      pageSpeed: unavailableSource(),
-      indexCoverage: unavailableSource(),
-      siteStatus: unavailableSource(),
+      analytics,
+      searchConsole,
+      pageSpeed,
+      indexCoverage,
+      siteStatus,
     },
   };
 };
@@ -218,17 +297,21 @@ export const listEnquiries = async (options: {
  * ------------------------------------------------------------------------- */
 
 export type DashboardSource<T> = {
-  status: 'connected';
+  status: SourceStatus;
   updatedAt: string;
-  data: T;
+  message?: string;
+  data: T | null;
 };
 
 type SeoCheckStatus = 'good' | 'needs_work' | 'not_checked';
 
 export type PageSpeedData = {
   strategy: 'mobile' | 'desktop';
+  /** true only when the lab metrics below come from a real PageSpeed Insights run */
   lighthouseAvailable: boolean;
-  performanceScore: number;
+  url: string | null;
+  performanceScore: number | null;
+  /** CMS-derived SEO score (see buildSeoChecks) */
   seoScore: number;
   lcp: number | null;
   inp: number | null;
@@ -239,13 +322,10 @@ export type PageSpeedData = {
   seoChecks?: Array<{ key: string; label: string; status: SeoCheckStatus }>;
 };
 
+/** Derived from the CMS robots directive per page — this is NOT Google index data. */
 export type IndexCoverageData = {
-  status: 'good' | 'needs_attention' | 'critical';
-  totalSubmitted: number;
-  indexedPages: number;
-  crawlErrors: number;
-  sitemapStatus: 'submitted' | 'processing' | 'failed';
-  lastCrawl: string;
+  source: 'cms';
+  status: 'good' | 'needs_attention';
   total: number;
   indexed: number;
   notIndexed: number;
@@ -267,11 +347,14 @@ export type SiteStatusData = {
   nodeVersion: string;
 };
 
-const connectedSource = <T>(data: T): DashboardSource<T> => ({
-  status: 'connected',
+const sourceOf = <T>(status: SourceStatus, data: T | null, message?: string): DashboardSource<T> => ({
+  status,
   updatedAt: new Date().toISOString(),
+  ...(message ? { message } : {}),
   data,
 });
+
+const connectedSource = <T>(data: T): DashboardSource<T> => sourceOf('connected', data);
 
 const check = (key: string, label: string, status: SeoCheckStatus) => ({ key, label, status });
 
@@ -310,36 +393,100 @@ const buildSeoChecks = async (): Promise<Array<{ key: string; label: string; sta
   ];
 };
 
-/**
- * PageSpeed source.
- * Lab metrics (LCP/INP/CLS/...) are placeholders until a PageSpeed Insights or
- * Lighthouse CI key is configured — swap `placeholder` for the live API payload.
- * `seoChecks` and `seoScore` are computed from real CMS data.
- */
-export const buildPageSpeedSource = async (): Promise<DashboardSource<PageSpeedData>> => {
-  const seoChecks = await buildSeoChecks();
+/** How long the overview waits for a PageSpeed run before answering with a "running" state (PSI can take 20s+). */
+const PAGESPEED_WAIT_MS = 4_000;
+
+type LabMetrics = Pick<PageSpeedData, 'performanceScore' | 'lcp' | 'inp' | 'cls' | 'fcp' | 'ttfb' | 'tbt'>;
+
+const EMPTY_LAB: LabMetrics = { performanceScore: null, lcp: null, inp: null, cls: null, fcp: null, ttfb: null, tbt: null };
+
+const roundOrNull = (value: number | null | undefined, digits = 0): number | null => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+};
+
+/** Lab metrics in ms (CLS unitless). LCP / INP / CLS prefer real-user field data when Google has it. */
+const labMetricsFrom = (raw: PageSpeedRaw): LabMetrics => {
+  const audit = (key: string) => raw.lighthouseResult.audits[key]?.numericValue ?? null;
+  const field = (key: string) => raw.loadingExperience?.metrics?.[key]?.percentile ?? null;
+  const performance = raw.lighthouseResult.categories.performance?.score;
+  const fieldCls = field('CUMULATIVE_LAYOUT_SHIFT_SCORE');
+
+  return {
+    performanceScore: typeof performance === 'number' ? Math.round(performance * 100) : null,
+    lcp: roundOrNull(field('LARGEST_CONTENTFUL_PAINT_MS') ?? audit('largest-contentful-paint')),
+    inp: roundOrNull(field('INTERACTION_TO_NEXT_PAINT')),
+    cls: roundOrNull(fieldCls != null ? fieldCls / 100 : audit('cumulative-layout-shift'), 3),
+    fcp: roundOrNull(audit('first-contentful-paint')),
+    ttfb: roundOrNull(audit('server-response-time')),
+    tbt: roundOrNull(audit('total-blocking-time')),
+  };
+};
+
+const scoreSeoChecks = (seoChecks: Array<{ key: string; label: string; status: SeoCheckStatus }>) => {
   const graded = seoChecks.filter((item) => item.status !== 'not_checked');
   const passed = graded.filter((item) => item.status === 'good').length;
-  const seoScore = graded.length > 0 ? Math.round((passed / graded.length) * 100) : 0;
-
-  return connectedSource<PageSpeedData>({
-    strategy: 'mobile',
-    lighthouseAvailable: false,
-    performanceScore: 92,
-    seoScore,
-    lcp: 1.2,
-    inp: 45,
-    cls: 0.01,
-    fcp: 0.8,
-    ttfb: 0.25,
-    tbt: 30,
-    seoChecks,
-  });
+  return graded.length > 0 ? Math.round((passed / graded.length) * 100) : 0;
 };
 
 /**
- * Index coverage source, derived from the CMS sitemap (robots directive per page).
- * Replace with Search Console data once an API key is available.
+ * PageSpeed source.
+ * `seoChecks` / `seoScore` are computed from real CMS data and always returned.
+ * Lab metrics come from a real PageSpeed Insights run (homepage, mobile) when a key is configured
+ * in Settings → Integrations; otherwise they are null and the status is `not_connected` / `error`.
+ */
+export const buildPageSpeedSource = async (creds?: ResolvedIntegrations): Promise<DashboardSource<PageSpeedData>> => {
+  const resolved = creds ?? (await resolveIntegrations());
+  const seoChecks = await buildSeoChecks();
+  const url = `${publicSiteUrl()}/`;
+
+  const build = (lab: LabMetrics, lighthouseAvailable: boolean): PageSpeedData => {
+    const checks = seoChecks.map((item) =>
+      item.key === 'page-speed' && lab.performanceScore != null
+        ? { ...item, status: (lab.performanceScore >= 90 ? 'good' : 'needs_work') as SeoCheckStatus }
+        : item
+    );
+    return {
+      strategy: 'mobile',
+      lighthouseAvailable,
+      url: lighthouseAvailable ? url : null,
+      ...lab,
+      seoScore: scoreSeoChecks(checks),
+      seoChecks: checks,
+    };
+  };
+
+  const readiness = pageSpeedReadiness(resolved);
+  if (!readiness.configured) {
+    return sourceOf(readiness.isError ? 'error' : 'not_connected', build(EMPTY_LAB, false), readiness.reason);
+  }
+
+  const settled = getPageSpeedReport(resolved, url, 'mobile').then(
+    (value) => ({ value }),
+    (error: unknown) => ({ error })
+  );
+  let timer: NodeJS.Timeout | undefined;
+  const outcome = await Promise.race([
+    settled,
+    new Promise<{ pending: true }>((resolve) => {
+      timer = setTimeout(() => resolve({ pending: true }), PAGESPEED_WAIT_MS);
+    }),
+  ]);
+  if (timer) clearTimeout(timer);
+
+  if ('pending' in outcome) {
+    return sourceOf('connected', build(EMPTY_LAB, false), 'PageSpeed Insights test is running — results appear shortly.');
+  }
+  if ('error' in outcome) {
+    return sourceOf('error', build(EMPTY_LAB, false), `PageSpeed Insights: ${errorText(outcome.error)}`);
+  }
+  return connectedSource(build(labMetricsFrom(outcome.value), true));
+};
+
+/**
+ * Index coverage source, derived from the CMS robots directive per page.
+ * This is NOT Google index data (Search Console's URL Inspection API is per-URL only).
  */
 export const buildIndexCoverageSource = async (): Promise<DashboardSource<IndexCoverageData>> => {
   const [total, indexed] = await Promise.all([
@@ -348,17 +495,17 @@ export const buildIndexCoverageSource = async (): Promise<DashboardSource<IndexC
   ]);
   const notIndexed = Math.max(total - indexed, 0);
 
-  return connectedSource<IndexCoverageData>({
-    status: notIndexed === 0 ? 'good' : 'needs_attention',
-    totalSubmitted: total,
-    indexedPages: indexed,
-    crawlErrors: 0,
-    sitemapStatus: 'submitted',
-    lastCrawl: new Date().toISOString(),
-    total,
-    indexed,
-    notIndexed,
-  });
+  return sourceOf<IndexCoverageData>(
+    'connected',
+    {
+      source: 'cms',
+      status: notIndexed === 0 ? 'good' : 'needs_attention',
+      total,
+      indexed,
+      notIndexed,
+    },
+    'Based on CMS robots settings (index / noindex) — not Google index data.'
+  );
 };
 
 const localIPv4 = (): string => {
@@ -440,12 +587,34 @@ const isHttpsTarget = (): boolean => {
   return raw.startsWith('https://');
 };
 
-/** Site status source — self health check + TLS certificate inspection. */
+const SECURITY_HEADERS = [
+  'strict-transport-security',
+  'content-security-policy',
+  'x-frame-options',
+  'x-content-type-options',
+  'referrer-policy',
+  'permissions-policy',
+];
+
+/** Counts the security headers the public site actually sends; total is 0 when the site could not be reached. */
+const checkSecurityHeaders = async (): Promise<{ present: number; total: number }> => {
+  try {
+    const response = await fetch(`${publicSiteUrl()}/`, { method: 'GET', signal: AbortSignal.timeout(3000) });
+    const present = SECURITY_HEADERS.filter((name) => response.headers.has(name)).length;
+    void response.body?.cancel().catch(() => undefined);
+    return { present, total: SECURITY_HEADERS.length };
+  } catch {
+    return { present: 0, total: 0 };
+  }
+};
+
+/** Site status source — self health check + TLS certificate inspection + live security-header check. */
 export const buildSiteStatusSource = async (): Promise<DashboardSource<SiteStatusData>> => {
   const host = publicHost();
-  const [health, certificate] = await Promise.all([
+  const [health, certificate, securityHeaders] = await Promise.all([
     selfHealthCheck(),
     isHttpsTarget() ? checkCertificate(host) : Promise.resolve({ sslValid: false, daysRemaining: 0, issuer: 'HTTP target' }),
+    checkSecurityHeaders(),
   ]);
 
   const ip = localIPv4();
@@ -455,8 +624,9 @@ export const buildSiteStatusSource = async (): Promise<DashboardSource<SiteStatu
     sslExpiryDays: certificate.daysRemaining,
     certificateDaysRemaining: certificate.daysRemaining,
     sslIssuer: certificate.issuer,
-    securityHeaders: { present: 6, total: 6 },
-    securityHeadersScore: '6/6 Headers',
+    securityHeaders,
+    securityHeadersScore:
+      securityHeaders.total > 0 ? `${securityHeaders.present}/${securityHeaders.total} Headers` : 'Not checked',
     online: health.online,
     responseTimeMs: health.responseTimeMs,
     httpStatus: health.httpStatus,

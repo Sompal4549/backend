@@ -1,8 +1,8 @@
 /**
- * OpenAI / Gemini REST clients for the optional report narrative (official APIs, keys read server-side at call time and
+ * OpenAI REST client for the optional report narrative (official APIs, keys read server-side at call time and
  * sent only in headers). A call yields raw JSON text or a classified failure; retries are bounded and transient-only.
  */
-export type ProviderId = 'openai' | 'gemini';
+export type ProviderId = 'openai';
 
 const intEnv = (name: string, fallback: number, min = 0): number => {
   const raw = process.env[name];
@@ -20,22 +20,19 @@ export const aiLimits = {
   circuitMs: () => intEnv('INFRA_AI_CIRCUIT_MS', 60_000, 1000),
 };
 
-export function modelFor(provider: ProviderId): string {
-  if (provider === 'openai') return process.env.INFRA_AI_OPENAI_MODEL?.trim() || process.env.OPENAI_MODEL || 'gpt-4o-mini';
-  return process.env.INFRA_AI_GEMINI_MODEL?.trim() || process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash';
+export function modelFor(_provider: ProviderId): string {
+  return process.env.INFRA_AI_OPENAI_MODEL?.trim() || process.env.OPENAI_MODEL || 'gpt-4o-mini';
 }
 
-export function providerKey(provider: ProviderId): string | null {
-  const key = provider === 'openai' 
-    ? (process.env.OPENAI_API_KEY || process.env.INFRA_AI_OPENAI_KEY) 
-    : (process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.INFRA_AI_GEMINI_KEY);
+export function providerKey(_provider: ProviderId): string | null {
+  const key = process.env.OPENAI_API_KEY || process.env.INFRA_AI_OPENAI_KEY;
   return key && key.trim() && !/^your_/i.test(key.trim()) ? key.trim() : null;
 }
 
-export function providerBase(provider: ProviderId): string {
-  const fallback = provider === 'openai' ? 'https://api.openai.com' : 'https://generativelanguage.googleapis.com';
+export function providerBase(_provider: ProviderId): string {
+  const fallback = 'https://api.openai.com';
   if (process.env.NODE_ENV !== 'test') return fallback;
-  const override = provider === 'openai' ? process.env.INFRA_AI_OPENAI_BASE : process.env.INFRA_AI_GEMINI_BASE;
+  const override = process.env.INFRA_AI_OPENAI_BASE;
   return override && override.trim() ? override.trim().replace(/\/$/, '') : fallback;
 }
 
@@ -81,49 +78,27 @@ function classify(provider: ProviderId, model: string, status: number, body: any
   return fail(provider, model, 'bad_response', `${label(provider)} returned HTTP ${status}.${reason ? ` ${reason}` : ''}`, status);
 }
 
-const label = (p: ProviderId) => (p === 'openai' ? 'OpenAI' : 'Gemini');
+const label = (_p: ProviderId) => 'OpenAI';
 
 async function once(provider: ProviderId, req: ProviderRequest, key: string, model: string): Promise<ProviderResult> {
   const started = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), aiLimits.timeoutMs());
   try {
-    let url: string;
-    let init: RequestInit;
-    if (provider === 'openai') {
-      // The gpt-5 / o-series reject `max_tokens` and a custom temperature.
-      const reasoning = /^(gpt-5|o\d)/.test(model);
-      url = `${providerBase('openai')}/v1/chat/completions`;
-      init = {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          response_format: { type: 'json_object' },
-          ...(reasoning ? { max_completion_tokens: req.maxOutputTokens } : { max_tokens: req.maxOutputTokens, temperature: 0.2 }),
-          messages: [{ role: 'system', content: req.system }, { role: 'user', content: req.user }],
-        }),
-        signal: controller.signal,
-      };
-    } else {
-      url = `${providerBase('gemini')}/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-      init = {
-        method: 'POST',
-        // The key travels in a header, not the URL, so it cannot end up in access logs.
-        headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: req.system }] },
-          contents: [{ role: 'user', parts: [{ text: req.user }] }],
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: 'application/json',
-            maxOutputTokens: req.maxOutputTokens,
-            ...(/flash/.test(model) && !/lite/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-          },
-        }),
-        signal: controller.signal,
-      };
-    }
+    // The gpt-5 / o-series reject `max_tokens` and a custom temperature.
+    const reasoning = /^(gpt-5|o\d)/.test(model);
+    const url = `${providerBase('openai')}/v1/chat/completions`;
+    const init: RequestInit = {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        response_format: { type: 'json_object' },
+        ...(reasoning ? { max_completion_tokens: req.maxOutputTokens } : { max_tokens: req.maxOutputTokens, temperature: 0.2 }),
+        messages: [{ role: 'system', content: req.system }, { role: 'user', content: req.user }],
+      }),
+      signal: controller.signal,
+    };
     const response = await fetch(url, init);
     const raw = await response.text();
     let body: any = null;
@@ -131,21 +106,12 @@ async function once(provider: ProviderId, req: ProviderRequest, key: string, mod
     if (!response.ok) return classify(provider, model, response.status, body);
     if (!body) return fail(provider, model, 'bad_response', `${label(provider)} returned a non-JSON response.`, response.status);
 
-    if (provider === 'openai') {
-      const choice = body.choices?.[0];
-      const text = choice?.message?.content;
-      if (choice?.finish_reason === 'content_filter') return fail(provider, model, 'content_blocked', 'OpenAI blocked this request by content policy.', response.status);
-      if (typeof text !== 'string' || !text.trim()) return fail(provider, model, 'bad_response', 'OpenAI returned no content.', response.status);
-      const u = body.usage ?? {};
-      return { ok: true, provider, model: String(body.model ?? model).slice(0, 80), text, latencyMs: Date.now() - started, truncated: choice?.finish_reason === 'length', usage: { inputTokens: num(u.prompt_tokens), outputTokens: num(u.completion_tokens), cachedInputTokens: num(u.prompt_tokens_details?.cached_tokens) } };
-    }
-    const candidate = body.candidates?.[0];
-    if (body.promptFeedback?.blockReason || candidate?.finishReason === 'SAFETY') return fail(provider, model, 'content_blocked', 'Gemini blocked this request by safety policy.', response.status);
-    const text = (candidate?.content?.parts ?? []).map((p: any) => (typeof p?.text === 'string' ? p.text : '')).join('');
-    if (!text.trim()) return fail(provider, model, 'bad_response', 'Gemini returned no content.', response.status);
-    const u = body.usageMetadata ?? {};
-    const out = (num(u.candidatesTokenCount) ?? 0) + (num(u.thoughtsTokenCount) ?? 0);
-    return { ok: true, provider, model: String(body.modelVersion ?? model).slice(0, 80), text, latencyMs: Date.now() - started, truncated: candidate?.finishReason === 'MAX_TOKENS', usage: { inputTokens: num(u.promptTokenCount), outputTokens: u.candidatesTokenCount === undefined ? null : out, cachedInputTokens: num(u.cachedContentTokenCount) } };
+    const choice = body.choices?.[0];
+    const text = choice?.message?.content;
+    if (choice?.finish_reason === 'content_filter') return fail(provider, model, 'content_blocked', 'OpenAI blocked this request by content policy.', response.status);
+    if (typeof text !== 'string' || !text.trim()) return fail(provider, model, 'bad_response', 'OpenAI returned no content.', response.status);
+    const u = body.usage ?? {};
+    return { ok: true, provider, model: String(body.model ?? model).slice(0, 80), text, latencyMs: Date.now() - started, truncated: choice?.finish_reason === 'length', usage: { inputTokens: num(u.prompt_tokens), outputTokens: num(u.completion_tokens), cachedInputTokens: num(u.prompt_tokens_details?.cached_tokens) } };
   } catch (error) {
     if ((error as Error)?.name === 'AbortError') return fail(provider, model, 'timeout', `${label(provider)} did not answer within ${Math.round(aiLimits.timeoutMs() / 1000)}s.`);
     return fail(provider, model, 'unavailable', `${label(provider)} could not be reached.`);
@@ -163,11 +129,10 @@ const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFi
 interface Health { consecutiveFailures: number; openUntil: number; lastOkAt: number | null; lastError: { code: ProviderErrorCode; at: number } | null; lastStart: number }
 const health: Record<ProviderId, Health> = {
   openai: { consecutiveFailures: 0, openUntil: 0, lastOkAt: null, lastError: null, lastStart: 0 },
-  gemini: { consecutiveFailures: 0, openUntil: 0, lastOkAt: null, lastError: null, lastStart: 0 },
 };
 
 export function resetProviderHealth() {
-  for (const p of ['openai', 'gemini'] as const) health[p] = { consecutiveFailures: 0, openUntil: 0, lastOkAt: null, lastError: null, lastStart: 0 };
+  for (const p of ['openai'] as const) health[p] = { consecutiveFailures: 0, openUntil: 0, lastOkAt: null, lastError: null, lastStart: 0 };
 }
 
 export function providerSnapshot(provider: ProviderId) {

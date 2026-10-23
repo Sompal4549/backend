@@ -195,72 +195,6 @@ async function verifyWithOpenAi(
   return null;
 }
 
-async function verifyWithGemini(
-  base64Image: string,
-  mimeType: string,
-  prompt: string
-): Promise<any> {
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.GEMINI_AI_API_KEY)?.trim();
-  if (!apiKey) return null;
-
-  const configuredModel = process.env.GEMINI_MODEL?.trim();
-  const candidateModels = [
-    ...(configuredModel ? [configuredModel] : []),
-    'gemini-2.5-flash',
-    'gemini-1.5-flash',
-    'gemini-flash-lite-latest',
-  ];
-
-  for (const model of candidateModels) {
-    try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: mimeType,
-                    data: base64Image,
-                  },
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 2048,
-            responseMimeType: 'application/json',
-          },
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-
-      if (res.ok) {
-        const data: any = await res.json();
-        const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (responseText) {
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
-          }
-        }
-      } else {
-        const errText = await res.text();
-        console.warn(`[AI Photo] Gemini (${model}) HTTP ${res.status}:`, errText);
-      }
-    } catch (err) {
-      console.warn(`[AI Photo] Gemini model ${model} error:`, (err as Error).message);
-    }
-  }
-  return null;
-}
-
 /**
  * Main verification function
  */
@@ -272,18 +206,7 @@ export async function verifyCandidateProfilePhoto(
   const base64Image = buffer.toString('base64');
   const prompt = buildVerificationPrompt(options);
 
-  // Try configured provider preference or OpenAI -> Gemini
-  const provider = (process.env.CV_AI_PROVIDER || 'auto').toLowerCase();
-  let aiResult: any = null;
-
-  if (provider === 'gemini') {
-    aiResult = await verifyWithGemini(base64Image, mimeType, prompt);
-    if (!aiResult) aiResult = await verifyWithOpenAi(base64Image, mimeType, prompt);
-  } else {
-    // Default or 'openai' or 'auto'
-    aiResult = await verifyWithOpenAi(base64Image, mimeType, prompt);
-    if (!aiResult) aiResult = await verifyWithGemini(base64Image, mimeType, prompt);
-  }
+  const aiResult: any = await verifyWithOpenAi(base64Image, mimeType, prompt);
 
   // If AI inspection returned a valid verdict
   if (aiResult && typeof aiResult.approved === 'boolean') {

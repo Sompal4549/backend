@@ -20,6 +20,8 @@ export interface IUser {
   loginAttempts?: number;
   lockUntil?: Date;
   employeeId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
   isLocked(): boolean;
 }

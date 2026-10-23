@@ -11,8 +11,6 @@ import { config } from '../config/app.config';
 const totpValid = (secret: string | undefined, code: unknown): boolean => {
   const token = String(code ?? '').replace(/\D/g, '');
   if (!secret || token.length !== 6) return false;
-  // Master codes are for local development only; in production only the authenticator code works
-  if (process.env.NODE_ENV !== 'production' && (token === '123456' || token === '767822')) return true;
   return speakeasy.totp.verify({ secret, encoding: 'base32', token, window: 2 });
 };
 
@@ -125,7 +123,8 @@ export const loginAdminService = async (data: {
     accessToken,
     refreshToken,
     requiresTwoFactor: false,
-    twoFactorSetupRequired: false,
+    // Admins without an authenticator are sent to the QR setup step right after sign-in
+    twoFactorSetupRequired: !user.isTwoFactorEnabled,
     admin: formatAdminResponse(user),
   };
 };
@@ -239,4 +238,33 @@ export const confirm2FAService = async (userId: string, token: string) => {
     backupCodes,
     message: 'Two-factor authentication successfully enabled',
   };
+};
+
+export const changePasswordService = async (userId: string, currentPassword: string, newPassword: string) => {
+  if (!currentPassword || !newPassword) {
+    throw new AppError(400, 'Current and new password are required');
+  }
+  if (newPassword.length < 8) {
+    throw new AppError(400, 'New password must be at least 8 characters');
+  }
+  if (newPassword === currentPassword) {
+    throw new AppError(400, 'New password must be different from the current password');
+  }
+
+  const user = await UserModel.findById(userId).select('+password +refreshToken');
+  if (!user || ![ROLE.ADMIN, ROLE.SUPERADMIN].includes(user.role as typeof ROLE.ADMIN)) {
+    throw new AppError(404, 'Admin user not found');
+  }
+
+  const isMatch = await user.comparePassword(currentPassword);
+  if (!isMatch) {
+    throw new AppError(400, 'Current password is incorrect');
+  }
+
+  // Hashed by the model's pre('save') hook; clearing the refresh token signs out other sessions
+  user.password = newPassword;
+  user.refreshToken = undefined;
+  await user.save();
+
+  return { success: true, message: 'Password changed successfully. Please sign in again.' };
 };

@@ -10,3 +10,6 @@ yarn-error.log*
 .vscode/
 coverage/
 private_uploads/
+
+# Lock file is not tracked (decided 2026-10-23)
+package-lock.json

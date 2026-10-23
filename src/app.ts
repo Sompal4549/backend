@@ -51,6 +51,17 @@ import { dropdownsRouter } from './routes/dropdowns.routes';
 import { settingsRouter } from './routes/settings.routes';
 import { chatbotManagerRouter } from './routes/chatbot-manager.routes';
 import { faqRouter } from './routes/faq.routes';
+import { casesRouter } from './routes/cases.routes';
+import { rolesRouter } from './routes/role.routes';
+import { redirectRouter } from './routes/redirect.routes';
+import { gbpRouter } from './routes/gbp.routes';
+import { websiteMediaRouter } from './routes/website-media.routes';
+import { locationsRouter, crmCountriesRouter, crmStatesRouter } from './routes/locations.routes';
+import { eventsRouter, stallsRouter, stallRatesRouter } from './routes/expo.routes';
+import { systemServicesRouter } from './routes/system-services.routes';
+import { notificationRouter } from './routes/notification.routes';
+import { usersRouter } from './routes/users.routes';
+import { feedbackRouter } from './routes/feedback.routes';
 import { lazyInfraRouter } from './modules/infrastructure/infra.permissions';
 
 export const createApp = () => {
@@ -272,6 +283,7 @@ export const createApp = () => {
   mountRoute('/cart', cartRouter);
   mountRoute('/profile', profileRouter);
   mountRoute('/media', mediaRouter);
+  mountRoute('/gallery', mediaRouter);
   mountRoute('/admin/chatbot', chatbotManagerRouter);
   mountRoute('/admin/chats', adminChatsRouter);
   mountRoute('/admin', adminRouter);
@@ -297,6 +309,21 @@ export const createApp = () => {
   mountRoute('/dropdowns', dropdownsRouter);
   mountRoute('/settings', settingsRouter);
   mountRoute('/faqs', faqRouter);
+  mountRoute('/system-services', systemServicesRouter);
+  mountRoute('/notifications', notificationRouter);
+  mountRoute('/users', usersRouter);
+  mountRoute('/feedback', feedbackRouter);
+  mountRoute('/cases', casesRouter);
+  mountRoute('/roles', rolesRouter);
+  mountRoute('/redirects', redirectRouter);
+  mountRoute('/gbp', gbpRouter);
+  mountRoute('/website', websiteMediaRouter);
+  mountRoute('/locations', locationsRouter);
+  mountRoute('/crm-countries', crmCountriesRouter);
+  mountRoute('/crm-states', crmStatesRouter);
+  mountRoute('/events', eventsRouter);
+  mountRoute('/stalls', stallsRouter);
+  mountRoute('/stall-rates', stallRatesRouter);
   mountRoute('/infrastructure', lazyInfraRouter(() => import('./modules/infrastructure/infra.routes')));
 
   app.get('/health', (_req, res) => {

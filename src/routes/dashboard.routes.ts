@@ -12,6 +12,7 @@ import {
   updateEnquiryController,
   deleteEnquiryController,
 } from '../controllers/dashboard.controller';
+import { createEnquiryAdmin } from '../controllers/enquiry.controller';
 
 /**
  * Live dashboard endpoints (admin protected).
@@ -35,6 +36,7 @@ export const enquiryListRouter = Router();
 enquiryListRouter.use(authMiddleware, adminMiddleware);
 enquiryListRouter.get('/', listEnquiriesController);
 enquiryListRouter.get('/admin', listEnquiriesController);
+enquiryListRouter.post('/admin', createEnquiryAdmin);
 enquiryListRouter.put(
   '/admin/:id/status',
   [param('id').isMongoId().withMessage('Valid enquiry ID is required')],

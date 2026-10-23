@@ -15,7 +15,9 @@ import {
   handleSetup2FA,
   handleConfirm2FA,
   handleGetMe,
+  handleChangePassword,
 } from '../controllers/admin-auth.controller';
+import { authMiddleware } from '../middlewares/auth.middleware';
 import {
   adminForgotPassword,
   adminResetPassword,
@@ -51,6 +53,7 @@ authRouter.post('/verify-2fa', handleVerify2FA);
 authRouter.get('/setup-2fa', handleSetup2FA);
 authRouter.post('/confirm-2fa', handleConfirm2FA);
 authRouter.get('/me', handleGetMe);
+authRouter.post('/change-password', authMiddleware, handleChangePassword);
 authRouter.post('/forgot-password', adminForgotPassword);
 authRouter.post('/reset-password', adminResetPassword);
 authRouter.post('/logout', logout);

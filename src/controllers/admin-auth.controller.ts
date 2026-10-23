@@ -11,6 +11,7 @@ import {
   verify2FAService,
   setup2FAService,
   confirm2FAService,
+  changePasswordService,
 } from '../services/admin-auth.service';
 
 export const handleUnifiedLogin = (req: Request, res: Response, next: NextFunction) => {
@@ -161,4 +162,16 @@ export const handleGetMe = asyncHandler(async (req: Request, res: Response) => {
     user: admin,
     admin,
   });
+});
+
+export const handleChangePassword = asyncHandler(async (req: Request, res: Response) => {
+  const userId = extractAdminUserId(req);
+
+  if (!userId) {
+    throw new AppError(401, 'Unauthorized');
+  }
+
+  const { currentPassword, newPassword } = req.body;
+  const result = await changePasswordService(userId, currentPassword, newPassword);
+  return res.status(200).json({ ...result, data: result });
 });

@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
 import { connectDatabase } from '../config/database.config';
 import { UserModel, UserDocument } from '../models/user.model';
 import { ROLE } from '../constants/roles.constants';
@@ -39,12 +38,11 @@ export const seedAdmin = async (): Promise<UserDocument> => {
     return existing;
   }
 
-  const salt = await bcrypt.genSalt(10);
   return UserModel.create({
     name: DEFAULT_ADMIN.name,
     email: DEFAULT_ADMIN.email,
     phone: DEFAULT_ADMIN.phone,
-    password: await bcrypt.hash(DEFAULT_ADMIN.password, salt),
+    password: DEFAULT_ADMIN.password,
     role: DEFAULT_ADMIN.role,
     emailVerified: true,
     phoneVerified: true,
@@ -72,8 +70,6 @@ const main = async () => {
   console.log(`  Phone    : ${admin.phone}`);
   console.log(`  Role     : ${admin.role}`);
   console.log(`  Admin users in DB: ${total}`);
-  console.log('\nVerify with:');
-  console.log("  curl -X POST http://localhost:5000/api/v1/admin/login/dev -H \"Content-Type: application/json\" -d '{\"phone\":\"9876543210\"}'");
 
   await mongoose.disconnect();
   process.exit(0);

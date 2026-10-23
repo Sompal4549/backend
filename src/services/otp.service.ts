@@ -65,31 +65,6 @@ export const requestOtp = async (channel: OtpChannel, rawTarget: string, purpose
 export const verifyOtp = async (channel: OtpChannel, rawTarget: string, code: string, purpose = 'verification') => {
   const target = getTarget(channel, rawTarget);
 
-  const bypassNumbers = (process.env.OTP_BYPASS_NUMBERS || '').split(',').map((n) => n.trim().replace(/\D/g, '')).filter(Boolean);
-  const bypassOtp = (process.env.OTP_BYPASS_OTP || '').trim();
-  const normalizedTarget = normalizePhone(rawTarget);
-  // Test accounts listed in OTP_BYPASS_NUMBERS: phone only, matched on the last 10 digits. (An email
-  // target has no digits, and an empty string "matched" every listed number before.)
-  const last10 = (n: string) => n.slice(-10);
-  // Test numbers are for development; production needs OTP_BYPASS_IN_PRODUCTION=true as well
-  const bypassAllowed = config.env !== 'production' || config.otpBypassInProduction;
-  const isBypassNumber =
-    bypassAllowed &&
-    channel !== OTP_CHANNEL.EMAIL &&
-    normalizedTarget.length >= 10 &&
-    bypassNumbers.some((n) => n.length >= 10 && last10(n) === last10(normalizedTarget));
-  const isBypassCode =
-    (!!bypassOtp && code === bypassOtp) ||
-    (process.env.NODE_ENV !== 'production' && (code === '7678' || code === '767822'));
-  if (isBypassNumber && isBypassCode) {
-    let user = null;
-    if (purpose === 'verification') {
-      // Test accounts are phone numbers only (see isBypassNumber)
-      user = await markUserPhoneVerified(target);
-    }
-    return { channel, target, verified: true, user };
-  }
-
   const otp = await OtpModel.findOne({
     channel,
     target,

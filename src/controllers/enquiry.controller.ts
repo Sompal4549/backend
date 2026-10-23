@@ -139,3 +139,59 @@ export const exportEnquiries = asyncHandler(async (_req: Request, res: Response)
   const enquiries = await exportAllEnquiries();
   successResponse(res, enquiries, 'Enquiries exported');
 });
+
+const adminText = (value: unknown, max = 500): string =>
+  typeof value === 'string' ? value.trim().slice(0, max) : '';
+
+/** Admin form extras that have no column of their own; kept readable in the enquiry notes */
+const ADMIN_NOTE_FIELDS: [string, string][] = [
+  ['source', 'Channel'],
+  ['priority', 'Priority'],
+  ['relationship', 'Relationship'],
+  ['communicationLanguage', 'Language'],
+  ['contactedBefore', 'Contacted before'],
+  ['heardAbout', 'Heard about us'],
+  ['preferredResponseTime', 'Preferred response time'],
+  ['enquiryDate', 'Enquiry date'],
+];
+
+// Admin panel "New enquiry" form (ensis-admin/app/(dashboard)/enquiries/new). Only known fields are written.
+export const createEnquiryAdmin = asyncHandler(async (req: Request, res: Response) => {
+  const body = (req.body || {}) as Record<string, unknown>;
+
+  const fullName = adminText(body.name ?? body.fullName, 200);
+  const mobileNumber = adminText(body.phone ?? body.mobileNumber, 40);
+  const email = adminText(body.email, 200).toLowerCase();
+  const message = adminText(body.message, 5000);
+
+  if (!fullName) throw new AppError(400, 'Name is required.');
+  if (!mobileNumber) throw new AppError(400, 'Phone number is required.');
+  if (!message) throw new AppError(400, 'Message is required.');
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new AppError(400, 'Email address is not valid.');
+
+  const interestedService = adminText(body.interestedService, 200);
+  const extras = ADMIN_NOTE_FIELDS.map(([field, label]) => {
+    const value = adminText(body[field], 200);
+    return value ? `${label}: ${value}` : '';
+  }).filter(Boolean);
+
+  const enquiryData: Partial<IEnquiry> = {
+    fullName,
+    mobileNumber,
+    email,
+    alternatePhone: adminText(body.alternatePhone, 40),
+    subject: adminText(body.subject, 300),
+    message,
+    projectType: adminText(body.category, 200) || interestedService || 'General Enquiry',
+    servicesRequired: interestedService ? [interestedService] : [],
+    city: adminText(body.city, 120),
+    state: adminText(body.state, 120),
+    preferredContact: adminText(body.preferredContactMethod ?? body.preferredContact, 50) || undefined,
+    source: 'admin',
+    agreeToContact: false,
+    notes: ['Added from the admin panel.', ...extras].join('\n'),
+  };
+
+  const enquiry = await createEnquiry(enquiryData);
+  successResponse(res, enquiry, 'Enquiry created', 201);
+});
