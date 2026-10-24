@@ -4,8 +4,13 @@ import ApplicationModel from '../models/applicationModel';
 import { LeadModel } from '../models/lead.model';
 import { asyncHandler } from '../utils/async-handler';
 import { successResponse } from '../utils/api-response';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 export const notificationRouter = Router();
+
+// Notifications expose customer names and enquiry details: admins only
+notificationRouter.use(authMiddleware, adminMiddleware);
 
 // GET /api/v1/notifications/admin
 notificationRouter.get(

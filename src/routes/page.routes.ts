@@ -13,6 +13,7 @@ import { mapItemsToAliases, preserveImageShapes } from '../utils/cms-items';
 import { isObjectIdString } from '../utils/object-id';
 import { escapeRegex } from '../utils/escape-regex';
 import { pick } from '../utils/pick';
+import { mergePageSeo } from '../utils/page-seo';
 
 const PAGE_EDITABLE_FIELDS = [
   'configKey', 'pageName', 'title', 'slug', 'status', 'visibility',
@@ -138,6 +139,12 @@ pageRouter.put(
       cleanPayload.pageName = cleanPayload.title;
     }
     delete cleanPayload.title;
+
+    // Keep the website's SEO fields (canonical / ogJson / schema) when the admin saves its own names
+    if (cleanPayload.seo !== undefined) {
+      const current: any = await Page.findOne(query).select('seo').lean();
+      cleanPayload.seo = mergePageSeo(current?.seo, cleanPayload.seo);
+    }
 
     const updatePayload: Record<string, any> = {
       ...cleanPayload,
