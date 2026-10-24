@@ -34,6 +34,7 @@
     "seed:live:restore-products": "tsx src/seeds/restore-live-products.seed.ts",
     "backup:live": "tsx src/seeds/backup-live.ts",
     "backup:live:db": "tsx src/seeds/backup-live-db.ts",
+    "backfill:cms": "tsx src/seeds/backfill-cms-from-content.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
