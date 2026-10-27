@@ -44,6 +44,10 @@ const seoSchema = new Schema(
         fbPixelId: String,
         clarityId: String,
       },
+      headerScripts: { type: String, default: "" },
+      footerScripts: { type: String, default: "" },
+      allowIndex: { type: Boolean, default: true },
+      allowFollow: { type: Boolean, default: true },
     },
   },
   { timestamps: true }
