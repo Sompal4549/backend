@@ -46,7 +46,7 @@ export const getAdvancedSeo = asyncHandler(async (_req: Request, res: Response) 
 });
 
 export const upsertAdvancedSeo = asyncHandler(async (req: Request, res: Response) => {
-  const { sitemap, robots, searchConsole, analytics } = req.body || {};
+  const { sitemap, robots, searchConsole, analytics, headerScripts, footerScripts, allowIndex, allowFollow } = req.body || {};
   const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
   // Only the sections sent are written, and only their known fields, so a partial save never wipes the rest
   const update: Record<string, unknown> = { title: "Advanced SEO", description: "Advanced SEO Settings" };
@@ -73,6 +73,18 @@ export const upsertAdvancedSeo = asyncHandler(async (req: Request, res: Response
       fbPixelId: text(analytics.fbPixelId),
       clarityId: text(analytics.clarityId),
     };
+  }
+  if (typeof headerScripts === "string") {
+    update["advanced.headerScripts"] = headerScripts;
+  }
+  if (typeof footerScripts === "string") {
+    update["advanced.footerScripts"] = footerScripts;
+  }
+  if (typeof allowIndex === "boolean") {
+    update["advanced.allowIndex"] = allowIndex;
+  }
+  if (typeof allowFollow === "boolean") {
+    update["advanced.allowFollow"] = allowFollow;
   }
   const seo = await seoService.upsertSeoBySlug("advanced-seo", update);
   successResponse(res, seo, "Advanced SEO updated");

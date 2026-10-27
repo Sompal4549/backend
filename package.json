@@ -25,6 +25,8 @@
     "seed:pages": "tsx src/seeds/pages.seed.ts",
     "seed:pages:cms": "tsx src/seeds/pages-cms.seed.ts",
     "seed:components": "tsx src/seeds/component-content.seed.ts",
+    "seed:footer": "tsx src/seeds/seed-footer.ts",
+    "seed:footer:dry": "tsx src/seeds/seed-footer.ts --dry-run",
     "seed:solutions": "tsx src/seeds/solutions.seed.ts",
     "seed:faqs": "tsx src/seeds/faqs.seed.ts",
     "seed:policies": "tsx src/seeds/policies.seed.ts",
