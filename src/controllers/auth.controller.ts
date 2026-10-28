@@ -14,31 +14,49 @@ import { config } from '../config/app.config';
 
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, phone, addressLine, city, state, country, zipCode } = req.body;
+  const { name, email, phone, companyName, addressLine, city, state, country, zipCode } = req.body;
 
   const nameParts = (name || '').trim().split(/\s+/);
-  const firstName = nameParts[0] || '';
+  const firstName = nameParts[0] || 'Customer';
   const lastName = nameParts.slice(1).join(' ') || '';
 
-  const normalizedPhone = phone.replace(/\D/g, '');
+  const normalizedPhone = (phone || '').replace(/\D/g, '');
   const last10 = normalizedPhone.slice(-10);
   const phoneRegex = new RegExp(`${last10}$`);
-  const existingLead = await LeadModel.findOne({ phone: { $regex: phoneRegex } });
+  const cleanEmail = (email || '').trim().toLowerCase();
+
+  const existingLead = await LeadModel.findOne({
+    $or: [
+      { phone: { $regex: phoneRegex } },
+      ...(cleanEmail ? [{ email: cleanEmail }] : []),
+    ],
+  });
   if (existingLead) {
+    if (cleanEmail && existingLead.email?.toLowerCase() === cleanEmail) {
+      throw new AppError(409, 'Email already registered');
+    }
     throw new AppError(409, 'Phone number already registered');
   }
 
+  const todayStr = new Date().toISOString().slice(0, 10);
   const lead = await LeadModel.create({
     firstName,
     lastName,
-    companyName: '',
-    email,
+    companyName: companyName?.trim() || 'Individual',
+    email: cleanEmail,
+    officialEmail: cleanEmail,
     phone: normalizedPhone,
     phoneCode: '+91',
-    leadType: 'Individual',
+    leadType: companyName?.trim() ? 'Corporate' : 'Individual',
     leadSource: 'Website',
     leadStatus: 'New',
     priority: 'Medium',
+    title: 'Mr./Ms.',
+    typeOfBusiness: 'Other',
+    industrySector: 'Wellness',
+    eventAttribution: 'Website',
+    leadDate: todayStr,
+    followUpDate: todayStr,
     leadCategory: '',
     addressLine: addressLine || '',
     city: city || '',
