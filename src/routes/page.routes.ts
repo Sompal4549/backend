@@ -244,9 +244,49 @@ pageRouter.put(
             };
 
             if (sec.extra !== undefined) entry.extra = sec.extra;
-            if (sec.link !== undefined) entry.link = sec.link;
+            if (sec.extra2 !== undefined) entry.extra2 = sec.extra2;
+            if (sec.icon !== undefined) entry.icon = sec.icon;
+            if (sec.link !== undefined) {
+              if (sec.link && (sec.link.label || sec.link.href)) {
+                entry.link = { label: sec.link.label || '', href: sec.link.href || '' };
+              } else if (sec.link === null || (sec.link && !sec.link.label && !sec.link.href)) {
+                delete entry.link;
+              }
+            }
 
-            if (Array.isArray(sec.items)) {
+            if (Array.isArray(sec.cards)) {
+              if (sec.cards.length === 0) {
+                delete entry.cards;
+              } else {
+                entry.cards = sec.cards.map((c: any) => ({
+                  icon: c.icon || 'file-text',
+                  title: c.title || '',
+                  text: c.text || c.description || '',
+                }));
+              }
+            }
+
+            if (Array.isArray(sec.checkItems)) {
+              if (sec.checkItems.length === 0) {
+                delete entry.checkItems;
+              } else {
+                entry.checkItems = sec.checkItems.map((ci: any) =>
+                  typeof ci === 'string' ? ci : (ci.title || ci.text || ci.description || '')
+                );
+              }
+            }
+
+            if (Array.isArray(sec.bullets)) {
+              if (sec.bullets.length === 0) {
+                delete entry.bullets;
+              } else {
+                entry.bullets = sec.bullets.map((b: any) =>
+                  typeof b === 'string' ? b : (b.title || b.text || b.description || '')
+                );
+              }
+            }
+
+            if (Array.isArray(sec.items) && !sec.cards && !sec.checkItems && !sec.bullets) {
               if (sec.items.length === 0) {
                 if (entry.cards) delete entry.cards;
                 if (entry.checkItems) delete entry.checkItems;
@@ -279,7 +319,8 @@ pageRouter.put(
             page: 'policy',
             isActive: updatedPage.status !== 'Draft',
             'data.sections': storefrontSections,
-            'data.hero.lastUpdated': new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
+            'data.hero.lastUpdated': heroSec?.lastUpdated || new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
+            'data.lastUpdated': heroSec?.lastUpdated || new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
           };
 
           const rawBanner =
