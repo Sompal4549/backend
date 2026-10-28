@@ -193,7 +193,7 @@ export const placeOrder = async (userId: string, payload: Partial<IOrder>) => {
     items.reduce((total, item) => total + item.quantity * item.price * (item.gstRate ?? 5) / 100, 0)
   );
   // Server-side pricing rules only. Client values for tax/discount/coupon/shipping/totals are ignored.
-  const discount = Math.round(subtotal * 0.08);
+  const discount = 0;
   const couponDiscount = 0;
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 999;
   const totalAmount = Math.max(0, subtotal - discount - couponDiscount + shipping + tax);

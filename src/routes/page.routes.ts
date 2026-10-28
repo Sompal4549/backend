@@ -34,6 +34,8 @@ const CONFIG_KEY_TO_PAGE_SLUG: Record<string, string> = {
   enquiryPage: 'enquiry',
   privacyPolicyPage: 'policy',
   termsAndConditionsPage: 'policy',
+  disclaimerPage: 'policy',
+  refundPolicyPage: 'policy',
 };
 
 export const pageRouter = Router();
@@ -61,6 +63,8 @@ const PAGE_SLUG_ALIASES: Record<string, string> = {
   enquiry: '/enquiry',
   'privacy-policy': '/privacy-policy',
   'terms-and-conditions': '/terms-and-conditions',
+  disclaimer: '/disclaimer',
+  'refund-policy': '/refund-policy',
 };
 
 const resolveSlugCandidates = (rawSlug: string): string[] => {
@@ -197,7 +201,109 @@ pageRouter.put(
         );
 
         // Also sync/upsert to ComponentContent collection for full backwards and storefront synchronization
-        if (Array.isArray(updatedPage.sections)) {
+        const POLICY_COMP_KEYS: Record<string, string> = {
+          privacyPolicyPage: 'policy.privacy',
+          refundPolicyPage: 'policy.refund',
+          disclaimerPage: 'policy.disclaimer',
+          termsAndConditionsPage: 'policy.terms',
+        };
+
+        const targetPolicyCompKey = POLICY_COMP_KEYS[configKey];
+        if (targetPolicyCompKey && Array.isArray(updatedPage.sections)) {
+          const existingComp = await ComponentContentModel.findOne({ key: targetPolicyCompKey });
+          const previousSections: any[] = Array.isArray(existingComp?.data?.sections) ? existingComp.data.sections : [];
+
+          const heroSec = updatedPage.sections.find(
+            (sec: any) =>
+              sec.key?.includes('hero') ||
+              sec.componentKey?.includes('hero') ||
+              sec.key?.includes('banner') ||
+              sec.bannerImage ||
+              sec.backgroundImage
+          );
+          const clauseSource = updatedPage.sections.filter(
+            (sec: any) => sec !== heroSec
+          );
+          const sectionsToProcess = clauseSource.length > 0 ? clauseSource : updatedPage.sections;
+
+          const storefrontSections = sectionsToProcess.map((sec: any, i: number) => {
+            const prev = previousSections[i] || {};
+            const rawTitle = sec.title || prev.title || '';
+            const cleanTitle = String(rawTitle).replace(/^\s*\d+[.)]\s*/, '');
+            const id = sec.data?.id || prev.id || cleanTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `section-${i + 1}`;
+            const number = String(i + 1).padStart(2, '0');
+            const text = sec.description || sec.text || prev.text || '';
+
+            const entry: any = {
+              ...prev,
+              ...(sec.data || {}),
+              id,
+              number,
+              title: cleanTitle,
+              text,
+            };
+
+            if (sec.extra !== undefined) entry.extra = sec.extra;
+            if (sec.link !== undefined) entry.link = sec.link;
+
+            if (Array.isArray(sec.items)) {
+              if (sec.items.length === 0) {
+                if (entry.cards) delete entry.cards;
+                if (entry.checkItems) delete entry.checkItems;
+                if (entry.bullets) delete entry.bullets;
+              } else {
+                const hasCards = sec.items.some((it: any) => it.icon || it.description);
+                const hadCards = Array.isArray(prev.cards) && prev.cards.length > 0;
+                const isChecklist = (Array.isArray(prev.checkItems) && prev.checkItems.length > 0) || id.includes('eligibility') || id.includes('how-we-use');
+
+                if (hadCards || (hasCards && !isChecklist)) {
+                  entry.cards = sec.items.map((it: any, cIdx: number) => ({
+                    icon: it.icon || prev.cards?.[cIdx]?.icon || 'file-text',
+                    title: it.title || '',
+                    text: it.description || it.text || '',
+                  }));
+                } else if (isChecklist) {
+                  entry.checkItems = sec.items.map((it: any) => it.title || it.text || it.description || '');
+                } else {
+                  entry.bullets = sec.items.map((it: any) => it.title || it.text || it.description || '');
+                }
+              }
+            }
+
+            return entry;
+          });
+
+          const updateSet: Record<string, any> = {
+            key: targetPolicyCompKey,
+            label: updatedPage.pageName || targetPolicyCompKey,
+            page: 'policy',
+            isActive: updatedPage.status !== 'Draft',
+            'data.sections': storefrontSections,
+            'data.hero.lastUpdated': new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
+          };
+
+          const rawBanner =
+            heroSec?.backgroundImage ||
+            heroSec?.bannerImage ||
+            (typeof heroSec?.image === 'object' ? heroSec.image?.imageUrl : heroSec?.image);
+          if (rawBanner) {
+            updateSet['data.hero.bannerImage'] = rawBanner;
+            updateSet['data.hero.backgroundImage'] = rawBanner;
+            updateSet['data.bannerImage'] = rawBanner;
+            updateSet['data.backgroundImage'] = rawBanner;
+          }
+          if (heroSec?.title) updateSet['data.hero.title'] = heroSec.title;
+          if (heroSec?.eyebrow) updateSet['data.hero.eyebrow'] = heroSec.eyebrow;
+          if (heroSec?.subtitle || heroSec?.description) {
+            updateSet['data.hero.subtitle'] = heroSec.subtitle || heroSec.description;
+          }
+
+          await ComponentContentModel.findOneAndUpdate(
+            { key: targetPolicyCompKey },
+            { $set: updateSet },
+            { upsert: true }
+          );
+        } else if (Array.isArray(updatedPage.sections)) {
           const pageSlug = CONFIG_KEY_TO_PAGE_SLUG[configKey] || configKey.replace(/Page$/, '').toLowerCase();
           for (let idx = 0; idx < updatedPage.sections.length; idx++) {
             const section = updatedPage.sections[idx];
@@ -217,8 +323,11 @@ pageRouter.put(
               ...(section.heading ? { heading: section.heading } : (section.title ? { heading: section.title } : {})),
               ...(section.subtitle ? { subtitle: section.subtitle } : {}),
               ...(section.description ? { description: section.description } : {}),
-              ...(section.eyebrow ? { eyebrow: section.eyebrow, highlight: section.eyebrow } : {}),
-              ...(section.highlight ? { highlight: section.highlight } : {}),
+              ...(section.eyebrow ? { eyebrow: section.eyebrow } : {}),
+              ...(section.highlight || section.highlightedText ? {
+                highlight: section.highlight || section.highlightedText,
+                highlightedText: section.highlight || section.highlightedText,
+              } : {}),
               ...(section.buttonLabel ? {
                 buttonLabel: section.buttonLabel,
                 buttonText: section.buttonLabel,
@@ -247,11 +356,12 @@ pageRouter.put(
                 imageurl: typeof section.image === 'string' ? { imageUrl: section.image, alt: section.title || '' } : section.image,
                 imageSrc: typeof section.image === 'string' ? section.image : section.image?.imageUrl,
               } : {}),
-              ...(section.bgImage || section.backgroundImage ? {
-                bgImage: section.bgImage || section.backgroundImage,
-                backgroundImage: typeof (section.bgImage || section.backgroundImage) === 'string'
-                  ? { imageUrl: section.bgImage || section.backgroundImage, alt: 'Background' }
-                  : (section.bgImage || section.backgroundImage),
+              ...(section.bgImage || section.backgroundImage || section.bannerImage ? {
+                bgImage: section.bgImage || section.backgroundImage || section.bannerImage,
+                bannerImage: section.bannerImage || section.backgroundImage || section.bgImage,
+                backgroundImage: typeof (section.bgImage || section.backgroundImage || section.bannerImage) === 'string'
+                  ? { imageUrl: section.bgImage || section.backgroundImage || section.bannerImage, alt: 'Background' }
+                  : (section.bgImage || section.backgroundImage || section.bannerImage),
               } : {}),
               ...(section.icon ? {
                 icon: section.icon,
@@ -263,21 +373,6 @@ pageRouter.put(
               ...(Array.isArray(section.slides) ? { slides: section.slides } : {}),
             };
             preserveImageShapes(mergedData, { ...(existingComp?.data || {}), ...(section.data || {}) });
-
-            // Policy pages render data.sections ({ id, number, title, text }); the admin edits items ({ title, description })
-            if (compKey.startsWith('policy.') && Array.isArray(section.items) && section.items.length) {
-              const previous: any[] = Array.isArray(existingComp?.data?.sections) ? existingComp.data.sections : [];
-              mergedData.sections = section.items.map((item: any, i: number) => {
-                const title = String(item?.title || '').replace(/^\s*\d+[.)]\s*/, '');
-                return {
-                  ...(previous[i] || {}),
-                  id: previous[i]?.id || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `section-${i + 1}`,
-                  number: String(i + 1).padStart(2, '0'),
-                  title,
-                  text: item?.description || '',
-                };
-              });
-            }
 
             await ComponentContentModel.findOneAndUpdate(
               { key: compKey },

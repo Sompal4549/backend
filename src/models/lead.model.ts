@@ -4,43 +4,43 @@ export interface ILead extends Document {
   leadImage?: string;
   firstName: string;
   lastName?: string;
-  companyName: string;
+  companyName?: string;
   designation?: string;
   email: string;
-  officialEmail: string;
+  officialEmail?: string;
   phone: string;
   phoneCode?: string;
   altPhone?: string;
   altPhoneCode?: string;
   landline?: string;
   website?: string;
-  title: string;
-  typeOfBusiness: string;
-  industrySector: string;
+  title?: string;
+  typeOfBusiness?: string;
+  industrySector?: string;
   marketType?: "Domestic" | "International";
   leadType?: "Individual" | "Corporate";
-  leadSource: string;
+  leadSource?: string;
   leadStatus?: "New" | "Contacted" | "Qualified" | "Negotiation" | "Converted" | "Lost";
   priority?: "High" | "Medium" | "Low";
-  assignedTo: Types.ObjectId;
-  eventAttribution: string;
-  leadDate: string;
-  followUpDate: string;
+  assignedTo?: Types.ObjectId | null;
+  eventAttribution?: string;
+  leadDate?: string;
+  followUpDate?: string;
   followUpTime?: string;
-  followUpMethod?: "WhatsApp" | "Email" | "Phone" | "Meeting" | "Other";
+  followUpMethod?: "WhatsApp" | "Email" | "Phone" | "Meeting" | "Other" | "";
   followUpSource?: string;
   interestedProduct?: string;
   expectedBudget?: string;
   estimatedDealValue?: string;
   expectedClosingDate?: string;
-  addressLine: string;
-  city: string;
-  state: string;
-  country: string;
+  addressLine?: string;
+  city?: string;
+  state?: string;
+  country?: string;
   zipCode?: string;
   leadNotes?: string;
   internalNotes?: string;
-  leadCategory?: "hot" | "cold";
+  leadCategory?: "hot" | "cold" | "";
   refreshToken?: string;
   orders?: Types.ObjectId[];
 }
@@ -50,19 +50,19 @@ const leadSchema = new Schema<ILead>(
     leadImage: { type: String, default: "" },
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, default: "", trim: true },
-    companyName: { type: String, required: true, trim: true },
+    companyName: { type: String, default: "Individual", trim: true },
     designation: { type: String, default: "" },
     email: { type: String, required: true, lowercase: true, trim: true },
-    officialEmail: { type: String, required: true, lowercase: true, trim: true },
+    officialEmail: { type: String, default: "", lowercase: true, trim: true },
     phone: { type: String, required: true },
     phoneCode: { type: String, default: "+91" },
     altPhone: { type: String, default: "" },
     altPhoneCode: { type: String, default: "+91" },
     landline: { type: String, default: "" },
     website: { type: String, default: "" },
-    title: { type: String, required: true },
-    typeOfBusiness: { type: String, required: true },
-    industrySector: { type: String, required: true },
+    title: { type: String, default: "Mr./Ms." },
+    typeOfBusiness: { type: String, default: "Other" },
+    industrySector: { type: String, default: "Wellness" },
     marketType: {
       type: String,
       enum: ["Domestic", "International"],
@@ -75,8 +75,8 @@ const leadSchema = new Schema<ILead>(
     },
     leadSource: {
       type: String,
-      required: true,
       enum: ["Instagram", "Facebook", "Website", "WhatsApp", "Google", "LinkedIn", "Referral", "Cold Call", "Event", "Other"],
+      default: "Website",
     },
     leadStatus: {
       type: String,
@@ -88,10 +88,10 @@ const leadSchema = new Schema<ILead>(
       enum: ["High", "Medium", "Low"],
       default: "High",
     },
-    assignedTo: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    eventAttribution: { type: String, required: true },
-    leadDate: { type: String, required: true },
-    followUpDate: { type: String, required: true },
+    assignedTo: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    eventAttribution: { type: String, default: "Website" },
+    leadDate: { type: String, default: () => new Date().toISOString().slice(0, 10) },
+    followUpDate: { type: String, default: () => new Date().toISOString().slice(0, 10) },
     followUpTime: { type: String, default: "" },
     followUpMethod: {
       type: String,
@@ -103,10 +103,10 @@ const leadSchema = new Schema<ILead>(
     expectedBudget: { type: String, default: "" },
     estimatedDealValue: { type: String, default: "" },
     expectedClosingDate: { type: String, default: "" },
-    addressLine: { type: String, required: true },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    country: { type: String, required: true },
+    addressLine: { type: String, default: "" },
+    city: { type: String, default: "" },
+    state: { type: String, default: "" },
+    country: { type: String, default: "India" },
     zipCode: { type: String, default: "" },
     leadNotes: { type: String, default: "" },
     internalNotes: { type: String, default: "" },
