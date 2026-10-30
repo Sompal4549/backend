@@ -117,12 +117,25 @@ export const getComponentsByPage = asyncHandler(async (req: Request, res: Respon
             imageUrl: typeof section.image === 'string' ? section.image : section.image?.imageUrl,
             imageurl: typeof section.image === 'string' ? { imageUrl: section.image, alt: section.title || '' } : section.image,
             imageSrc: typeof section.image === 'string' ? section.image : section.image?.imageUrl,
+            bgImage: section.image,
+            bannerImage: section.image,
+            backgroundImage: typeof section.image === 'string'
+              ? { imageUrl: section.image, alt: 'Background' }
+              : section.image,
           } : {}),
           ...(section.bgImage || section.backgroundImage ? {
             bgImage: section.bgImage || section.backgroundImage,
+            bannerImage: section.bgImage || section.backgroundImage,
             backgroundImage: typeof (section.bgImage || section.backgroundImage) === 'string'
               ? { imageUrl: section.bgImage || section.backgroundImage, alt: 'Background' }
               : (section.bgImage || section.backgroundImage),
+            image: section.bgImage || section.backgroundImage,
+            imageUrl: typeof (section.bgImage || section.backgroundImage) === 'string'
+              ? (section.bgImage || section.backgroundImage)
+              : (section.bgImage || section.backgroundImage)?.imageUrl,
+            imageSrc: typeof (section.bgImage || section.backgroundImage) === 'string'
+              ? (section.bgImage || section.backgroundImage)
+              : (section.bgImage || section.backgroundImage)?.imageUrl,
           } : {}),
           ...(section.icon ? {
             icon: section.icon,
