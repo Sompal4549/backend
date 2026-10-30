@@ -396,6 +396,11 @@ pageRouter.put(
                 imageUrl: typeof section.image === 'string' ? section.image : section.image?.imageUrl,
                 imageurl: typeof section.image === 'string' ? { imageUrl: section.image, alt: section.title || '' } : section.image,
                 imageSrc: typeof section.image === 'string' ? section.image : section.image?.imageUrl,
+                bgImage: section.image,
+                bannerImage: section.image,
+                backgroundImage: typeof section.image === 'string'
+                  ? { imageUrl: section.image, alt: 'Background' }
+                  : section.image,
               } : {}),
               ...(section.bgImage || section.backgroundImage || section.bannerImage ? {
                 bgImage: section.bgImage || section.backgroundImage || section.bannerImage,
@@ -403,6 +408,13 @@ pageRouter.put(
                 backgroundImage: typeof (section.bgImage || section.backgroundImage || section.bannerImage) === 'string'
                   ? { imageUrl: section.bgImage || section.backgroundImage || section.bannerImage, alt: 'Background' }
                   : (section.bgImage || section.backgroundImage || section.bannerImage),
+                image: section.bgImage || section.backgroundImage || section.bannerImage,
+                imageUrl: typeof (section.bgImage || section.backgroundImage || section.bannerImage) === 'string'
+                  ? (section.bgImage || section.backgroundImage || section.bannerImage)
+                  : (section.bgImage || section.backgroundImage || section.bannerImage)?.imageUrl,
+                imageSrc: typeof (section.bgImage || section.backgroundImage || section.bannerImage) === 'string'
+                  ? (section.bgImage || section.backgroundImage || section.bannerImage)
+                  : (section.bgImage || section.backgroundImage || section.bannerImage)?.imageUrl,
               } : {}),
               ...(section.icon ? {
                 icon: section.icon,
@@ -413,7 +425,33 @@ pageRouter.put(
               // The admin slide editor edits section.slides; the storefront hero reads data.slides
               ...(Array.isArray(section.slides) ? { slides: section.slides } : {}),
             };
+                        if (compKey === 'career.banner') {
+              if (section.backgroundImage) {
+                mergedData.backgroundImage = typeof section.backgroundImage === 'string'
+                  ? section.backgroundImage
+                  : section.backgroundImage?.imageUrl;
+                mergedData.bgImage = typeof section.backgroundImage === 'string'
+                  ? { imageUrl: section.backgroundImage, alt: 'Career Banner' }
+                  : section.backgroundImage;
+                mergedData.bannerImage = typeof section.backgroundImage === 'string'
+                  ? section.backgroundImage
+                  : section.backgroundImage?.imageUrl;
+                mergedData.imageUrl = mergedData.bannerImage;
+                mergedData.imageSrc = mergedData.bannerImage;
+              }
+              if (section.ctaText) mergedData.ctaText = section.ctaText;
+              if (section.ctaHref) mergedData.ctaHref = section.ctaHref;
+              if (Array.isArray(section.headingLines)) mergedData.headingLines = section.headingLines;
+              if (Array.isArray(section.highlights)) mergedData.highlights = section.highlights;
+            }
+
             preserveImageShapes(mergedData, { ...(existingComp?.data || {}), ...(section.data || {}) });
+
+            if (compKey === 'career.banner' && section.backgroundImage) {
+              mergedData.backgroundImage = typeof section.backgroundImage === 'string'
+                ? section.backgroundImage
+                : section.backgroundImage?.imageUrl;
+            }
 
             await ComponentContentModel.findOneAndUpdate(
               { key: compKey },
