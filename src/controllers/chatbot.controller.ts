@@ -11,14 +11,19 @@ import { CategoryModel } from '../models/category.model';
 import { SolutionModel } from '../models/solution.model';
 
 const ENSIS_SYSTEM_PROMPT = `You are "Ensis Advisor", the sales assistant on the ENSIS website (ensis.in).
-ENSIS (Design House India Pvt. Ltd., Ghaziabad) manufactures handcrafted Ayurvedic, Panchkarma and spa equipment and delivers turnkey Ayurveda clinics, hospitals, spas and wellness resorts across India and abroad.
+ENSIS (Design House India Pvt. Ltd., Ghaziabad) is a premier MANUFACTURER and SUPPLIER of handcrafted Ayurvedic & Panchkarma equipment, and provider of TURNKEY CLINIC & WELLNESS INFRASTRUCTURE SETUPS across India and abroad.
 Facts: 5-year structural warranty on equipment; pan-India and international shipping with on-site installation; turnkey projects cover space planning, 2D/3D layouts, interiors, equipment, SOPs and therapist training. Phone/WhatsApp +91 9654900525, email info@ensis.in, Mon-Sat 9 AM-7 PM.
 
-Your goal: help the visitor find the right product or solution, and turn real interest into a callback request (a lead) for the sales team.
+CRITICAL RULE — PRODUCTS & TURNKEY SETUPS:
+- ENSIS exclusively manufactures and sells equipment/products (Burma teak Droni tables, Shirodhara units, Swedana steam boxes, therapy tables, Panchkarma instruments) and delivers turnkey clinic/hospital infrastructure setups.
+- Never discuss, claim, or offer personal spa appointments, massage treatments, or salon sessions. Always focus on recommending products from our PRODUCT CATALOG below and clinic setups from our SOLUTIONS list.
+- Do not output disclaimers like "we do not offer spa therapies"; simply focus directly on the products and turnkey setups we manufacture and supply.
+
+Your goal: help the visitor find the right product or turnkey solution, and turn real interest into a callback request (a lead) for the sales team.
 
 How to answer:
 - Product questions: recommend 1-3 matching items from the PRODUCT CATALOG below. For each give the exact name, the price from the catalog (e.g. "₹72,000 + GST") and one key spec, with its link in markdown, e.g. [Premium Teak Wood Droni Table](/products/premium-teak-wood-ayurvedic-droni-table).
-- Setup or project questions (clinic, hospital, spa, resort, Panchkarma centre): use the SOLUTIONS list and link the matching page.
+- Setup or project questions (clinic, hospital, wellness center, Panchkarma centre): use the SOLUTIONS list and link the matching page.
 - Only use the products, prices and facts given here. Never invent a product, price, size or delivery date. If something is not listed, say the team will confirm it on a call.
 - Understand the need: when it helps, ask ONE short question at a time, e.g. what they are setting up, in which city, how many therapy rooms, or when they plan to start.
 - Lead: when the visitor shows buying interest (asks for a price, quote, catalog, customisation, bulk order, delivery to their city, site visit, layout or a setup), or after 3 helpful replies, invite them to request a free callback from an ENSIS expert and put the exact tag [[LEAD]] at the very end of that reply. The website then shows a callback form. Never ask them to type their phone number in the chat. Do not add [[LEAD]] in two replies in a row.
@@ -184,7 +189,7 @@ export async function generateBotReply(
   }
 
   const fallbackReply =
-    "Namaste! Ensis specializes in Turnkey Panchkarma setups, Handcrafted Solid Teak Droni, Automated Shirodhara units, and Ayurvedic clinic consultancy.\n\nFor a customized 2D layout and 2026 catalog, please contact our team directly at +91 9654900525 or leave your phone number.";
+    "Namaste! Ensis manufactures and supplies handcrafted Solid Teak Droni tables, automated Shirodhara units, Swedana steam chambers, and turnkey clinic infrastructure.\n\nFor our 2026 catalog, custom layouts, and pricing, please contact us at +91 9654900525 or request a callback.";
 
   return { reply: fallbackReply, provider: 'fallback' };
 }
@@ -262,14 +267,15 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
   successResponse(res, { reply, provider, showLeadForm });
 });
 
-/** Name and mobile from the chat's callback form; throws a 400 the widget can show */
+/** Name, mobile and optional country from the chat's callback form; throws a 400 the widget can show */
 const leadContact = (body: any) => {
   const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 80) : '';
-  const phone = typeof body?.phone === 'string' ? body.phone.trim().slice(0, 20) : '';
+  const phone = typeof body?.phone === 'string' ? body.phone.trim().slice(0, 25) : '';
+  const country = typeof body?.country === 'string' ? body.country.trim().slice(0, 60) : '';
   const digits = phone.replace(/\D/g, '');
   if (!name) throw new AppError(400, 'Please enter your name.');
-  if (digits.length < 10 || digits.length > 13) throw new AppError(400, 'Please enter a valid mobile number.');
-  return { name, phone };
+  if (digits.length < 7 || digits.length > 15) throw new AppError(400, 'Please enter a valid mobile number.');
+  return { name, phone, country };
 };
 
 // POST /chatbot/lead/otp — { name, phone }: sends the WhatsApp OTP for the callback form
@@ -279,10 +285,10 @@ export const postChatbotLeadOtp = asyncHandler(async (req: Request, res: Respons
   successResponse(res, { sent: true }, 'OTP sent on WhatsApp');
 });
 
-// POST /chatbot/lead — { sessionId, name, phone, otp, language, pageUrl }: the chat's callback form.
+// POST /chatbot/lead — { sessionId, name, phone, country, otp, language, pageUrl }: the chat's callback form.
 // Saves the lead on the chat and adds it to Website Enquiries (source "chatbot").
 export const postChatbotLead = asyncHandler(async (req: Request, res: Response) => {
-  const { name, phone } = leadContact(req.body);
+  const { name, phone, country } = leadContact(req.body);
   const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : '';
   if (!/^\d{4,8}$/.test(otp)) throw new AppError(400, 'Please enter the OTP sent on WhatsApp.');
   // Throws "Invalid or expired OTP" (400) and uses the code up
@@ -302,9 +308,12 @@ export const postChatbotLead = asyncHandler(async (req: Request, res: Response) 
     mobileNumber: phone,
     email: '',
     projectType: 'Chatbot Callback Request',
-    message: questions
-      ? `Callback requested from the website chatbot (mobile verified on WhatsApp). Questions asked:\n${questions}`
-      : 'Callback requested from the website chatbot (mobile verified on WhatsApp).',
+    message: [
+      country ? `Country: ${country}` : '',
+      questions
+        ? `Callback requested from the website chatbot (mobile verified on WhatsApp). Questions asked:\n${questions}`
+        : 'Callback requested from the website chatbot (mobile verified on WhatsApp).',
+    ].filter(Boolean).join('\n\n'),
     preferredContact: 'Phone',
     agreeToContact: true,
     source: 'chatbot',

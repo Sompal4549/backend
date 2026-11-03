@@ -12,6 +12,7 @@ import { successResponse } from '../utils/api-response';
 import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
 import { updateUserRefreshToken } from '../repositories/user.repository';
+import { sendEmail } from '../services/email.service';
 
 // Phone normalize helper
 const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
@@ -263,9 +264,50 @@ export const adminForgotPassword = asyncHandler(async (req: Request, res: Respon
     config.jwtAccessSecret,
     { expiresIn: '15m' }
   );
+  // Build the reset link pointing to the admin portal
+  const adminPortalUrl = (process.env.ADMIN_PORTAL_URL || 'http://localhost:3001').replace(/\/$/, '');
+  const resetLink = `${adminPortalUrl}/login?resetToken=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(user.email)}`;
 
-  successResponse(res, { success: true, resetToken, email: user.email, name: user.name }, 'Password reset instructions generated');
+  const htmlBody = `
+    <div style="font-family:'Inter',sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#ffffff;border-radius:8px;border:1px solid #e2e8f0;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <h2 style="color:#4B1426;font-size:20px;font-weight:700;margin:0;">Password Reset Request</h2>
+        <p style="color:#64748b;font-size:13px;margin-top:6px;">Ensis Admin Portal</p>
+      </div>
+      <p style="color:#334155;font-size:14px;line-height:1.6;">Hi <strong>${user.name}</strong>,</p>
+      <p style="color:#334155;font-size:14px;line-height:1.6;">
+        We received a request to reset the password for your Ensis Admin account.
+        Click the button below to set a new password. This link will expire in <strong>15 minutes</strong>.
+      </p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${resetLink}" style="display:inline-block;background:#4B1426;color:#ffffff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:6px;text-decoration:none;">
+          Reset My Password
+        </a>
+      </div>
+      <p style="color:#64748b;font-size:12px;line-height:1.6;">
+        If the button above doesn't work, copy and paste this link into your browser:<br/>
+        <a href="${resetLink}" style="color:#2563eb;word-break:break-all;">${resetLink}</a>
+      </p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;"/>
+      <p style="color:#94a3b8;font-size:11px;text-align:center;">
+        If you did not request a password reset, you can safely ignore this email.<br/>
+        Your password will not change unless you click the link above.
+      </p>
+    </div>
+  `;
+
+  const textBody = `Hi ${user.name},\n\nWe received a request to reset the password for your Ensis Admin account.\n\nReset link (valid for 15 minutes):\n${resetLink}\n\nIf you did not request this, please ignore this email.\n\nRegards,\nEnsis Team`;
+
+  try {
+    await sendEmail(user.email, 'Reset Your Ensis Admin Password', textBody, htmlBody);
+  } catch (emailErr) {
+    console.error('[adminForgotPassword] Failed to send reset email:', emailErr);
+    // Don't expose email errors to the user; still return success to avoid account enumeration
+  }
+
+  successResponse(res, { success: true }, 'If an account with that email exists, a password reset link has been sent.');
 });
+
 
 export const adminResetPassword = asyncHandler(async (req: Request, res: Response) => {
   const { token, newPassword } = req.body;
