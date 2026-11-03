@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 import { body, param } from 'express-validator';
 import { UserModel } from '../models/user.model';
 import { asyncHandler } from '../utils/async-handler';
@@ -177,8 +178,11 @@ usersRouter.patch(
   '/admin/staff/:id/status',
   asyncHandler(async (req: Request, res: Response) => {
     const { status } = req.body;
-    const lockUntil = status === 'LOCKED' ? new Date(Date.now() + 365 * 24 * 3600 * 1000) : null;
-    const user = await UserModel.findByIdAndUpdate(req.params.id, { lockUntil }, { new: true });
+    const update =
+      status === 'LOCKED'
+        ? { lockUntil: new Date(Date.now() + 365 * 24 * 3600 * 1000) }
+        : { loginAttempts: 0, $unset: { lockUntil: 1 } };
+    const user = await UserModel.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!user) throw new AppError(404, 'Staff member not found');
 
     successResponse(
@@ -220,6 +224,42 @@ usersRouter.patch(
         createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
       },
       'Staff role updated'
+    );
+  })
+);
+
+// PATCH /api/v1/users/admin/staff/:id/reset-password
+usersRouter.patch(
+  '/admin/staff/:id/reset-password',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = await UserModel.findById(req.params.id);
+    if (!user) throw new AppError(404, 'Staff member not found');
+
+    const rawPassword = req.body?.newPassword || req.body?.password;
+    const passwordToSet =
+      typeof rawPassword === 'string' && rawPassword.trim().length >= 6
+        ? rawPassword.trim()
+        : `Ensis@${crypto.randomBytes(4).toString('hex')}A1!`;
+
+    const hashedPassword = await bcrypt.hash(passwordToSet, 10);
+
+    await UserModel.findByIdAndUpdate(
+      req.params.id,
+      {
+        password: hashedPassword,
+        loginAttempts: 0,
+        $unset: { lockUntil: 1, refreshToken: 1 },
+      },
+      { new: true }
+    );
+
+    successResponse(
+      res,
+      {
+        password: passwordToSet,
+        temporaryPassword: passwordToSet,
+      },
+      'Staff password updated successfully'
     );
   })
 );
