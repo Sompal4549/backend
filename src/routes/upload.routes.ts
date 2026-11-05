@@ -28,9 +28,18 @@ const uploader = multer({
   },
 });
 
+const uploadFields = uploader.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'image', maxCount: 1 },
+]);
+
 uploadRouter.post('/', authMiddleware, adminMiddleware, (req, res, next) => {
-  uploader.single('file')(req, res, (error) => {
+  uploadFields(req, res, (error) => {
     if (!error) {
+      if (!req.file && (req as any).files) {
+        const filesObj = (req as any).files as Record<string, Express.Multer.File[]>;
+        req.file = filesObj['file']?.[0] || filesObj['image']?.[0];
+      }
       next();
       return;
     }

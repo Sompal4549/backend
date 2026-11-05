@@ -13,7 +13,13 @@ export const uploadFile = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError(400, 'No file uploaded');
   }
 
-  const subDir = req.body.subDir || '';
+  const rawSubDir =
+    (req.body?.subDir || req.body?.folder || req.query?.folder || req.query?.subDir || '') as string;
+  const cleanSubDir = rawSubDir
+    .replace(/^ensis[/\\]?/, '')
+    .replace(/\.\.[/\\]/g, '')
+    .replace(/^[/\\]+|[/\\]+$/g, '');
+
   const mime = file.mimetype.toLowerCase();
   const isImage = mime.startsWith('image/');
   const isSvg = mime === 'image/svg+xml';
@@ -53,8 +59,8 @@ export const uploadFile = asyncHandler(async (req: Request, res: Response) => {
         resizeHeight = Math.round(height * ratio);
       }
       
-      // Process the image with sharp
-      let sharpInstance = sharp(file.buffer);
+      // Process the image with sharp and auto-rotate according to EXIF
+      let sharpInstance = sharp(file.buffer).rotate();
       
       if (needsResize) {
         sharpInstance = sharpInstance.resize(resizeWidth, resizeHeight, {
@@ -76,24 +82,30 @@ export const uploadFile = asyncHandler(async (req: Request, res: Response) => {
 
   const result = await uploadMediaToCloudinary(
     uploadBuffer,
-    subDir,
+    cleanSubDir,
     finalMimetype,
     file.originalname
   );
 
   // Track upload in DB so it can be listed later with full metadata
-  await MediaModel.create({
-    filename: file.originalname || result.publicId,
-    url: result.url,
-    mimetype: finalMimetype,
-    size: uploadBuffer.length,
-    folder: subDir,
-  });
+  try {
+    await MediaModel.create({
+      filename: file.originalname || result.publicId,
+      url: result.url,
+      mimetype: finalMimetype,
+      size: uploadBuffer.length,
+      folder: cleanSubDir,
+      uploadedBy: (req as any).user?._id || (req as any).user?.id || undefined,
+    });
+  } catch (err) {
+    console.warn('[upload] MediaModel.create warning:', err);
+  }
 
   successResponse(
     res,
     {
       url: result.url,
+      publicId: result.publicId,
       mimetype: finalMimetype,
       name: file.originalname || result.publicId,
       size: uploadBuffer.length,
@@ -114,7 +126,11 @@ export const uploadFile = asyncHandler(async (req: Request, res: Response) => {
  * Lists uploaded files from Cloudinary and DB with mimetype and media type metadata.
  */
 export const listFiles = asyncHandler(async (req: Request, res: Response) => {
-  const subDir = String(req.query.subDir || '');
+  const rawSubDir = String(req.query.subDir || req.query.folder || '');
+  const subDir = rawSubDir
+    .replace(/^ensis[/\\]?/, '')
+    .replace(/\.\.[/\\]/g, '')
+    .replace(/^[/\\]+|[/\\]+$/g, '');
   const typeFilter = String(req.query.type || 'all').toLowerCase();
   const page = Math.max(Number(req.query.page) || 1, 1);
   const limit = Math.max(Number(req.query.limit) || 25, 1);

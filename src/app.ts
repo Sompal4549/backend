@@ -181,6 +181,7 @@ export const createApp = () => {
   };
   app.use('/uploads', allowCrossOrigin, express.static(path.join(process.cwd(), 'uploads')));
   app.use('/uploads', allowCrossOrigin, express.static(path.join(process.cwd(), 'src', 'uploads')));
+  app.use('/uploads', allowCrossOrigin, express.static(path.join(process.cwd(), 'backend', 'uploads')));
 
   /**
    * Middleware to handle legacy numeric ID mapping.
