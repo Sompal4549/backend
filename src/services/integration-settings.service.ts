@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import mongoose from 'mongoose';
 import { decryptField, encryptField, parseMasterKey } from '../modules/infrastructure/core/encryption.util';
 import {
   IntegrationSettingsModel,
@@ -65,9 +66,10 @@ const decryptSecret = (stored: string) => decryptField(stored, masterKey());
  * Settings document
  * ------------------------------------------------------------------------- */
 
-const loadDoc = (withSecrets = false) => {
+const loadDoc = async (withSecrets = false): Promise<IIntegrationSettings | null> => {
+  if (mongoose.connection.readyState !== 1) return null;
   const query = IntegrationSettingsModel.findOne({ key: SETTINGS_KEY });
-  return withSecrets ? query.select('+serviceAccountKeyEnc +pagespeedApiKeyEnc') : query;
+  return (withSecrets ? query.select('+serviceAccountKeyEnc +pagespeedApiKeyEnc') : query).lean<IIntegrationSettings>();
 };
 
 const envPagespeedKey = () => (process.env.PAGESPEED_API_KEY || process.env.PSI_API_KEY || '').trim();
@@ -96,13 +98,24 @@ const encryptionReady = () => {
 
 /** Safe view for the admin panel: flags only, never the secrets themselves. */
 export const getIntegrationSettingsView = async (): Promise<IntegrationSettingsView> => {
-  const doc = await loadDoc(true).lean<IIntegrationSettings>();
+  const doc = await loadDoc(true);
   const pagespeedStored = Boolean(doc?.pagespeedApiKeyEnc);
+  const envEmail = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GSC_SERVICE_ACCOUNT_EMAIL || '').trim();
+  const envKey = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GSC_SERVICE_ACCOUNT_PRIVATE_KEY || '').trim();
+  const hasEnvServiceAccount = Boolean(envEmail && envKey);
+
+  const serviceAccountConfigured = Boolean(doc?.serviceAccountKeyEnc) || hasEnvServiceAccount;
+  const serviceAccountEmail = doc?.serviceAccountKeyEnc
+    ? doc?.serviceAccountEmail ?? ''
+    : hasEnvServiceAccount
+      ? envEmail
+      : '';
+
   return {
-    ga4PropertyId: doc?.ga4PropertyId ?? '',
-    searchConsoleSiteUrl: doc?.searchConsoleSiteUrl ?? '',
-    serviceAccountConfigured: Boolean(doc?.serviceAccountKeyEnc),
-    serviceAccountEmail: doc?.serviceAccountKeyEnc ? doc?.serviceAccountEmail ?? '' : '',
+    ga4PropertyId: doc?.ga4PropertyId || (process.env.GA4_PROPERTY_ID || '').trim(),
+    searchConsoleSiteUrl: doc?.searchConsoleSiteUrl || (process.env.SEARCH_CONSOLE_SITE_URL || 'https://ensis.in/').trim(),
+    serviceAccountConfigured,
+    serviceAccountEmail,
     pagespeedKeyConfigured: pagespeedStored || Boolean(envPagespeedKey()),
     pagespeedKeySource: pagespeedStored ? 'settings' : envPagespeedKey() ? 'env' : null,
     encryptionConfigured: encryptionReady(),
@@ -211,7 +224,7 @@ export type ResolvedIntegrations = {
 };
 
 export const resolveIntegrations = async (): Promise<ResolvedIntegrations> => {
-  const doc = await loadDoc(true).lean<IIntegrationSettings>();
+  const doc = await loadDoc(true);
 
   let serviceAccount: ServiceAccountKey | null = null;
   let serviceAccountError: string | null = null;
@@ -220,6 +233,24 @@ export const resolveIntegrations = async (): Promise<ResolvedIntegrations> => {
       serviceAccount = parseServiceAccountJson(decryptSecret(doc.serviceAccountKeyEnc));
     } catch {
       serviceAccountError = 'The stored service account key cannot be decrypted — re-enter it in Settings → Integrations.';
+    }
+  }
+
+  if (!serviceAccount && !serviceAccountError) {
+    const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GSC_SERVICE_ACCOUNT_EMAIL;
+    let privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GSC_SERVICE_ACCOUNT_PRIVATE_KEY;
+    if (email && privateKey) {
+      privateKey = privateKey.trim();
+      if (privateKey.startsWith('"') || privateKey.startsWith("'")) privateKey = privateKey.slice(1);
+      if (privateKey.endsWith('\\')) privateKey = privateKey.slice(0, -1);
+      if (privateKey.endsWith('"') || privateKey.endsWith("'")) privateKey = privateKey.slice(0, -1);
+      privateKey = privateKey.trim();
+      if (privateKey.includes('\\n')) privateKey = privateKey.replace(/\\n/g, '\n');
+      try {
+        serviceAccount = { client_email: email, private_key: privateKey };
+      } catch {
+        // ignore fallback error
+      }
     }
   }
 
@@ -234,9 +265,12 @@ export const resolveIntegrations = async (): Promise<ResolvedIntegrations> => {
   }
   if (!pagespeedApiKey && !pagespeedKeyError) pagespeedApiKey = envPagespeedKey();
 
+  const searchConsoleSiteUrl = doc?.searchConsoleSiteUrl || process.env.SEARCH_CONSOLE_SITE_URL || 'https://ensis.in/';
+  const ga4PropertyId = doc?.ga4PropertyId || process.env.GA4_PROPERTY_ID || '';
+
   return {
-    ga4PropertyId: doc?.ga4PropertyId ?? '',
-    searchConsoleSiteUrl: doc?.searchConsoleSiteUrl ?? '',
+    ga4PropertyId,
+    searchConsoleSiteUrl,
     serviceAccount,
     serviceAccountError,
     pagespeedApiKey,

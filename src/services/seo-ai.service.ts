@@ -38,6 +38,12 @@ const getOpenAiConfig = () => {
   return { apiKey, model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini" };
 };
 
+const getGeminiConfig = () => {
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim();
+  if (!apiKey) throw new AppError(503, "AI recommendations are not configured: GEMINI_API_KEY is missing on the server");
+  return { apiKey, model: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash" };
+};
+
 const callOpenAiJson = async (prompt: string): Promise<{ model: string; data: any }> => {
   const { apiKey, model } = getOpenAiConfig();
   let res: Response;
@@ -70,6 +76,75 @@ const callOpenAiJson = async (prompt: string): Promise<{ model: string; data: an
     return { model, data: JSON.parse(content) };
   } catch {
     throw new AppError(502, "OpenAI returned an unreadable response. Please try again.");
+  }
+};
+
+const callGeminiJson = async (prompt: string): Promise<{ model: string; data: any }> => {
+  const { apiKey, model } = getGeminiConfig();
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `${SYSTEM_PROMPT}\n\nRespond with valid JSON matching this schema:\n${RESPONSE_SCHEMA}\n\n${prompt}` }],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.3,
+          },
+        }),
+        signal: AbortSignal.timeout(60000),
+      }
+    );
+  } catch (err) {
+    console.warn("[SEO AI] Gemini request failed:", (err as Error).message);
+    throw new AppError(502, "Could not reach Google Gemini. Please try again.");
+  }
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.warn(`[SEO AI] Gemini (${model}) HTTP ${res.status}:`, errorText.slice(0, 500));
+    throw new AppError(502, `Gemini request failed (HTTP ${res.status}). Check the GEMINI_API_KEY, model and quota.`);
+  }
+  const body: any = await res.json();
+  const candidate = body?.candidates?.[0];
+  const content = candidate?.content?.parts?.[0]?.text?.trim();
+  if (!content) {
+    throw new AppError(502, "Gemini returned an empty response. Please try again.");
+  }
+  try {
+    return { model, data: JSON.parse(content) };
+  } catch {
+    throw new AppError(502, "Gemini returned an unreadable response. Please try again.");
+  }
+};
+
+const callLlmJson = async (
+  prompt: string,
+  preferredProvider: "openai" | "gemini" = "openai"
+): Promise<{ provider: "openai" | "gemini"; model: string; data: any }> => {
+  const hasGemini = Boolean((process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim());
+  const hasOpenAi = Boolean(process.env.OPENAI_API_KEY?.trim());
+
+  let targetProvider = preferredProvider;
+  if (targetProvider === "gemini" && !hasGemini && hasOpenAi) {
+    targetProvider = "openai";
+  } else if (targetProvider === "openai" && !hasOpenAi && hasGemini) {
+    targetProvider = "gemini";
+  }
+
+  if (targetProvider === "gemini") {
+    const { model, data } = await callGeminiJson(prompt);
+    return { provider: "gemini", model, data };
+  } else {
+    const { model, data } = await callOpenAiJson(prompt);
+    return { provider: "openai", model, data };
   }
 };
 
@@ -124,7 +199,14 @@ const compactPage = (page: AuditPageResult) => ({
   issues: (page.issues || []).map((i) => `${i.severity}:${i.ruleId} - ${i.detail}`),
 });
 
-const buildResponse = (scope: "site" | "page", url: string, route: string | null, model: string, data: any) => ({
+const buildResponse = (
+  scope: "site" | "page",
+  url: string,
+  route: string | null,
+  model: string,
+  data: any,
+  provider: "openai" | "gemini" = "openai"
+) => ({
   status: "ok" as const,
   message: null,
   recommendation: {
@@ -132,7 +214,7 @@ const buildResponse = (scope: "site" | "page", url: string, route: string | null
     scope,
     url,
     route,
-    provider: "openai",
+    provider,
     providerAvailable: true,
     model,
     summary: strOrNull(data?.summary, 2000),
@@ -145,8 +227,7 @@ const buildResponse = (scope: "site" | "page", url: string, route: string | null
   },
 });
 
-export const generateSiteRecommendation = async () => {
-  getOpenAiConfig();
+export const generateSiteRecommendation = async (provider: "openai" | "gemini" = "openai") => {
   const audit = await getLatestCompletedAudit({ target: "site" });
   if (!audit) {
     return { status: "no_data" as const, message: "Run a site audit first; recommendations are generated from its results.", recommendation: null };
@@ -174,12 +255,15 @@ export const generateSiteRecommendation = async () => {
   const prompt =
     `Site-wide SEO audit results for ${audit.siteUrl} (JSON):\n${JSON.stringify(input).slice(0, 60000)}\n\n` +
     `Give the 5-10 highest-impact site-wide recommendations, highest priority first. Respond in this JSON shape:\n${RESPONSE_SCHEMA}`;
-  const { model, data } = await callOpenAiJson(prompt);
-  return buildResponse("site", audit.siteUrl, null, model, data);
+  const res = await callLlmJson(prompt, provider);
+  return buildResponse("site", audit.siteUrl, null, res.model, res.data, res.provider);
 };
 
-export const generatePageRecommendation = async (path: string, cmsSeo: Record<string, unknown> | null) => {
-  getOpenAiConfig();
+export const generatePageRecommendation = async (
+  path: string,
+  cmsSeo: Record<string, unknown> | null,
+  provider: "openai" | "gemini" = "openai"
+) => {
   const { page, source } = await getPageSnapshot(path);
   if (page.error || page.httpStatus === null) {
     return { status: "no_data" as const, message: `Could not fetch ${page.url}: ${page.error || "no response"}`, recommendation: null };
@@ -190,6 +274,6 @@ export const generatePageRecommendation = async (path: string, cmsSeo: Record<st
     (cmsSeo ? `SEO fields currently stored in the CMS for this page: ${JSON.stringify(cmsSeo).slice(0, 5000)}\n\n` : "") +
     `Give 3-8 concrete recommendations for this page, highest priority first. Include a suggestedTitle and suggestedDescription ` +
     `in the first metadata-related item. Respond in this JSON shape:\n${RESPONSE_SCHEMA}`;
-  const { model, data } = await callOpenAiJson(prompt);
-  return buildResponse("page", page.url || `${getSiteUrl()}${path}`, path, model, data);
+  const res = await callLlmJson(prompt, provider);
+  return buildResponse("page", page.url || `${getSiteUrl()}${path}`, path, res.model, res.data, res.provider);
 };

@@ -32,7 +32,6 @@
     "seed:policies": "tsx src/seeds/policies.seed.ts",
     "seed:jobs": "tsx src/seeds/jobs.seed.ts",
     "seed:blog-content": "tsx src/seeds/blog-content.seed.ts",
-    "migrate:categories": "tsx src/seeds/migrate-categories.ts",
     "seed:live": "tsx src/seeds/live.seed.ts",
     "seed:live:fetch": "tsx src/seeds/live.seed.ts --fetch-only",
     "seed:live:offline": "tsx src/seeds/live.seed.ts --from-snapshot",
@@ -60,6 +59,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/pdfkit": "^0.17.6",
     "bcrypt": "^5.1.1",
+    "cheerio": "^1.2.0",
     "cloudinary": "^2.5.1",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.6",
@@ -84,6 +84,7 @@
     "slugify": "^1.6.9",
     "speakeasy": "^2.0.0",
     "swagger-ui-express": "^5.0.1",
+    "xlsx": "^0.18.5",
     "yamljs": "^0.3.0",
     "zod": "^4.6.7"
   },

@@ -47,7 +47,7 @@ export const config = {
     accessSecret === DEFAULT_ACCESS_SECRET ? DEFAULT_REFRESH_SECRET : `${accessSecret}:refresh`
   ),
   usesDefaultJwtSecret: accessSecret === DEFAULT_ACCESS_SECRET,
-  accessTokenExpires: getString('ACCESS_TOKEN_EXPIRES', '15m'),
+  accessTokenExpires: getString('ACCESS_TOKEN_EXPIRES', isProduction ? '15m' : '7d'),
   refreshTokenExpires: getString('REFRESH_TOKEN_EXPIRES', '7d'),
   // HTTPS-only cookies in production unless explicitly switched off
   cookieSecure: getBoolean('COOKIE_SECURE', isProduction),

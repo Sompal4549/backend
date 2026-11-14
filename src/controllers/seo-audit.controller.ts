@@ -12,6 +12,11 @@ import { successResponse } from "../utils/api-response";
 import { AppError } from "../utils/app-error";
 import { AuthRequest } from "../middlewares/auth.middleware";
 import { isObjectIdString } from "../utils/object-id";
+import {
+  getSearchConsoleSummary,
+  resolveIntegrations,
+  searchConsoleReadiness,
+} from "../services/integration-settings.service";
 
 const requireObjectId = (value: string, label: string) => {
   if (!isObjectIdString(value)) throw new AppError(400, `Invalid ${label} id`);
@@ -34,7 +39,11 @@ const toCompetitorDto = (doc: any) => ({
   label: doc.label,
   isActive: doc.isActive !== false,
   lastCrawlAt: doc.lastCrawlAt ? new Date(doc.lastCrawlAt).toISOString() : null,
+  lastAuditedAt: doc.lastCrawlAt ? new Date(doc.lastCrawlAt).toISOString() : null,
   lastScore: typeof doc.lastScore === "number" ? doc.lastScore : null,
+  score: typeof doc.lastScore === "number" ? doc.lastScore : null,
+  aiScore: typeof doc.aiScore === "number" ? doc.aiScore : null,
+  pagesCrawled: typeof doc.pagesCrawled === "number" ? doc.pagesCrawled : null,
 });
 
 // ---------- Audits ----------
@@ -62,19 +71,21 @@ export const getBrokenLinks = asyncHandler(async (_req: Request, res: Response) 
 
 // ---------- Recommendations ----------
 
-export const generateSiteRecommendation = asyncHandler(async (_req: Request, res: Response) => {
-  const result = await aiService.generateSiteRecommendation();
+export const generateSiteRecommendation = asyncHandler(async (req: Request, res: Response) => {
+  const provider = (req.body?.provider === "gemini" ? "gemini" : "openai") as "openai" | "gemini";
+  const result = await aiService.generateSiteRecommendation(provider);
   successResponse(res, result, result.message || "Site recommendations generated");
 });
 
 export const generatePageRecommendation = asyncHandler(async (req: Request, res: Response) => {
+  const provider = (req.body?.provider === "gemini" ? "gemini" : "openai") as "openai" | "gemini";
   const path = auditService.pageIdToPath(req.params.id);
   const page = await findCmsPage(req.params.id);
   const seo = page?.seo;
   const cmsSeo = seo
     ? { metaTitle: seo.metaTitle, metaDescription: seo.metaDescription, metaKeywords: seo.metaKeywords, canonical: seo.canonical }
     : null;
-  const result = await aiService.generatePageRecommendation(path, cmsSeo);
+  const result = await aiService.generatePageRecommendation(path, cmsSeo, provider);
   successResponse(res, result, result.message || "Page recommendations generated");
 });
 
@@ -139,6 +150,35 @@ export const addCompetitor = asyncHandler(async (req: Request, res: Response) =>
   successResponse(res, toCompetitorDto(competitor), "Competitor added", 201);
 });
 
+export const updateCompetitor = asyncHandler(async (req: Request, res: Response) => {
+  requireObjectId(req.params.id, "competitor");
+  const updateData: Record<string, unknown> = {};
+
+  if (typeof req.body?.label === "string" && req.body.label.trim()) {
+    updateData.label = req.body.label.trim().slice(0, 120);
+  }
+
+  if (typeof req.body?.url === "string" && req.body.url.trim()) {
+    const url = auditService.normalizeSiteOrigin(req.body.url);
+    if (url === auditService.getSiteUrl()) throw new AppError(400, "That is the Ensis website itself");
+    const exists = await SeoCompetitor.exists({ url, _id: { $ne: req.params.id } });
+    if (exists) throw new AppError(409, "Another competitor already has this URL");
+    updateData.url = url;
+  }
+
+  if (req.body?.isActive !== undefined) {
+    updateData.isActive = Boolean(req.body.isActive);
+  }
+
+  const competitor = await SeoCompetitor.findByIdAndUpdate(
+    req.params.id,
+    { $set: updateData },
+    { new: true }
+  );
+  if (!competitor) throw new AppError(404, "Competitor not found");
+  successResponse(res, toCompetitorDto(competitor), "Competitor updated");
+});
+
 export const deleteCompetitor = asyncHandler(async (req: Request, res: Response) => {
   requireObjectId(req.params.id, "competitor");
   const competitor = await SeoCompetitor.findByIdAndDelete(req.params.id);
@@ -151,4 +191,77 @@ export const auditCompetitor = asyncHandler(async (req: Request, res: Response) 
   requireObjectId(req.params.id, "competitor");
   const result = await auditService.startCompetitorAudit(req.params.id);
   successResponse(res, result, "Competitor audit started", 202);
+});
+
+export const getInsights = asyncHandler(async (_req: Request, res: Response) => {
+  const creds = await resolveIntegrations();
+  const readiness = searchConsoleReadiness(creds);
+  if (!readiness.configured) {
+    return successResponse(res, {
+      available: false,
+      message: readiness.reason,
+      rangeStart: null,
+      rangeEnd: null,
+      windowDays: 28,
+      totals: null,
+      queries: [],
+      cannibalization: [],
+      contentGaps: [],
+      risingQueries: [],
+      fallingQueries: [],
+      highImpressionLowCtr: [],
+      strikingDistance: [],
+    }, "Search Console insights");
+  }
+
+  try {
+    const summary = await getSearchConsoleSummary(creds);
+    const queries = summary.queries || [];
+
+    const strikingDistance = queries
+      .filter((q) => q.position >= 4 && q.position <= 20)
+      .map((q) => ({ query: q.query, position: q.position, impressions: q.impressions }));
+
+    const highImpressionLowCtr = queries
+      .filter((q) => q.impressions >= 10 && q.ctr < 3)
+      .map((q) => ({ query: q.query, impressions: q.impressions, ctr: q.ctr, position: q.position }));
+
+    return successResponse(res, {
+      available: true,
+      message: null,
+      rangeStart: summary.range?.startDate || null,
+      rangeEnd: summary.range?.endDate || null,
+      windowDays: 28,
+      totals: {
+        clicks: summary.clicks,
+        impressions: summary.impressions,
+        ctr: summary.ctr,
+        position: summary.position,
+      },
+      queries,
+      daily: summary.daily || [],
+      cannibalization: [],
+      contentGaps: [],
+      risingQueries: [],
+      fallingQueries: [],
+      highImpressionLowCtr,
+      strikingDistance,
+    }, "Search Console insights retrieved");
+  } catch (error) {
+    return successResponse(res, {
+      available: false,
+      message: error instanceof Error ? error.message : "Search Console error",
+      rangeStart: null,
+      rangeEnd: null,
+      windowDays: 28,
+      totals: null,
+      queries: [],
+      cannibalization: [],
+      contentGaps: [],
+      risingQueries: [],
+      fallingQueries: [],
+      highImpressionLowCtr: [],
+      strikingDistance: [],
+    }, "Search Console insights");
+  }
 });

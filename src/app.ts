@@ -34,6 +34,7 @@ import { notFoundHandler } from './middlewares/not-found.middleware';
 import { swaggerDocument } from './config/swagger.config';
 import swaggerUi from 'swagger-ui-express';
 import seoRoutes from "./routes/seo.routes";
+import seoAuditRouter from "./modules/seoAudit/seoAudit.routes";
 import { socialRouter } from './routes/sociallink.routes';
 import { applicationRouter } from './routes/application.routes';
 import { activityLogRouter } from './routes/activity-log.routes';
@@ -292,6 +293,7 @@ export const createApp = () => {
   mountRoute('/careers', careerRouter);
   mountRoute('/enquiry', enquiryRouter);
   mountRoute('/seo', seoRoutes);
+  mountRoute('/seo-audit', seoAuditRouter);
   mountRoute('/pages', pageRouter);
   mountRoute('/social-clicks', socialRouter);
   mountRoute('/applications', applicationRouter);
