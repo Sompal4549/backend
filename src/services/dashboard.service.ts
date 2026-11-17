@@ -234,8 +234,22 @@ export const listEnquiries = async (options: {
   if (options.source) {
     if (options.source === 'contact') {
       filter.source = 'contact';
+    } else if (options.source === 'products') {
+      filter.$or = [
+        { source: 'products' },
+        { projectType: { $regex: /product/i } },
+      ];
     } else if (options.source === 'enquiry') {
-      filter.$or = [{ source: 'enquiry' }, { source: { $in: [null, undefined, '', 'other'] } }];
+      filter.$and = [
+        {
+          $or: [
+            { source: 'enquiry' },
+            { source: { $in: [null, undefined, '', 'other'] } },
+          ],
+        },
+        { source: { $nin: ['contact', 'products'] } },
+        { projectType: { $not: /product/i } },
+      ];
     } else {
       filter.source = options.source;
     }
@@ -252,7 +266,15 @@ export const listEnquiries = async (options: {
 
   const enquiries = docs.map((doc) => {
     const enquiry = doc as unknown as IEnquiry & { _id: unknown; createdAt: Date; updatedAt: Date };
-    const resolvedSource = enquiry.source || ((enquiry as any).category === 'contact' ? 'contact' : 'enquiry');
+    const isProduct =
+      enquiry.source === 'products' ||
+      (!enquiry.source && /product/i.test(enquiry.projectType || ''));
+    const resolvedSource =
+      enquiry.source === 'contact' || (enquiry as any).category === 'contact'
+        ? 'contact'
+        : isProduct
+          ? 'products'
+          : (enquiry.source || 'enquiry');
     return {
       _id: String(enquiry._id),
       name: enquiry.fullName,
