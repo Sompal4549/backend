@@ -1,6 +1,15 @@
 import { Router } from 'express';
 import {
+  postChatbotSession,
+  postChatbotSessionClear,
   postChatbotMessage,
+  getChatbotUpdates,
+  getChatbotSpeak,
+  postChatbotCall,
+  postChatbotCallTurn,
+  postChatbotCallTool,
+  postChatbotCallSay,
+  postChatbotCallEnd,
   postChatbotLead,
   postChatbotLeadOtp,
   getConversationsHandler,
@@ -11,9 +20,24 @@ import { adminMiddleware } from '../middlewares/admin.middleware';
 
 export const chatbotRouter = Router();
 
+// Public conversation endpoints
+chatbotRouter.post('/session', postChatbotSession);
+chatbotRouter.post('/session/clear', postChatbotSessionClear);
 chatbotRouter.post('/message', postChatbotMessage);
+chatbotRouter.get('/updates', getChatbotUpdates);
+chatbotRouter.get('/speak', getChatbotSpeak);
+
+// Spoken voice calls (OpenAI Realtime + Sarvam Bulbul TTS)
+chatbotRouter.post('/call', postChatbotCall);
+chatbotRouter.post('/call/turn', postChatbotCallTurn);
+chatbotRouter.post('/call/tool', postChatbotCallTool);
+chatbotRouter.post('/call/say', postChatbotCallSay);
+chatbotRouter.post('/call/end', postChatbotCallEnd);
+
+// Callback leads & WhatsApp OTP
 chatbotRouter.post('/lead/otp', postChatbotLeadOtp);
 chatbotRouter.post('/lead', postChatbotLead);
-// Chats hold visitors' names and phone numbers: admin only
+
+// Admin dashboard routes
 chatbotRouter.get('/conversations', authMiddleware, adminMiddleware, getConversationsHandler);
 chatbotRouter.get('/stats', authMiddleware, adminMiddleware, getStatsHandler);

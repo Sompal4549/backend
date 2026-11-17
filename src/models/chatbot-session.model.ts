@@ -1,8 +1,15 @@
 import { Schema, model, Document } from 'mongoose';
 
 export interface IChatbotMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'agent';
   content: string;
+  title?: string;
+  link?: { href: string; label: string };
+  files?: Array<{ href: string; label: string; type?: string; size?: number }>;
+  event?: 'joined' | 'left';
+  by?: string;
+  speakId?: number;
+  spoken?: string;
   timestamp: Date;
 }
 
@@ -10,6 +17,9 @@ export interface IChatbotSession extends Document {
   sessionId: string;
   userName?: string;
   phone?: string;
+  lang?: string;
+  agent?: boolean | { active: boolean; by?: string; since?: Date };
+  status?: 'active' | 'closed' | 'blocked';
   messages: IChatbotMessage[];
   capturedLead: boolean;
   /** When the lead's mobile number was verified with the WhatsApp OTP */
@@ -30,8 +40,15 @@ export interface IChatbotSession extends Document {
 
 const messageSchema = new Schema<IChatbotMessage>(
   {
-    role: { type: String, enum: ['user', 'assistant'], required: true },
-    content: { type: String, required: true, trim: true },
+    role: { type: String, enum: ['user', 'assistant', 'agent'], required: true },
+    content: { type: String, default: '', trim: true },
+    title: { type: String, trim: true },
+    link: { href: String, label: String },
+    files: [{ href: String, label: String, type: { type: String }, size: Number }],
+    event: { type: String, enum: ['joined', 'left'] },
+    by: { type: String, trim: true },
+    speakId: { type: Number },
+    spoken: { type: String, trim: true },
     timestamp: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -42,6 +59,9 @@ const chatbotSessionSchema = new Schema<IChatbotSession>(
     sessionId: { type: String, required: true, unique: true, index: true },
     userName: { type: String, trim: true },
     phone: { type: String, trim: true },
+    lang: { type: String, default: 'en' },
+    agent: { type: Schema.Types.Mixed, default: false },
+    status: { type: String, enum: ['active', 'closed', 'blocked'], default: 'active' },
     messages: { type: [messageSchema], default: [] },
     capturedLead: { type: Boolean, default: false },
     phoneVerifiedAt: { type: Date },

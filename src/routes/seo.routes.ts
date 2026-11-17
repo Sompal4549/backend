@@ -17,6 +17,15 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+// Optional admin auth for read-only diagnostics (won't fail with 401 if user session is refreshing)
+const optionalAuth = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authMiddleware(req, res, () => next());
+  }
+  return next();
+};
+
 // Admin audit / AI / competitor / alert actions (permissive in dev, strict in prod)
 const adminAuth = (req: any, res: any, next: any) => {
   if (process.env.NODE_ENV !== 'production') {
@@ -52,18 +61,18 @@ router.post("/content-audit", adminAuth, aiContentAuditController.auditContent);
 router.post("/keyword-planner", adminAuth, keywordPlannerController.planKeywords);
 
 router.post("/audits", adminAuth, seoAuditController.startAudit);
-router.get("/audits/latest", adminAuth, seoAuditController.getLatestAudit);
-router.get("/audits/latest/pages", adminAuth, seoAuditController.listLatestAuditPages);
-router.get("/audits/latest/pages/:pageId", adminAuth, seoAuditController.getLatestAuditPage);
-router.get("/broken-links", adminAuth, seoAuditController.getBrokenLinks);
-router.get("/insights", adminAuth, seoAuditController.getInsights);
-router.get("/alerts", adminAuth, seoAuditController.listAlerts);
+router.get("/audits/latest", optionalAuth, seoAuditController.getLatestAudit);
+router.get("/audits/latest/pages", optionalAuth, seoAuditController.listLatestAuditPages);
+router.get("/audits/latest/pages/:pageId", optionalAuth, seoAuditController.getLatestAuditPage);
+router.get("/broken-links", optionalAuth, seoAuditController.getBrokenLinks);
+router.get("/insights", optionalAuth, seoAuditController.getInsights);
+router.get("/alerts", optionalAuth, seoAuditController.listAlerts);
 router.post("/recommendations/site", adminAuth, seoAuditController.generateSiteRecommendation);
 router.post("/recommendations/pages/:id", adminAuth, seoAuditController.generatePageRecommendation);
 router.post("/update", adminAuth, seoAuditController.updatePageSeo);
 router.post("/alerts/:id/acknowledge", adminAuth, seoAuditController.acknowledgeAlert);
-router.get("/competitors/comparison", adminAuth, seoAuditController.getCompetitorComparison);
-router.get("/competitors", adminAuth, seoAuditController.listCompetitors);
+router.get("/competitors/comparison", optionalAuth, seoAuditController.getCompetitorComparison);
+router.get("/competitors", optionalAuth, seoAuditController.listCompetitors);
 router.post("/competitors", adminAuth, seoAuditController.addCompetitor);
 router.put("/competitors/:id", adminAuth, seoAuditController.updateCompetitor);
 router.patch("/competitors/:id", adminAuth, seoAuditController.updateCompetitor);
