@@ -232,7 +232,13 @@ export const listEnquiries = async (options: {
     filter.status = options.status;
   }
   if (options.source) {
-    filter.source = options.source;
+    if (options.source === 'contact') {
+      filter.source = 'contact';
+    } else if (options.source === 'enquiry') {
+      filter.$or = [{ source: 'enquiry' }, { source: { $in: [null, undefined, '', 'other'] } }];
+    } else {
+      filter.source = options.source;
+    }
   }
 
   const [docs, total] = await Promise.all([
@@ -246,6 +252,7 @@ export const listEnquiries = async (options: {
 
   const enquiries = docs.map((doc) => {
     const enquiry = doc as unknown as IEnquiry & { _id: unknown; createdAt: Date; updatedAt: Date };
+    const resolvedSource = enquiry.source || ((enquiry as any).category === 'contact' ? 'contact' : 'enquiry');
     return {
       _id: String(enquiry._id),
       name: enquiry.fullName,
@@ -259,7 +266,7 @@ export const listEnquiries = async (options: {
       organization: enquiry.companyOrganization ?? null,
       projectType: enquiry.projectType,
       interest: enquiry.projectType ?? null,
-      category: enquiry.source === 'contact' ? 'contact' : 'csr',
+      category: resolvedSource,
       projectSize: enquiry.projectSize ?? null,
       budgetRange: enquiry.budgetRange ?? null,
       servicesRequired: enquiry.servicesRequired ?? [],
@@ -267,7 +274,7 @@ export const listEnquiries = async (options: {
       preferredContact: enquiry.preferredContact ?? null,
       attachmentUrl: enquiry.attachmentUrl ?? null,
       agreeToContact: !!enquiry.agreeToContact,
-      source: enquiry.source ?? 'other',
+      source: resolvedSource,
       isRead: !!enquiry.isRead,
       message: enquiry.message,
       status: enquiry.status,
