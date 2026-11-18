@@ -35,8 +35,11 @@ export const forSpeech = (raw: string): string => {
     .replace(/\bPvt\.?\s*Ltd\b\.?/gi, word('प्राइवेट लिमिटेड', 'Private Limited'))
     .replace(/\bPvt\b\.?/gi, word('प्राइवेट', 'Private'))
     .replace(/\bLtd\b\.?/gi, word('लिमिटेड', 'Limited'))
+    .replace(/\bhttps?:\/\/(?:www\.)?ensis\.in\b/gi, word('एन्सिस डॉट इन', 'En-sis dot in'))
+    .replace(/\bensis\.in\b/gi, word('एन्सिस डॉट इन', 'En-sis dot in'))
     .replace(/\bEnsis Assist\b/gi, word('एन्सिस असिस्ट', 'En-sis Assist'))
     .replace(/\bEnsis\b/gi, word('एन्सिस', 'En-sis'))
+    .replace(/\bensis\b/gi, word('एन्सिस', 'En-sis'))
     .replace(/(?:\+?91[\s-]*)?\b[6-9]\d{9}\b|(?:\+?91[\s-]*)?\b[6-9]\d{4}[\s-]?\d{5}\b/g, (m) => spellPhone(m, isHindi))
     .replace(/\b\d{6}\b/g, (m) => spellOtp(m, isHindi))
     .replace(/([\w.+-]+)@([\w-]+(?:\.[\w-]+)+)/g, (_, name, domain) => `${name} ${word('एट', 'at')} ${domain.replace(/\./g, ` ${word('डॉट', 'dot')} `)}`)
@@ -52,9 +55,9 @@ export const forSpeech = (raw: string): string => {
 
 export const VOICE_STYLE = {
   hindi:
-    'Voice: a young woman from Delhi, a native Hindi speaker, working as a friendly customer-care executive. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र), with no American or British accent at all. English words are said the way people in India say them in everyday Hindi. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
+    'Voice: a young woman from Delhi, a native Hindi speaker, working as a friendly customer-care executive. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र), with no American or British accent at all. English words are said the way people in India say them in everyday Hindi. Pronounce the brand name "Ensis" as "एन्सिस" (En-sis), with crisp "एन" and "सिस", never as "इन्सिस". Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
   english:
-    'Voice: a young woman from Delhi who speaks Indian English natively, working as a friendly customer-care executive. Accent: clearly Indian English, the way an educated Indian professional speaks, with Indian rhythm and intonation and a light retroflex t and d, not American or British. Say Indian names and places with their Indian pronunciation. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
+    'Voice: a young woman from Delhi who speaks Indian English natively, working as a friendly customer-care executive. Accent: clearly Indian English, the way an educated Indian professional speaks, with Indian rhythm and intonation and a light retroflex t and d, not American or British. Pronounce the brand name "Ensis" as "En-sis" (एन्सिस). Say Indian names and places with their Indian pronunciation. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
 };
 
 export const sarvamVoiceEnabled = (): boolean =>
@@ -129,6 +132,7 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
 
   const model = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
   const voice = process.env.OPENAI_TTS_VOICE || 'marin';
+  const clean = forSpeech(text);
 
   // 1. Try Design House configuration (gpt-4o-mini-tts with marin & VOICE_STYLE instructions)
   try {
@@ -141,7 +145,7 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
       body: JSON.stringify({
         model,
         voice,
-        input: text,
+        input: clean,
         instructions: VOICE_STYLE.hindi,
         response_format: 'mp3',
       }),
@@ -166,7 +170,7 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
     body: JSON.stringify({
       model: 'tts-1',
       voice: 'nova',
-      input: text,
+      input: clean,
       response_format: 'mp3',
     }),
     signal,

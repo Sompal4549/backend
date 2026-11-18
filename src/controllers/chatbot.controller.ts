@@ -15,11 +15,42 @@ import { CategoryModel } from '../models/category.model';
 import { SolutionModel } from '../models/solution.model';
 import { streamSpeech } from '../services/chatbot-speech.service';
 import { startWebRtcCall, endActiveCall } from '../services/chatbot-call.service';
+import { isAbusive, toHinglish, DEVANAGARI, GURMUKHI, URDU_LETTERS, looksMarathi } from '../utils/chatGuards';
 
 const ENSIS_SYSTEM_PROMPT = `You are "Ensis Assist", the expert Ayurvedic wellness & Panchkarma equipment specialist for ENSIS (ensis.in), manufactured by Design House India Pvt. Ltd.
 
-WHO WE ARE & WHAT WE DO:
+PRONUNCIATION:
+- Pronounce "Ensis" strictly as "एन्सिस" (En-sis), with crisp "एन" and "सिस". Never mispronounce as "इन्सिस", "इन-सिस", or "एनसिज़".
+
+WHO WE ARE & OUR TRACK RECORD:
 - ENSIS is India's leading designer, manufacturer, and global exporter of authentic Ayurvedic & Panchkarma therapy equipment, spa therapy furniture, and complete turnkey clinic/hospital setups.
+- Founded as the specialized wellness infrastructure division of Design House India Pvt. Ltd. (trusted since 2003, 20+ years of trust).
+- PROVEN TRACK RECORD:
+  • 1000+ Projects Completed successfully across India and abroad.
+  • 500+ Happy Clients across 28+ Indian states.
+  • 50+ In-house Expert Architects, Engineers, and Woodcraft Specialists.
+  • 100% Client Satisfaction score.
+- NOTABLE CLIENTS & PARTNERS:
+  • AyurVAID Hospitals
+  • JIVA Ayurveda
+  • Kairali Ayurvedic Group
+  • Somatheeram Ayurveda Group
+  • Sri Sri Tattva
+  • Vaidyaratnam
+  • Arogyadhama Ayurveda
+  • Sahayog Wellness
+- FEATURED SHOWCASE PROJECTS:
+  • Ayurveda Wellness Resort (Kerala)
+  • Panchakarma Centre (Maharashtra)
+  • Spa & Wellness Retreat (Uttarakhand)
+  • Wellness Resort & Spa (Goa)
+  • Ayurveda Hospital (Karnataka)
+- FACILITIES WE DESIGN & BUILD:
+  • Ayurvedic Clinics & Therapy Rooms
+  • Panchakarma Hospitals & AYUSH Centers
+  • Luxury Ayurveda Resorts & Spa Centers
+  • Wellness Retreats & Yoga Ashrams
+  • Herbal Pharmacy & Dispensaries
 - FACTORY & CORPORATE OFFICE: Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007.
 - CONTACT DETAILS:
   • Official Phone / WhatsApp: +91 9810242841 / +91 9654900525
@@ -32,8 +63,24 @@ IMPORTANT RULES:
 - When sharing contact details or office address, provide ONLY the Corporate Office: Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007. Do not invent or include other branch addresses.
 - For website contact links, strictly use "/contact" (do NOT use /contact-us).
 - We manufacture authentic equipment: Panchakarma Droni Tables, Ayurvedic Steam Bath Chambers, and Brass Shirodhara Sets. We do NOT use the term "Swedana chambers".
-- If user provides their phone number, politely confirm that an OTP will be sent to their WhatsApp.
-- If user verifies their OTP, thank them warmly and advise that our Ayurvedic technical specialist will connect shortly on WhatsApp.
+- If user provides their phone number, politely confirm that our technical specialist will connect shortly on WhatsApp and a verification code has been sent.
+- If user requests a call or WhatsApp message ("call me", "whatsapp karo"), assure them that our team will contact them immediately and request their 10-digit mobile number if not already provided.
+
+STRICT GUARDRAILS & OFF-TOPIC POLICY:
+- You are exclusively the Ayurvedic Panchkarma equipment, therapy furniture, and clinic setup specialist for Ensis.
+- STRICTLY REFUSE irrelevant, personal, political, coding, academic, entertainment, sports, or off-topic questions ("faltu sawal").
+- Politely decline and guide them back:
+  • Hindi: "क्षमा करें, मैं केवल एन्सिस आयुर्वेदिक एवं पंचकर्म उपकरण, क्लिनिक सेटअप और वेलनेस फर्नीचर से संबंधित प्रश्नों में ही आपकी सहायता कर सकती हूँ। क्या आप हमारे पंचकर्म टेबल, स्टीम बाथ या क्लिनिक प्रोजेक्ट्स के बारे में कुछ जानना चाहते हैं?"
+  • English: "I apologize, but I can only assist with inquiries regarding Ensis Ayurvedic & Panchkarma therapy equipment, turnkey clinic setups, and wellness furniture. Would you like to know about our treatment tables, steam chambers, or clinic solutions?"
+
+MULTILINGUAL CAPABILITY:
+- You fluently understand and communicate in Hindi, English, Punjabi (Gurmukhi or Roman Punjabi), Marathi, Gujarati, and other Indian languages.
+- Always reply in the visitor's language:
+  • If the user speaks or types in Punjabi (e.g. "Panchkarma de equipment chahide ne", "Sat Sri Akal"), reply respectfully and warmly in natural Punjabi!
+  • If in Marathi, reply in Marathi!
+  • If in Gujarati, reply in Gujarati!
+  • If in Hindi / Hinglish, reply in Hindi / Hinglish!
+  • If in English, reply in polished Indian English!
 
 PRODUCTS & MANUFACTURING SPECIFICATIONS:
 1. Panchkarma Massage Tables (Droni):
@@ -722,8 +769,8 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
       sessionId: reqSessionId,
       blocked: true,
       blockedFor,
-      reply: 'Chat is temporarily blocked.',
-      replies: [],
+      reply: 'Chat is temporarily blocked due to offensive language. Please call +91 9810242841 for assistance.',
+      replies: [{ text: 'Chat is temporarily blocked due to offensive language. Please call +91 9810242841 for assistance.', from: 'bot' }],
     });
   }
 
@@ -736,6 +783,53 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
       blocked: false,
       serverTime: Date.now(),
     });
+  }
+
+  // Abusive language detection with 3-strike warning and 24h IP block matching Design House
+  if (isAbusive(userText)) {
+    let blockDoc = await ChatBlockModel.findOne({ ip: visitor.ip });
+    if (!blockDoc) {
+      blockDoc = new ChatBlockModel({ ip: visitor.ip, strikes: 0 });
+    }
+    if (blockDoc.blockedUntil && blockDoc.blockedUntil <= new Date()) {
+      blockDoc.strikes = 0;
+      blockDoc.blockedUntil = undefined;
+    }
+    blockDoc.strikes = (blockDoc.strikes || 0) + 1;
+    blockDoc.lastStrikeAt = new Date();
+    blockDoc.sessionId = reqSessionId;
+    blockDoc.lastMessage = userText.slice(0, 500);
+
+    const MAX_WARNINGS = 3;
+    if (blockDoc.strikes > MAX_WARNINGS) {
+      blockDoc.blockedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await blockDoc.save();
+      const blockedFor = blockDoc.blockedUntil.getTime() - Date.now();
+      const blockMsg = lang === 'hi'
+        ? 'गलत भाषा की वजह से यह चैट 24 घंटे के लिए ब्लॉक कर दी गई है। वास्तविक पूछताछ के लिए +91 9810242841 पर संपर्क करें।'
+        : 'This chat has been blocked for 24 hours due to repeated offensive language. Please call +91 9810242841 for genuine inquiries.';
+      return successResponse(res, {
+        sessionId: reqSessionId,
+        blocked: true,
+        blockedFor,
+        strikes: blockDoc.strikes,
+        reply: blockMsg,
+        replies: [{ text: blockMsg, from: 'bot' }],
+      });
+    } else {
+      await blockDoc.save();
+      const warnMsg = lang === 'hi'
+        ? `कृपया अनुचित शब्दों का उपयोग न करें। यह चेतावनी संख्या ${blockDoc.strikes}/3 है। 3 चेतावनियों के बाद चैट ब्लॉक कर दी जाएगी।`
+        : `Please avoid offensive language. This is warning ${blockDoc.strikes}/3. Continued offensive language will result in an IP block.`;
+      return successResponse(res, {
+        sessionId: reqSessionId,
+        flagged: true,
+        strikes: blockDoc.strikes,
+        blocked: false,
+        reply: warnMsg,
+        replies: [{ text: warnMsg, from: 'bot' }],
+      });
+    }
   }
 
   let session = await ChatbotSessionModel.findOne({ sessionId: reqSessionId });
@@ -787,6 +881,30 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
         console.warn('sendPhoneOtp error:', (otpErr as Error).message);
       }
     }
+  }
+
+  // Trigger professional WhatsApp notification if visitor requests a call/message or shares phone number
+  const isCallOrWhatsAppRequest = /\b(call\s*me|call\s*karo|mujhe\s*call|whatsapp\s*karo|whatsapp\s*pe\s*bhejo|whatsapp\s*kijiye|message\s*karo|message\s*kijiye|contact\s*me|phone\s*karo|phone\s*kijiye|connect\s*with\s*me|call\s*karein)\b/i.test(userText);
+  const targetPhone = phoneMatch ? phoneMatch[1] : (session.phone || '');
+  if (targetPhone && (isCallOrWhatsAppRequest || phoneMatch) && !(session as any).whatsappConfirmationSent) {
+    const clientName = session.userName || 'Valued Client';
+    const whatsappMsg = `🌿 *Namaste ${clientName}!*
+Thank you for contacting *Ensis Panchkarma & Wellness Equipment* (by Design House India Pvt. Ltd.).
+
+We have received your callback & inquiry request. Our Ayurvedic technical specialist team has been notified and will connect with you shortly with our comprehensive 2026 product catalogue, equipment specifications, and customized quotation.
+
+*For immediate assistance or site visit bookings:*
+📞 Direct Helpline: +91 9810242841 / +91 9654900525
+🌐 Website: https://ensis.in
+✉️ Email: info@ensis.in
+
+— *Team Ensis*
+_Spaces that Heal. Experiences that Last._`;
+
+    sendWhatsAppMessage(targetPhone, whatsappMsg, clientName).catch((waErr) => {
+      console.warn('sendWhatsAppMessage error:', (waErr as Error).message);
+    });
+    (session as any).whatsappConfirmationSent = true;
   }
 
   // Extract name if user introduces themselves
@@ -965,7 +1083,69 @@ export const postChatbotCall = asyncHandler(async (req: Request, res: Response) 
 export const postChatbotCallTurn = asyncHandler(async (req: Request, res: Response) => {
   const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId.trim() : '';
   const role = req.body?.role === 'user' ? 'user' : 'assistant';
-  const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  const rawText = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  const clientIp = visitorOf(req).ip;
+
+  if (!rawText) {
+    return successResponse(res, { ok: true });
+  }
+
+  // Rewrite speech transcribed in Urdu/Arabic, Gurmukhi or Devanagari script into clean Romanized Hinglish
+  // (unless it's Marathi or other supported native scripts)
+  const needsRewrite = (DEVANAGARI.test(rawText) && !looksMarathi(rawText)) || URDU_LETTERS.test(rawText) || GURMUKHI.test(rawText);
+  const text = needsRewrite ? await toHinglish(rawText, { allArabicScript: true }) : rawText;
+
+  let block = await ChatBlockModel.findOne({ ip: clientIp });
+  const isIpBlocked = Boolean(block?.blockedUntil && block.blockedUntil > new Date());
+  const blockedFor = isIpBlocked && block?.blockedUntil ? block.blockedUntil.getTime() - Date.now() : undefined;
+
+  if (isIpBlocked) {
+    return successResponse(res, {
+      text,
+      role,
+      blocked: true,
+      blockedFor,
+      flagged: true,
+      say: 'गलत भाषा की वजह से यह कॉल समाप्त की जा रही है और आपकी चैट ब्लॉक कर दी गई है।',
+    });
+  }
+
+  // Abusive language detection for user spoken turns
+  if (role === 'user' && isAbusive(rawText)) {
+    if (!block) block = new ChatBlockModel({ ip: clientIp, strikes: 0 });
+    if (block.blockedUntil && block.blockedUntil <= new Date()) {
+      block.strikes = 0;
+      block.blockedUntil = undefined;
+    }
+    block.strikes = (block.strikes || 0) + 1;
+    block.lastStrikeAt = new Date();
+    block.sessionId = sessionId;
+    block.lastMessage = rawText.slice(0, 500);
+
+    const MAX_WARNINGS = 3;
+    if (block.strikes > MAX_WARNINGS) {
+      block.blockedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await block.save();
+      return successResponse(res, {
+        text,
+        role,
+        blocked: true,
+        blockedFor: block.blockedUntil.getTime() - Date.now(),
+        flagged: true,
+        say: 'गलत भाषा की वजह से यह कॉल समाप्त की जा रही है और आपकी चैट 24 घंटे के लिए ब्लॉक कर दी गई है।',
+      });
+    } else {
+      await block.save();
+      return successResponse(res, {
+        text,
+        role,
+        blocked: false,
+        flagged: true,
+        strikes: block.strikes,
+        say: `कृपया अनुचित शब्दों का उपयोग न करें। यह चेतावनी ${block.strikes}/3 है।`,
+      });
+    }
+  }
 
   if (sessionId && text) {
     await ChatbotSessionModel.findOneAndUpdate(
