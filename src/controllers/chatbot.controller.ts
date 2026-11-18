@@ -25,6 +25,11 @@ BRAND NAME & SPEAKING RULES:
 - NEVER say "Ensis, matlab Ensis", "Ensis matlab Ainsis", or explain the pronunciation/spelling.
 - Do NOT add "matlab", "yani", or any explanation after the word Ensis. Just say the name "Ensis" cleanly in the sentence.
 
+CRITICAL PHONE NUMBER & CONFIRMATION RULES:
+- When the visitor shares, types, or updates their 10-digit mobile number, you MUST use and repeat ONLY their EXACT 10 digits as given by them!
+- NEVER hallucinate, never invent, never prepend "98", "91", or any extra digits.
+- Example: If the visitor gave "7678221037", the number is strictly "7678221037". Never say "98767821037" or "9876543210".
+
 WHO WE ARE & OUR TRACK RECORD:
 - ENSIS is India's leading designer, manufacturer, and global exporter of authentic Ayurvedic & Panchkarma therapy equipment, spa therapy furniture, and complete turnkey clinic/hospital setups.
 - Founded as the specialized wellness infrastructure division of Design House India Pvt. Ltd. (trusted since 2003, 20+ years of trust).
@@ -290,12 +295,14 @@ export async function generateBotReply(
   history: Array<{ role: string; content: string }> = [],
   userName?: string,
   language?: string,
-  knowledge = ''
+  knowledge = '',
+  userPhone?: string
 ): Promise<{ reply: string; provider: string }> {
   const nameInstruction = userName ? `\nClient Name: "${userName}". You may address them as "${userName} ji" politely.` : '';
+  const phoneInstruction = userPhone ? `\nCRITICAL: The visitor's verified 10-digit mobile number is strictly "${userPhone}". If you repeat or confirm their number, you MUST use ONLY these exact digits: ${userPhone}. NEVER prepend 98 or alter any digits.` : '';
   const { instruction: langInstruction, style: langStyle } = detectLanguageInstruction(userMessage, language);
 
-  const systemContent = `${ENSIS_SYSTEM_PROMPT}${nameInstruction}${langInstruction}${knowledge}`;
+  const systemContent = `${ENSIS_SYSTEM_PROMPT}${nameInstruction}${phoneInstruction}${langInstruction}${knowledge}`;
 
   if (process.env.OPENAI_API_KEY) {
     try {
@@ -973,8 +980,8 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
   // Trigger professional WhatsApp notification with Product Details & Catalogue
   const isCatalogueOrWhatsAppRequest = /\b(whatsapp|catalog|catalogue|brochure|product\s*detail|details|quote|quotation|price\s*list|call\s*me|call\s*karo|call\s*karein|contact\s*me|message\s*karo|message\s*kijiye|bhej|send|करो|भेजो|व्हाट्सएप|कैटलॉग|ब्रोशर)\b/i.test(userText);
   const targetPhone = rawCleanPhone || session.phone || '';
-  if (targetPhone && (isCatalogueOrWhatsAppRequest || rawCleanPhone) && !session.whatsappConfirmationSent) {
-    sendChatbotCatalogueWhatsApp(targetPhone, session.userName).catch((waErr) => {
+  if (targetPhone && (isCatalogueOrWhatsAppRequest || rawCleanPhone)) {
+    sendChatbotCatalogueWhatsApp(targetPhone, session.userName).catch((waErr: any) => {
       console.warn('sendChatbotCatalogueWhatsApp error:', (waErr as Error).message);
     });
     session.whatsappConfirmationSent = true;
@@ -1022,8 +1029,17 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
 
   const activeUserName = req.body?.userName || session.userName || userName;
 
-  const generated = await generateBotReply(userText, history, activeUserName, lang, knowledge);
+  const generated = await generateBotReply(userText, history, activeUserName, lang, knowledge, targetPhone);
   let replyText = generated.reply.replace(/\s*\[\[\s*LEAD\s*\]\]\s*/gi, ' ').trim();
+
+  // Sanitize any hallucinated phone numbers in replyText so visitor never receives corrupted digits
+  if (targetPhone) {
+    replyText = replyText
+      .replace(/\b98[6-9]\d{8,9}\b/g, targetPhone)
+      .replace(/\b9876543210\b/g, targetPhone)
+      .replace(/\b98767821037\b/g, targetPhone)
+      .replace(/\b9876782103\b/g, targetPhone);
+  }
 
   if (autoOtpVerified) {
     const isHi = lang === 'hi';
@@ -1240,20 +1256,17 @@ export const postChatbotCallTurn = asyncHandler(async (req: Request, res: Respon
     if (phoneInSpoken) {
       const session = await ChatbotSessionModel.findOneAndUpdate(
         { sessionId },
-        { $set: { phone: phoneInSpoken, capturedLead: true } },
+        { $set: { phone: phoneInSpoken, capturedLead: true, whatsappConfirmationSent: true } },
         { new: true }
       );
-      if (session && !session.whatsappConfirmationSent) {
-        sendChatbotCatalogueWhatsApp(phoneInSpoken, session.userName).catch((err: any) => {
-          console.warn('Call turn WhatsApp catalogue error:', (err as Error).message);
-        });
-        await ChatbotSessionModel.findOneAndUpdate({ sessionId }, { $set: { whatsappConfirmationSent: true } });
-      }
+      sendChatbotCatalogueWhatsApp(phoneInSpoken, session?.userName).catch((err: any) => {
+        console.warn('Call turn WhatsApp catalogue error:', (err as Error).message);
+      });
     } else {
       const isWaReq = /\b(whatsapp|catalog|catalogue|brochure|product\s*detail|details|quote|quotation|price\s*list|bhej|send|करो|भेजो|व्हाट्सएप|कैटलॉग)\b/i.test(rawText + ' ' + text);
       if (isWaReq) {
         const session = await ChatbotSessionModel.findOne({ sessionId });
-        if (session?.phone && !session.whatsappConfirmationSent) {
+        if (session?.phone) {
           sendChatbotCatalogueWhatsApp(session.phone, session.userName).catch((err: any) => {
             console.warn('Call turn WhatsApp catalogue error:', (err as Error).message);
           });
@@ -1274,8 +1287,15 @@ export const postChatbotCallTool = asyncHandler(async (req: Request, res: Respon
     const updateObj: Record<string, any> = {};
     if (args?.name) updateObj.userName = String(args.name).trim();
     if (args?.phone) {
-      const cleanPhone = extractCleanPhone(String(args.phone)) || String(args.phone).replace(/\D/g, '').slice(-10);
-      if (cleanPhone && cleanPhone.length === 10) updateObj.phone = cleanPhone;
+      let cleanPhone = extractCleanPhone(String(args.phone));
+      const digits = String(args.phone).replace(/\D/g, '');
+      if (!cleanPhone && digits.length === 11 && digits.startsWith('98')) {
+        cleanPhone = extractCleanPhone(digits.slice(2));
+      }
+      if (!cleanPhone && digits.length === 10 && /^[6-9]/.test(digits)) {
+        cleanPhone = digits;
+      }
+      if (cleanPhone) updateObj.phone = cleanPhone;
     }
     if (args?.email) updateObj['manual.email'] = String(args.email).trim();
 
@@ -1286,14 +1306,14 @@ export const postChatbotCallTool = asyncHandler(async (req: Request, res: Respon
     );
 
     const effectivePhone = updateObj.phone || updatedSession?.phone;
-    if (effectivePhone && !updatedSession?.whatsappConfirmationSent) {
+    if (effectivePhone) {
       sendChatbotCatalogueWhatsApp(effectivePhone, updateObj.userName || updatedSession?.userName).catch((err: any) => {
         console.warn('Call tool WhatsApp catalogue error:', (err as Error).message);
       });
       await ChatbotSessionModel.findOneAndUpdate({ sessionId }, { $set: { whatsappConfirmationSent: true, capturedLead: true } });
     }
 
-    return successResponse(res, { output: { ok: true, name: args?.name, phone: args?.phone } });
+    return successResponse(res, { output: { ok: true, name: args?.name, phone: effectivePhone || args?.phone } });
   }
 
   if (name === 'continue_typing') {
