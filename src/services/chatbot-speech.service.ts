@@ -38,6 +38,13 @@ export const forSpeech = (raw: string): string => {
   const hasProductLinks = /\[(?:डिटेल्स देखें|विवरण देखें|details dekhein|view details|learn more|details|click here|dekhein)\]\([^)]+\)/i.test(raw);
 
   let text = String(raw || '');
+  // Deduplicate brand names like "एन्सिस (Ensis)", "Ensis (एन्सिस)", or "एन्सिस एन्सिस" so Ensis is NEVER spoken twice!
+  text = text
+    .replace(/(?:एन्सिस\s*असिस्ट|এনসিস\s*অ্যাসিস্ট|ਐਨਸਿਸ\s*ਅਸਿਸਟ|Ensis\s*Assist)\s*[\(\[]\s*(?:एन्सिस\s*असिस्ट|এনসিস\s*অ্যাসিস্ট|ਐਨਸਿਸ\s*ਅਸਿਸਟ|Ensis\s*Assist|Ensis|एन्सिस)\s*[\)\]]/gi, brandAssist)
+    .replace(/(?:एन्सिस|এনসিস|ਐਨਸਿਸ|એન્સਿਸ|Ensis)\s*[\(\[]\s*(?:Ensis|एन्सिस|এনসিস|ਐਨਸਿਸ|એન્સਿਸ)\s*[\)\]]/gi, brandName)
+    .replace(/[\(\[]\s*(?:Ensis|एन्सिस|এনসিস|ਐਨਸਿਸ|એન્સਿਸ)\s*[\)\]]/gi, '')
+    .replace(/[\(\[]\s*ensis\.in\s*[\)\]]/gi, '');
+
 
   // 1. Strip emojis, markdown images, and icons
   text = text
@@ -98,7 +105,14 @@ export const forSpeech = (raw: string): string => {
     .replace(/\bensis\.in\b/gi, domainPronounce)
     .replace(/\bEnsis Assist\b/gi, brandAssist)
     .replace(/\bEnsis\b/gi, brandName)
-    .replace(/\bensis\b/gi, brandName)
+    .replace(/\bensis\b/gi, brandName);
+
+  // Unicode deduplication of repeated brand words e.g. "एन्सिस एन्सिस", "एन्सिस Ensis"
+  const indicOrEn = '(?:एन्सिस|এনসিস|ਐਨਸਿਸ|એન્સਿਸ|Ensis)';
+  const dupRegex = new RegExp(`(^|[^\\p{L}\\p{M}])(${indicOrEn})(?:[\\s,]+|\\s*(?:या|or|मतलब)\\s*)(?:${indicOrEn})(?=[^\\p{L}\\p{M}]|$)`, 'giu');
+  text = text.replace(dupRegex, '$1$2').replace(dupRegex, '$1$2');
+
+  text = text
     .replace(/(?:\+?91[\s-]*)?\b[6-9]\d{9}\b|(?:\+?91[\s-]*)?\b[6-9]\d{4}[\s-]?[\d]{5}\b/g, (m) => spellPhone(m, isDevanagari))
     .replace(/\b\d{6}\b/g, (m) => spellOtp(m, isDevanagari))
     .replace(/([\w.+-]+)@([\w-]+(?:\.[\w-]+)+)/g, (_, name, domain) => `${name} ${word('एट', 'at')} ${domain.replace(/\./g, ` ${word('डॉट', 'dot')} `)}`)
@@ -142,17 +156,17 @@ export const detectSarvamLang = (text: string): string => {
 
 export const detectOpenAiVoiceInstructions = (text: string): string => {
   if (/[\u0A00-\u0A7F]/.test(text)) {
-    return 'Voice: a friendly native Punjabi speaker with authentic, warm Punjabi pronunciation, rhythm and intonation. Tone: polite, smiling, natural.';
+    return 'Voice: an exceptionally sweet-voiced, warm, and respectful young native Punjabi speaker with soft, melodious Gurmukhi pronunciation and gentle cadence (ਬਹੁਤ ਮਿੱਠੀ ਅਤੇ ਨਿਮਰ ਆਵਾਜ਼). Tone: sweet, polite, smiling, and soothing. Never harsh, never robotic.';
   }
   if (/[\u0A80-\u0AFF]/.test(text)) {
-    return 'Voice: a friendly native Gujarati speaker with authentic Gujarati pronunciation. Tone: polite, warm, natural.';
+    return 'Voice: a sweet-voiced, gentle young native Gujarati speaker with soft, melodious, and warm pronunciation. Tone: polite, sweet, and soothing. Never harsh.';
   }
   if (/[\u0980-\u09FF]/.test(text)) {
-    return 'Voice: a friendly native Bengali speaker with sweet, melodic, authentic Bengali pronunciation. Tone: warm, polite.';
+    return 'Voice: an exceptionally sweet-voiced, melodious young native Bengali speaker with sweet, melodic, authentic pronunciation (খুব মিষ্টি ও মধুর কণ্ঠ). Tone: sweet, polite, warm, and gentle. Never harsh.';
   }
   if (/[\u0900-\u097F]/.test(text)) {
     if (/\b(आहे|आहेत|काय|कुठे|कसे|माझे|तुमचे|नाही|झाले|पाहिजे|हवे)\b/.test(text)) {
-      return 'Voice: a friendly native Marathi speaker from Pune/Mumbai with authentic Marathi pronunciation and intonation. Tone: polite, warm.';
+      return 'Voice: a sweet-voiced, gentle young native Marathi speaker with soft, polite, and warm pronunciation. Tone: polite, sweet, and soothing.';
     }
     return VOICE_STYLE.hindi;
   }
@@ -161,13 +175,13 @@ export const detectOpenAiVoiceInstructions = (text: string): string => {
 
 export const VOICE_STYLE = {
   hindi:
-    'Voice: a young woman from Delhi, a native Hindi speaker, working as a friendly customer-care executive. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र), with no American or British accent at all. English words are said the way people in India say them in everyday Hindi. Pronounce the brand name simply as "Ensis" (or "एन्सिस" in Hindi), clean and natural without pause or explanation. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
+    'Voice: an exceptionally sweet-voiced, gentle, and warm young Indian woman with a soft, melodious, and very pleasant voice (बहुत ही मीठी, मधुर और सौम्य आवाज़). Accent: pure, natural North Indian Hindi with soft, clear diction. English words are spoken gently the way educated Indians naturally say them. Pronounce the brand name simply as "Ensis" (or "एन्सिस" in Hindi), soft and clean without pause or explanation. Tone: melodious, smiling, polite, caring, and soothing (madhur, vinamra, and calming), like a caring Ayurvedic wellness specialist. Never harsh, never sharp, never robotic, never rushed. Pace: relaxed, sweet, and comforting with natural pauses.',
   english:
-    'Voice: a young woman from Delhi who speaks Indian English natively, working as a friendly customer-care executive. Accent: clearly Indian English, the way an educated Indian professional speaks, with Indian rhythm and intonation and a light retroflex t and d, not American or British. Pronounce the brand name simply as "Ensis", clean and natural. Say Indian names and places with their Indian pronunciation. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
+    'Voice: an exceptionally sweet-voiced, gentle, and warm young Indian woman with a soft, melodious, and very pleasant voice. Accent: natural Indian English with a gentle, educated cadence and soft retroflex sounds, never harsh or robotic. Pronounce the brand name simply as "Ensis", soft and clean. Tone: melodious, smiling, polite, caring, and soothing. Pace: relaxed, sweet, and comforting with natural pauses.',
 };
 
 export const sarvamVoiceEnabled = (): boolean =>
-  process.env.CHAT_TTS_PROVIDER !== 'openai' && Boolean(process.env.SARVAM_API_KEY);
+  process.env.CHAT_TTS_PROVIDER === 'sarvam' && Boolean(process.env.SARVAM_API_KEY);
 
 const sarvamPieces = (text: string): string[] => {
   const pieces: string[] = [];
@@ -237,10 +251,10 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured');
 
   const model = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
-  const voice = process.env.OPENAI_TTS_VOICE || 'marin';
+  const voice = process.env.OPENAI_TTS_VOICE || 'sage';
   const clean = forSpeech(text);
 
-  // 1. Try Design House configuration (gpt-4o-mini-tts with marin & VOICE_STYLE instructions)
+  // 1. Try sweet, melodious OpenAI configuration (gpt-4o-mini-tts with sage & sweet VOICE_STYLE instructions)
   try {
     const res = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
@@ -266,7 +280,12 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
     if (signal?.aborted) throw err;
   }
 
-  // 2. Fallback to standard OpenAI audio speech (tts-1 with nova or shimmer)
+  // 2. Fallback to standard OpenAI audio speech (tts-1 with sage or shimmer)
+  const safeVoice =
+    process.env.OPENAI_TTS_VOICE && process.env.OPENAI_TTS_VOICE !== 'marin'
+      ? process.env.OPENAI_TTS_VOICE
+      : 'sage';
+
   const fallbackRes = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
     headers: {
@@ -275,7 +294,7 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
     },
     body: JSON.stringify({
       model: 'tts-1',
-      voice: process.env.OPENAI_TTS_VOICE || 'marin',
+      voice: safeVoice,
       input: clean,
       response_format: 'mp3',
     }),

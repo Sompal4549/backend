@@ -26,13 +26,14 @@ ASSISTANT NAME VS COMPANY BRAND (CRITICAL):
 - When a visitor asks "What is your name?", "Aapka naam kya hai?", "Who are you?", "Aap kaun ho?", "Tomar naam ki?":
   You MUST answer with your assistant name "Ensis Assist":
   • English: "My name is Ensis Assist! I am the AI wellness & Panchkarma equipment specialist for Ensis."
-  • Hindi / Hinglish: "Mera naam Ensis Assist hai! Main Ensis ki AI wellness aur Panchkarma equipment specialist hoon." / "मेरा नाम एन्सिस असिस्ट (Ensis Assist) है।"
-  • Bengali: "আমার নাম এনসিস অ্যাসিস্ট (Ensis Assist)। আমি এনসিস-এর এআই ওয়েলনেস ও পঞ্চকর্ম বিশেষজ্ঞ।"
+  • Hindi / Hinglish: "Mera naam Ensis Assist hai! Main Ensis ki AI wellness aur Panchkarma equipment specialist hoon." / "मेरा नाम एन्सिस असिस्ट है।"
+  • Bengali: "আমার নাম এনসিস অ্যাসিস্ট। আমি এনসিস-এর এআই ওয়েলনেস ও পঞ্চকর্ম বিশেষজ্ঞ।"
 - NEVER say your name is just "Ensis"! The company is Ensis, but your own name is "Ensis Assist".
 
 BRAND NAME & SPEAKING RULES:
-- The brand and company name is simply "Ensis" (in Devanagari / Hindi: "एन्सिस", in Bengali: "এনসিস").
-- CRITICAL: Always say "Ensis" (or "एन्सिस" / "এনসিস") directly.
+- The brand and company name is simply "Ensis" (in Devanagari / Hindi: "एन्सिस", in Bengali: "এনসিস", in Punjabi: "ਐਨਸਿਸ").
+- CRITICAL: Always say "Ensis" (or "एन्सिस" / "এনসিস") directly ONCE.
+- NEVER say or write "एन्सिस" or "এনসিস" with parenthetical English names! Repeating the English name in parentheses causes the voice to speak "Ensis Ensis" twice!
 - NEVER say "Ensis, matlab Ensis", "Ensis matlab Ainsis", or explain the pronunciation/spelling.
 - Do NOT add "matlab", "yani", or any explanation after the word Ensis. Just say the name "Ensis" cleanly in the sentence.
 
@@ -74,7 +75,7 @@ MULTILINGUAL LANGUAGE CONSISTENCY RULES:
 6. Product names and technical brand names can remain in English (e.g., "Ensis", "Burma Teak Droni Table", "Shirodhara Unit", "Steam Bath Chamber").
 7. Understand product queries in the detected language.
 8. Preserve conversation context and user intent.
-9. If the user asks in Bengali, respond naturally in standard conversational Bengali (e.g., "নমস্কার! এনসিস (Ensis)-এ আপনাকে স্বাগত...").
+9. If the user asks in Bengali, respond naturally in standard conversational Bengali (e.g., "নমস্কার! এনসিস-এ আপনাকে স্বাগত...").
 10. Never mix multiple languages unnecessarily.
 11. If the user communicates in English, reply in polished, professional English.
 12. If the user communicates in Hindi or Hinglish, reply in warm, respectful, fluent Hindi (Devanagari) or natural Hinglish.
@@ -337,7 +338,8 @@ export function extractVisitorName(text: string): string {
 
 const ROMAN_PUNJABI_WORDS = new Set([
   'sat', 'sri', 'akaal', 'satsriakal', 'satsriakaal', 'mainu', 'tussi', 'tuhada', 'tuhadi', 'kivein', 'kiven',
-  'chahida', 'chahidi', 'chahide', 'dasso', 'paaji', 'veerji', 'karda', 'kardi', 'karde', 'daso', 'pind'
+  'chahida', 'chahidi', 'chahide', 'dasso', 'paaji', 'veerji', 'karda', 'kardi', 'karde', 'daso', 'pind',
+  'punjabi', 'panjabi', 'gal', 'vich', 'hove', 'hovegi', 'kiddan', 'ki', 'kive'
 ]);
 
 export function detectLanguageInstruction(userMessage: string, langHint = 'en'): {
@@ -351,7 +353,7 @@ export function detectLanguageInstruction(userMessage: string, langHint = 'en'):
   if (/[\u0980-\u09FF]/.test(text)) {
     return {
       instruction:
-        '\nCRITICAL MULTILINGUAL RULE (BENGALI SCRIPT DETECTED):\n- The user wrote in Bengali (বাংলা). You MUST respond in pure Bengali using Bengali script (বাংলা লিপি).\n- NEVER respond in Hindi, Devanagari, Gurmukhi, Marathi, or Romanized text.\n- Maintain Bengali throughout the conversation. Never randomly switch to Hindi or English.\n- Technical brand and product names may remain in English (e.g. Ensis, Burma Teak Droni Table, Shirodhara Unit).\n- Reply naturally in warm, standard conversational Bengali (e.g., "হ্যাঁ নিশ্চয়ই! এনসিস (Ensis)-এ আপনাকে স্বাগত...").',
+        '\nCRITICAL MULTILINGUAL RULE (BENGALI SCRIPT DETECTED):\n- The user wrote in Bengali (বাংলা). You MUST respond in pure Bengali using Bengali script (বাংলা লিপি).\n- NEVER respond in Hindi, Devanagari, Gurmukhi, Marathi, or Romanized text.\n- Maintain Bengali throughout the conversation. Never randomly switch to Hindi or English.\n- Technical brand and product names may remain in English (e.g. Ensis, Burma Teak Droni Table, Shirodhara Unit).\n- Reply naturally in warm, standard conversational Bengali (e.g., "হ্যাঁ নিশ্চয়ই! এনসিস-এ আপনাকে স্বাগত...").',
       style: 'bengali',
       detectedLang: 'bn',
     };
@@ -396,7 +398,34 @@ export function detectLanguageInstruction(userMessage: string, langHint = 'en'):
     };
   }
 
-  // 6. Roman Punjabi
+  // 6. Explicit Language Requests (e.g. "Hello, talk me Punjabi", "talk in punjabi", "punjabi vich bolo", "bengali me bolo")
+  const lowerText = text.toLowerCase();
+  if (/\b(punjabi|panjabi|gurmukhi)\b/i.test(lowerText) && /\b(talk|speak|bolo|gal|baat|likho|me|vich|in|chaho|chahta|kar)\b/i.test(lowerText)) {
+    return {
+      instruction:
+        '\nCRITICAL MULTILINGUAL RULE (PUNJABI REQUESTED):\n- The user requested to communicate in Punjabi. You MUST respond warmly, politely, and fluently in pure Punjabi using Gurmukhi script (ਗੁਰਮੁਖੀ).\n- Greet them warmly in Punjabi (e.g. "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਜੀ! ਮੈਂ ਐਨਸਿਸ ਅਸਿਸਟ ਹਾਂ, ਦੱਸੋ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?") and maintain Punjabi throughout.',
+      style: 'punjabi',
+      detectedLang: 'pa',
+    };
+  }
+  if (/\b(bengali|bangla)\b/i.test(lowerText) && /\b(talk|speak|bolo|katha|baat|likho|me|te|in|kar)\b/i.test(lowerText)) {
+    return {
+      instruction:
+        '\nCRITICAL MULTILINGUAL RULE (BENGALI REQUESTED):\n- The user requested to communicate in Bengali. You MUST respond warmly, politely, and fluently in pure Bengali using Bengali script (বাংলা লিপি).\n- Greet them warmly in Bengali (e.g. "নমস্কার! আমি এনসিস অ্যাসিস্ট, বলুন আমি আপনাকে কীভাবে সাহায্য করতে পারি?") and maintain Bengali throughout.',
+      style: 'bengali',
+      detectedLang: 'bn',
+    };
+  }
+  if (/\b(hindi)\b/i.test(lowerText) && /\b(talk|speak|bolo|baat|likho|me|in|kar)\b/i.test(lowerText)) {
+    return {
+      instruction:
+        '\nCRITICAL MULTILINGUAL RULE (HINDI REQUESTED):\n- The user requested to communicate in Hindi. You MUST respond warmly and politely in pure Hindi using Devanagari script (हिंदी).\n- Maintain Hindi throughout.',
+      style: 'devanagari',
+      detectedLang: 'hi',
+    };
+  }
+
+  // 7. Roman Punjabi
   const words = text.toLowerCase().split(/[^a-z]+/);
   const hasRomanPunjabi = words.some((w) => ROMAN_PUNJABI_WORDS.has(w));
   if (hasRomanPunjabi) {
@@ -408,7 +437,7 @@ export function detectLanguageInstruction(userMessage: string, langHint = 'en'):
     };
   }
 
-  // 7. Hinglish (Hindi written in Roman English alphabet)
+  // 8. Hinglish (Hindi written in Roman English alphabet)
   // CRITICAL: Must be genuine Hindi Roman words; NEVER match English words like "me", "to", "in", "is", or product names!
   const hasHinglish = words.some((w) => HINGLISH_WORDS.has(w));
   if (hasHinglish) {
@@ -420,7 +449,7 @@ export function detectLanguageInstruction(userMessage: string, langHint = 'en'):
     };
   }
 
-  // 8. If previous session was Bengali or Punjabi and current text is short / continuation, preserve language
+  // 9. If previous session was Bengali or Punjabi and current text is short / continuation, preserve language
   if (langHint === 'bn' && (!/[a-z]{4,}/i.test(text) || text.split(/\s+/).length <= 3)) {
     return {
       instruction: '\nLanguage Instruction: The conversation is in Bengali. Reply in pure Bengali in Bengali script (বাংলা লিপি).',
@@ -501,7 +530,7 @@ export const ENSIS_COPY = {
   },
   bn: {
     greetTitle: 'নমস্কার! 🙏',
-    welcome: "এনসিস (Ensis)-এ আপনাকে স্বাগত! আমি এনসিস অ্যাসিস্ট (Ensis Assist) 😊 বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?",
+    welcome: "এনসিস-এ আপনাকে স্বাগত! আমি এনসিস অ্যাসিস্ট 😊 বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?",
     askName: "নমস্কার! 😊 আপনার সাথে কথা বলে ভালো লাগল। প্রথমে কি আপনার নামটি জানতে পারি?",
     askNameFirst: "নিশ্চয়ই, আমি সাহায্য করব! 😊 প্রথমে কি আপনার শুভ নামটি জানতে পারি?",
     askNameBeforeAnswer: "আমি এখনই জানাচ্ছি 😊 তার আগে অনুগ্রহ করে আপনার নামটি বলে দিন?",
@@ -527,7 +556,7 @@ export const ENSIS_COPY = {
   },
   pa: {
     greetTitle: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! 🙏',
-    welcome: "ਐਨਸਿਸ (Ensis) ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ! ਮੈਂ ਐਨਸਿਸ ਅਸਿਸਟ (Ensis Assist) ਹਾਂ 😊 ਦੱਸੋ ਜੀ, ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?",
+    welcome: "ਐਨਸਿਸ ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ! ਮੈਂ ਐਨਸਿਸ ਅਸਿਸਟ ਹਾਂ 😊 ਦੱਸੋ ਜੀ, ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?",
     askName: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਜੀ! 😊 ਤੁਹਾਡੇ ਨਾਲ ਗੱਲ ਕਰਕੇ ਚੰਗਾ ਲੱਗਿਆ। ਪਹਿਲਾਂ ਆਪਣਾ ਸ਼ੁਭ ਨਾਮ ਦੱਸ ਦਿਓ ਜੀ?",
     askNameFirst: "ਜ਼ਰੂਰ, ਮੈਂ ਮਦਦ ਕਰਾਂਗੀ! 😊 ਪਹਿਲਾਂ ਆਪਣਾ ਸ਼ੁਭ ਨਾਮ ਦੱਸ ਦਿਓ ਜੀ?",
     askNameBeforeAnswer: "ਮੈਂ ਹੁਣੇ ਦੱਸਦੀ ਹਾਂ 😊 ਬਸ ਪਹਿਲਾਂ ਆਪਣਾ ਨਾਮ ਦੱਸ ਦਿਓ ਜੀ?",
@@ -627,19 +656,19 @@ export async function generateBotReply(
   if (isAskingBotName && userMessage.trim().split(/\s+/).length <= 8) {
     if (langStyle === 'bengali') {
       return {
-        reply: 'আমার নাম এনসিস অ্যাসিস্ট (Ensis Assist)। আমি এনসিস (Ensis)-এর এআই ওয়েলনেস ও পঞ্চকর্ম সরঞ্জাম বিশেষজ্ঞ। বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?',
+        reply: 'আমার নাম এনসিস অ্যাসিস্ট। আমি এনসিস-এর এআই ওয়েলনেস ও পঞ্চকর্ম সরঞ্জাম বিশেষজ্ঞ। বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?',
         provider: 'direct',
       };
     }
     if (langStyle === 'punjabi') {
       return {
-        reply: 'ਮੇਰਾ ਨਾਮ ਐਨਸਿਸ ਅਸਿਸਟ (Ensis Assist) ਹੈ। ਮੈਂ ਐਨਸਿਸ (Ensis) ਦੀ ਏਆਈ ਵੈੱਲਨੈੱਸ ਅਤੇ ਪੰਚਕਰਮਾ ਉਪਕਰਨ ਮਾਹਿਰ ਹਾਂ। ਦੱਸੋ ਜੀ, ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਸਹਾਇਤਾ ਕਰ ਸਕਦੀ ਹਾਂ?',
+        reply: 'ਮੇਰਾ ਨਾਮ ਐਨਸਿਸ ਅਸਿਸਟ ਹੈ। ਮੈਂ ਐਨਸਿਸ ਦੀ ਏਆਈ ਵੈੱਲਨੈੱਸ ਅਤੇ ਪੰਚਕਰਮਾ ਉਪਕਰਨ ਮਾਹਿਰ ਹਾਂ। ਦੱਸੋ ਜੀ, ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਸਹਾਇਤਾ ਕਰ ਸਕਦੀ ਹਾਂ?',
         provider: 'direct',
       };
     }
     if (langStyle === 'devanagari') {
       return {
-        reply: 'मेरा नाम एन्सिस असिस्ट (Ensis Assist) है! मैं एन्सिस (Ensis) की एआई वेलनेस और पंचकर्म उपकरण विशेषज्ञ हूँ। बताइए, आज मैं आपकी क्या सहायता कर सकती हूँ?',
+        reply: 'मेरा नाम एन्सिस असिस्ट है! मैं एन्सिस की एआई वेलनेस और पंचकर्म उपकरण विशेषज्ञ हूँ। बताइए, आज मैं आपकी क्या सहायता कर सकती हूँ?',
         provider: 'direct',
       };
     }
@@ -650,7 +679,7 @@ export async function generateBotReply(
       };
     }
     return {
-      reply: 'Mera naam Ensis Assist (एन्सिस असिस्ट) hai! Main Ensis ki AI wellness aur Panchkarma equipment specialist hoon. Bataiye, aaj main aapki kya madad kar sakti hoon?',
+      reply: 'Mera naam Ensis Assist hai! Main Ensis ki AI wellness aur Panchkarma equipment specialist hoon. Bataiye, aaj main aapki kya madad kar sakti hoon?',
       provider: 'direct',
     };
   }
@@ -740,14 +769,14 @@ export async function generateBotReply(
     if (langStyle === 'bengali') {
       const greetingName = userName ? `${userName}` : '';
       return {
-        reply: `নমস্কার ${greetingName}! এনসিস (Ensis)-এ আপনাকে স্বাগত। আমরা প্রামাণিক আয়ুর্বেদিক পঞ্চকর্ম সরঞ্জাম ও সম্পূর্ণ ক্লিনিক সেটআপ তৈরি করি।\n\nআজ আমি আপনাকে কীভাবে সাহায্য করতে পারি? আপনি কি দ্রোণী টেবিল, বাষ্প স্নান (Steam Bath) বা পুরো ক্লিনিক সেটআপ সম্পর্কে জানতে চান?`,
+        reply: `নমস্কার ${greetingName}! এনসিস-এ আপনাকে স্বাগত। আমরা প্রামাণিক আয়ুর্বেদিক পঞ্চকর্ম সরঞ্জাম ও সম্পূর্ণ ক্লিনিক সেটআপ তৈরি করি।\n\nআজ আমি আপনাকে কীভাবে সাহায্য করতে পারি? আপনি কি দ্রোণী টেবিল, বাষ্প স্নান (Steam Bath) বা পুরো ক্লিনিক সেটআপ সম্পর্কে জানতে চান?`,
         provider: 'fallback',
       };
     }
     if (langStyle === 'devanagari') {
       const greetingName = userName ? `${userName} जी` : '';
       return {
-        reply: `नमस्ते ${greetingName}! एन्सिस (Ensis) में आपका स्वागत है। हम प्रामाणिक आयुर्वेदिक पंचकर्म उपकरण और टर्नकी क्लिनिक सेटअप तैयार करते हैं।\n\nआज मैं आपकी क्या सहायता कर सकती हूँ? क्या आप द्रोणी टेबल, स्टीम बाथ, या पूरे क्लिनिक सेटअप के बारे में जानकारी चाहते हैं?`,
+        reply: `नमस्ते ${greetingName}! एन्सिस में आपका स्वागत है। हम प्रामाणिक आयुर्वेदिक पंचकर्म उपकरण और टर्नकी क्लिनिक सेटअप तैयार करते हैं।\n\nआज मैं आपकी क्या सहायता कर सकती हूँ? क्या आप द्रोणी टेबल, स्टीम बाथ, या पूरे क्लिनिक सेटअप के बारे में जानकारी चाहते हैं?`,
         provider: 'fallback',
       };
     }
@@ -1530,6 +1559,13 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
     .replace(/https?:\/\/localhost:\d+/gi, '')
     .replace(/https?:\/\/(?:www\.)?ensis\.in/gi, '');
 
+  // Deduplicate brand names like "एन्सिस (Ensis)" or "Ensis (एन्सिस)" so Ensis is never written or spoken twice
+  replyText = replyText
+    .replace(/(?:एन्सिस\s*असिस्ट|এনসিস\s*অ্যাসিস্ট|ਐਨਸਿਸ\s*ਅਸਿਸਟ|Ensis\s*Assist)\s*[\(\[]\s*(?:एन्सिस\s*असिस्ट|এনসিস\s*অ্যাসিস্ট|ਐਨਸਿਸ\s*ਅਸਿਸਟ|Ensis\s*Assist|Ensis|एन्सिस)\s*[\)\]]/gi, (m) => m.includes('অ্যাসিস্ট') ? 'এনসিস অ্যাসিস্ট' : m.includes('ਅਸਿਸਟ') ? 'ਐਨਸਿਸ ਅਸਿਸਟ' : m.includes('असिस्ट') ? 'एन्सिस असिस्ट' : 'Ensis Assist')
+    .replace(/(?:एन्सिस|এনসিস|ਐਨਸਿਸ|ਐન્સਿਸ)\s*[\(\[]\s*Ensis\s*[\)\]]/gi, (m) => m.startsWith('এনসিস') ? 'এনসিস' : m.startsWith('ਐਨਸਿਸ') ? 'ਐਨਸਿਸ' : m.startsWith('એન્સਿਸ') ? 'એન્સਿਸ' : 'एन्सिस')
+    .replace(/Ensis\s*[\(\[]\s*(?:एन्सिस|এনসিস|ਐਨਸਿਸ|એન્સਿਸ)\s*[\)\]]/gi, (m) => m.includes('এনসিস') ? 'এনসিস' : m.includes('ਐਨਸਿਸ') ? 'ਐਨਸਿਸ' : m.includes('એન્સਿਸ') ? 'એન્સਿਸ' : 'एन्सिस')
+    .replace(/[\(\[]\s*(?:Ensis|एन्सिस|এনসিস|ਐਨਸਿਸ|એન્સਿਸ)\s*[\)\]]/gi, '');
+
   // Sanitize any hallucinated phone numbers in replyText so visitor never receives corrupted digits
   if (targetPhone) {
     replyText = replyText
@@ -1637,7 +1673,16 @@ export const getChatbotSpeak = asyncHandler(async (req: Request, res: Response) 
   }
 
   const session = await ChatbotSessionModel.findOne({ sessionId }).lean();
-  const message = session?.messages?.[messageIndex - 1] || session?.messages?.[messageIndex];
+  // Specifically match assistant reply by speakId, or assistant message, never user input
+  const message =
+    session?.messages?.find((m) => m.role === 'assistant' && m.speakId === messageIndex) ||
+    session?.messages?.find((m) => m.speakId === messageIndex) ||
+    (session?.messages?.[messageIndex]?.role === 'assistant' ? session.messages[messageIndex] : undefined) ||
+    (session?.messages?.[messageIndex - 1]?.role === 'assistant' ? session.messages[messageIndex - 1] : undefined) ||
+    session?.messages?.slice().reverse().find((m) => m.role === 'assistant') ||
+    session?.messages?.[messageIndex - 1] ||
+    session?.messages?.[messageIndex];
+
   const textToSpeak = message?.spoken || message?.content || '';
 
   if (!textToSpeak) {

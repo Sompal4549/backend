@@ -14,7 +14,7 @@ const activeCalls = new Map<string, ActiveCall>();
 
 const REALTIME_MODEL = () => process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1-mini';
 const FALLBACK_MODELS = ['gpt-realtime-mini', 'gpt-realtime', 'gpt-4o-mini-realtime-preview'];
-const CALL_MODEL_VOICE = () => process.env.OPENAI_TTS_VOICE || 'marin';
+const CALL_MODEL_VOICE = () => process.env.OPENAI_TTS_VOICE || 'sage';
 
 const MAX_CALL_MINUTES = 10;
 
@@ -224,7 +224,7 @@ export const startWebRtcCall = async ({
       input: {
         noise_reduction: { type: noise ? 'near_field' : 'far_field' },
         transcription: { model: 'gpt-4o-transcribe' },
-        turn_detection: { type: 'semantic_vad', eagerness: 'medium', interrupt_response: true },
+        turn_detection: { type: 'semantic_vad', eagerness: 'medium', create_response: false, interrupt_response: true },
       },
       output: { voice: CALL_MODEL_VOICE() },
     },
@@ -246,7 +246,7 @@ export const startWebRtcCall = async ({
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}` },
         body: form,
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(20000),
       });
 
       // 2. If rejected or not found, try direct SDP to /realtime?model=
@@ -258,7 +258,7 @@ export const startWebRtcCall = async ({
             'Content-Type': 'application/sdp',
           },
           body: sdp,
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(20000),
         });
       }
 
