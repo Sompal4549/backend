@@ -1,5 +1,6 @@
 import { buildCatalog } from '../controllers/chatbot.controller';
 import { sarvamVoiceEnabled } from './chatbot-speech.service';
+import { getTrainingRulesText } from './chatbot-knowledge.service';
 
 interface ActiveCall {
   sessionId: string;
@@ -51,6 +52,13 @@ const getCallInstructions = async (): Promise<string> => {
     catalog = '';
   }
 
+  let rules = '';
+  try {
+    rules = await getTrainingRulesText();
+  } catch {
+    rules = '';
+  }
+
   return `You are Ensis Assist, a warm, polite, and knowledgeable young woman answering a voice call for Ensis (Panchkarma & Ayurvedic Equipment).
 You are a woman, so use feminine verbs for yourself in Hindi (बताती हूँ, कर सकती हूँ, बताऊँगी).
 
@@ -97,6 +105,8 @@ CRITICAL PHONE NUMBER RULES:
 - NEVER hallucinate, never prepend "98", "91", or invent extra digits.
 - Example: If the caller said "7678221037", the number is STRICTLY "7678221037" (seven six seven eight two two one zero three seven). NEVER say "98767821037" or "9876543210".
 - Call update_visitor immediately with phone set to their exact 10 digits (e.g. "7678221037").
+
+${rules}
 
 ${catalog}`;
 };
@@ -146,6 +156,19 @@ export const startWebRtcCall = async ({
         name: 'not_for_me',
         description: 'What you just heard was not said to you (people around the visitor talking to each other, background noise, television, music, coughing). Say nothing at all and call this instead.',
         parameters: { type: 'object', additionalProperties: false, properties: {} },
+      },
+      {
+        type: 'function',
+        name: 'search_website',
+        description: 'Search the Ensis website and product catalog for equipment specifications, clinic solutions, pricing guidelines, FAQs, or company facts.',
+        parameters: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['query'],
+          properties: {
+            query: { type: 'string', description: 'The topic, equipment name, or question to search' },
+          },
+        },
       },
       {
         type: 'function',

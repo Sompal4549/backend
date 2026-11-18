@@ -16,6 +16,7 @@ import { SolutionModel } from '../models/solution.model';
 import { streamSpeech } from '../services/chatbot-speech.service';
 import { startWebRtcCall, endActiveCall } from '../services/chatbot-call.service';
 import { isAbusive, toHinglish, DEVANAGARI, GURMUKHI, URDU_LETTERS, looksMarathi } from '../utils/chatGuards';
+import { searchKnowledge, getTrainingRulesText } from '../services/chatbot-knowledge.service';
 
 const ENSIS_SYSTEM_PROMPT = `You are "Ensis Assist", the expert Ayurvedic wellness & Panchkarma equipment specialist for ENSIS (ensis.in), manufactured by Design House India Pvt. Ltd.
 
@@ -302,7 +303,20 @@ export async function generateBotReply(
   const phoneInstruction = userPhone ? `\nCRITICAL: The visitor's verified 10-digit mobile number is strictly "${userPhone}". If you repeat or confirm their number, you MUST use ONLY these exact digits: ${userPhone}. NEVER prepend 98 or alter any digits.` : '';
   const { instruction: langInstruction, style: langStyle } = detectLanguageInstruction(userMessage, language);
 
-  const systemContent = `${ENSIS_SYSTEM_PROMPT}${nameInstruction}${phoneInstruction}${langInstruction}${knowledge}`;
+  let dynamicKnowledge = '';
+  try {
+    const passages = await searchKnowledge(userMessage, 3);
+    if (passages.length) {
+      dynamicKnowledge = `\n\nRELEVANT WEBSITE & SPECIFICATION KNOWLEDGE:\n${passages.map((p) => `- ${p.title} (${p.url}): ${p.text}`).join('\n')}`;
+    }
+  } catch {}
+
+  let teamRules = '';
+  try {
+    teamRules = await getTrainingRulesText();
+  } catch {}
+
+  const systemContent = `${ENSIS_SYSTEM_PROMPT}${nameInstruction}${phoneInstruction}${langInstruction}${knowledge}${teamRules}${dynamicKnowledge}`;
 
   if (process.env.OPENAI_API_KEY) {
     try {
@@ -1318,6 +1332,15 @@ export const postChatbotCallTool = asyncHandler(async (req: Request, res: Respon
 
   if (name === 'continue_typing') {
     return successResponse(res, { output: { ok: true } });
+  }
+
+  if (name === 'search_website') {
+    const query = String(args?.query || '').trim();
+    const passages = await searchKnowledge(query, 3);
+    const textResult = passages.length
+      ? passages.map((p) => `${p.title} (${p.url}): ${p.text}`).join('\n\n')
+      : 'No specific matching passage found on the website. Refer to general Panchkarma equipment specs.';
+    return successResponse(res, { output: { ok: true, results: textResult } });
   }
 
   return successResponse(res, { output: { ok: true } });

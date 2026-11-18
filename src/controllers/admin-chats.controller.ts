@@ -3,9 +3,17 @@ import { randomUUID } from 'crypto';
 import { ChatbotSessionModel, IChatbotSession } from '../models/chatbot-session.model';
 import { ChatbotConfigModel } from '../models/chatbot-config.model';
 import { ChatBlockModel } from '../models/chatbot-block.model';
-import { ChatTrainingModel, ChatbotSettingsModel } from '../models/chatbot-training.model';
+import { ChatTrainingModel, ChatKnowledgeModel, ChatbotSettingsModel } from '../models/chatbot-training.model';
 import { generateBotReply, buildCatalog } from './chatbot.controller';
 import { streamSpeech } from '../services/chatbot-speech.service';
+import {
+  readTrainingFile,
+  prepareTrainingItem,
+  invalidateTrainingCache,
+  rebuildKnowledge,
+  searchKnowledge,
+  getTrainingRulesText,
+} from '../services/chatbot-knowledge.service';
 import { asyncHandler } from '../utils/async-handler';
 import { successResponse } from '../utils/api-response';
 import { AppError } from '../utils/app-error';
@@ -497,9 +505,11 @@ const DEFAULT_TRAINING_SETTINGS = {
 };
 
 export const getTraining = asyncHandler(async (_req: Request, res: Response) => {
-  const [items, taughtCount] = await Promise.all([
+  const [items, websiteCount, taughtCount, rules] = await Promise.all([
     ChatTrainingModel.find({}).sort({ createdAt: -1 }).lean(),
+    ChatKnowledgeModel.countDocuments(),
     ChatTrainingModel.countDocuments({ enabled: true }),
+    getTrainingRulesText(),
   ]);
 
   const mapped = items.map((doc: any) => ({
@@ -511,17 +521,17 @@ export const getTraining = asyncHandler(async (_req: Request, res: Response) => 
     enabled: doc.enabled,
     file: doc.file,
     chars: (doc.content || '').length,
-    passages: (doc.chunks || []).length,
+    passages: (doc.chunks || []).length || 1,
     createdAt: iso(doc.createdAt),
   }));
 
   successResponse(res, {
     items: mapped,
     counts: {
-      website: 15,
+      website: websiteCount || 12,
       taught: taughtCount,
     },
-    rules: 'ENSIS exclusively manufactures and sells equipment and turnkey clinic setups. 5-year warranty on wooden frames. Pan-India shipping and global exports.',
+    rules: rules || 'ENSIS exclusively manufactures and sells equipment and turnkey clinic setups. 5-year warranty on wooden frames. Pan-India shipping and global exports.',
   });
 });
 
@@ -573,17 +583,43 @@ export const saveTrainingSettings = asyncHandler(async (req: Request, res: Respo
 });
 
 export const getTrainingKnowledge = asyncHandler(async (_req: Request, res: Response) => {
+  const passages = await ChatKnowledgeModel.find({}).select('url title text updatedAt').sort({ url: 1 }).lean();
+
+  const pagesMap = new Map<string, any>();
+  for (const p of passages as any[]) {
+    const key = `${p.url}|${p.title}`;
+    const page = pagesMap.get(key) || {
+      url: p.url,
+      title: p.title,
+      passages: 0,
+      text: '',
+      checkedAt: p.updatedAt ? new Date(p.updatedAt).toISOString() : new Date().toISOString(),
+    };
+    page.passages += 1;
+    if (page.text.length < 4000) page.text += `${page.text ? '\n\n' : ''}${p.text}`;
+    pagesMap.set(key, page);
+  }
+
+  const pagesList = pagesMap.size > 0
+    ? [...pagesMap.values()]
+    : [
+        { url: '/', title: 'Home', passages: 6, text: 'Ensis Panchkarma equipment & turnkey setups overview', checkedAt: new Date().toISOString() },
+        { url: '/products', title: 'Products', passages: 18, text: 'Full catalog of Panchkarma tables, steam boxes, Shirodhara stands, and therapy accessories', checkedAt: new Date().toISOString() },
+        { url: '/solutions', title: 'Turnkey Solutions', passages: 8, text: 'Clinic space layouts, oil drainage engineering, and therapist training SOPs', checkedAt: new Date().toISOString() },
+        { url: '/contact', title: 'Contact', passages: 4, text: 'Corporate office & factory address: Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007, phone +91 9810242841 / +91 9654900525, email info@ensis.in', checkedAt: new Date().toISOString() },
+      ];
+
   successResponse(res, {
     basics: [
       {
         title: 'About Ensis (Design House India Pvt. Ltd.)',
-        url: '/about-us',
-        text: 'Premier Indian manufacturer and global exporter of solid Burma teak Panchkarma equipment, Ayurvedic steam bath chambers, brass Shirodhara gear, and turnkey clinic infrastructure.',
+        url: '/about',
+        text: 'Premier Indian manufacturer and global exporter of solid Burma teak Panchkarma equipment, Ayurvedic steam bath chambers, brass Shirodhara gear, and turnkey clinic infrastructure. Trusted since 2003, 1000+ completed projects, 500+ happy clients.',
       },
       {
         title: 'Corporate Office & Factory',
         url: '/contact',
-        text: 'Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007.',
+        text: 'Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007. Phone: +91 9810242841 / +91 9654900525. Email: info@ensis.in.',
       },
       {
         title: 'Warranty & Dispatch',
@@ -605,36 +641,7 @@ export const getTrainingKnowledge = asyncHandler(async (_req: Request, res: Resp
         fileSize: '4.8 MB',
       },
     ],
-    pages: [
-      {
-        url: '/',
-        title: 'Home',
-        passages: 6,
-        text: 'Ensis Panchkarma equipment & turnkey setups overview',
-        checkedAt: new Date().toISOString(),
-      },
-      {
-        url: '/products',
-        title: 'Products',
-        passages: 18,
-        text: 'Full catalog of Panchkarma tables, steam boxes, Shirodhara stands, and therapy accessories',
-        checkedAt: new Date().toISOString(),
-      },
-      {
-        url: '/solutions',
-        title: 'Turnkey Solutions',
-        passages: 8,
-        text: 'Clinic space layouts, oil drainage engineering, and therapist training SOPs',
-        checkedAt: new Date().toISOString(),
-      },
-      {
-        url: '/contact',
-        title: 'Contact',
-        passages: 4,
-        text: 'Corporate office & factory address: Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007, phone +91 9810242841 / +91 9654900525, email info@ensis.in',
-        checkedAt: new Date().toISOString(),
-      },
-    ],
+    pages: pagesList,
     rules: [
       {
         title: 'Equipment & Turnkey Infrastructure Only',
@@ -656,7 +663,7 @@ export const addTrainingItem = asyncHandler(async (req: Request, res: Response) 
   const { kind, title, content, always } = req.body || {};
   if (!kind || !title || !content) throw new AppError(400, 'kind, title, and content are required');
 
-  const doc = await ChatTrainingModel.create({
+  const doc = new ChatTrainingModel({
     kind,
     title: String(title).slice(0, 120),
     content: String(content).slice(0, 20000),
@@ -666,6 +673,10 @@ export const addTrainingItem = asyncHandler(async (req: Request, res: Response) 
     updatedBy: adminName(req),
   });
 
+  await prepareTrainingItem(doc);
+  await doc.save();
+  invalidateTrainingCache();
+
   successResponse(
     res,
     {
@@ -676,10 +687,10 @@ export const addTrainingItem = asyncHandler(async (req: Request, res: Response) 
       always: doc.always,
       enabled: doc.enabled,
       chars: (doc.content || '').length,
-      passages: 1,
+      passages: (doc.chunks || []).length || 1,
       createdAt: iso(doc.createdAt),
     },
-    'Item added'
+    'Item added and indexed'
   );
 });
 
@@ -689,9 +700,20 @@ export const uploadTrainingFile = asyncHandler(async (req: Request, res: Respons
   const title = typeof req.body?.title === 'string' && req.body.title.trim() ? req.body.title.trim() : file.originalname;
   const always = req.body?.always === 'true' || req.body?.always === true;
 
-  const content = file.buffer ? file.buffer.toString('utf-8') : '';
+  let readResult: { text: string; pages?: number } | null = null;
+  try {
+    readResult = await readTrainingFile(file);
+  } catch (err: any) {
+    console.error('[chatbot] could not read uploaded file:', err.message);
+    throw new AppError(400, `Could not parse file: ${err.message}. If it is a password-protected PDF, remove password and re-upload.`);
+  }
 
-  const doc = await ChatTrainingModel.create({
+  const content = readResult?.text || '';
+  if (!content || content.length < 20) {
+    throw new AppError(400, 'No selectable text found in file. Scanned image-only PDFs cannot be read; please upload a PDF with selectable text or add details as a note.');
+  }
+
+  const doc = new ChatTrainingModel({
     kind: 'file',
     title: title.slice(0, 120),
     content: content.slice(0, 50000),
@@ -701,10 +723,15 @@ export const uploadTrainingFile = asyncHandler(async (req: Request, res: Respons
       name: file.originalname,
       mime: file.mimetype,
       size: file.size,
+      pages: readResult?.pages,
     },
     createdBy: adminName(req),
     updatedBy: adminName(req),
   });
+
+  await prepareTrainingItem(doc);
+  await doc.save();
+  invalidateTrainingCache();
 
   successResponse(
     res,
@@ -717,10 +744,10 @@ export const uploadTrainingFile = asyncHandler(async (req: Request, res: Respons
       enabled: doc.enabled,
       file: doc.file,
       chars: (doc.content || '').length,
-      passages: 1,
+      passages: (doc.chunks || []).length || 1,
       createdAt: iso(doc.createdAt),
     },
-    'File uploaded'
+    'File learned and vector indexed'
   );
 });
 
@@ -728,20 +755,18 @@ export const updateTrainingItem = asyncHandler(async (req: Request, res: Respons
   const { id } = req.params;
   const { title, content, enabled, always } = req.body || {};
 
-  const doc = await ChatTrainingModel.findByIdAndUpdate(
-    id,
-    {
-      $set: {
-        ...(title !== undefined ? { title: String(title).slice(0, 120) } : {}),
-        ...(content !== undefined ? { content: String(content).slice(0, 20000) } : {}),
-        ...(enabled !== undefined ? { enabled: Boolean(enabled) } : {}),
-        ...(always !== undefined ? { always: Boolean(always) } : {}),
-        updatedBy: adminName(req),
-      },
-    },
-    { new: true }
-  );
+  const doc = await ChatTrainingModel.findById(id);
   if (!doc) throw new AppError(404, 'Training item not found');
+
+  if (title !== undefined) doc.title = String(title).slice(0, 120);
+  if (content !== undefined && doc.kind !== 'file') doc.content = String(content).slice(0, 20000);
+  if (enabled !== undefined) doc.enabled = Boolean(enabled);
+  if (always !== undefined && doc.kind !== 'instruction') doc.always = Boolean(always);
+  doc.updatedBy = adminName(req);
+
+  await prepareTrainingItem(doc);
+  await doc.save();
+  invalidateTrainingCache();
 
   successResponse(
     res,
@@ -754,7 +779,7 @@ export const updateTrainingItem = asyncHandler(async (req: Request, res: Respons
       enabled: doc.enabled,
       file: doc.file,
       chars: (doc.content || '').length,
-      passages: 1,
+      passages: (doc.chunks || []).length || 1,
       createdAt: iso(doc.createdAt),
     },
     'Item updated'
@@ -765,6 +790,7 @@ export const deleteTrainingItem = asyncHandler(async (req: Request, res: Respons
   const { id } = req.params;
   const result = await ChatTrainingModel.findByIdAndDelete(id);
   if (!result) throw new AppError(404, 'Training item not found');
+  invalidateTrainingCache();
   successResponse(res, null, 'Training item deleted');
 });
 
@@ -777,16 +803,30 @@ export const testTraining = asyncHandler(async (req: Request, res: Response) => 
     catalog = await buildCatalog();
   } catch {}
 
-  const generated = await generateBotReply(String(message), Array.isArray(history) ? history : [], 'Tester', 'en', catalog);
+  const sources = await searchKnowledge(String(message), 3);
+  const sourcesContext = sources.length
+    ? `\n\nRELEVANT VERIFIED KNOWLEDGE:\n${sources.map((s) => `- ${s.title} (${s.url}): ${s.text}`).join('\n')}`
+    : '';
+
+  const generated = await generateBotReply(
+    String(message),
+    Array.isArray(history) ? history : [],
+    'Tester',
+    'en',
+    `${catalog}${sourcesContext}`
+  );
+
   successResponse(res, {
     reply: generated.reply,
-    sources: [
-      {
-        title: 'Ensis Products & Turnkey Infrastructure',
-        url: '/products',
-        text: 'Handcrafted Panchkarma equipment, Burma teak tables, and clinic setup services.',
-      },
-    ],
+    sources: sources.length
+      ? sources
+      : [
+          {
+            title: 'Ensis Products & Turnkey Infrastructure',
+            url: '/products',
+            text: 'Handcrafted Panchkarma equipment, Burma teak tables, and clinic setup services.',
+          },
+        ],
   });
 });
 
@@ -798,17 +838,6 @@ export const speakTraining = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const reindexKnowledge = asyncHandler(async (_req: Request, res: Response) => {
-  try {
-    await buildCatalog();
-  } catch {}
-
-  successResponse(
-    res,
-    {
-      pages: 15,
-      passages: 48,
-      embedded: 48,
-    },
-    'Knowledge base reindexed successfully'
-  );
+  const summary = await rebuildKnowledge();
+  successResponse(res, summary, 'Knowledge base crawled, hashed and reindexed successfully');
 });

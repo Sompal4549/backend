@@ -5,6 +5,14 @@ import { config, checkEnvironment } from './config/app.config';
 const startServer = async (): Promise<void> => {
   checkEnvironment();
   await connectDatabase();
+
+  try {
+    const { startKnowledgeSchedule } = await import('./services/chatbot-knowledge.service');
+    startKnowledgeSchedule();
+  } catch (err: any) {
+    console.warn('[chatbot-knowledge] schedule init warning:', err.message);
+  }
+
   if (process.env.INFRASTRUCTURE_ENABLED === 'true') {
     const { initInfrastructure } = await import('./modules/infrastructure/infra.init');
     await initInfrastructure().catch((err) => {
