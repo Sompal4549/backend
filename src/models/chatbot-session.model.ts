@@ -17,6 +17,8 @@ export interface IChatbotSession extends Document {
   sessionId: string;
   userName?: string;
   nameAsked?: boolean;
+  nameTries?: number;
+  pendingQuestion?: string;
   phone?: string;
   lang?: string;
   agent?: boolean | { active: boolean; by?: string; since?: Date };
@@ -62,6 +64,8 @@ const chatbotSessionSchema = new Schema<IChatbotSession>(
     sessionId: { type: String, required: true, unique: true, index: true },
     userName: { type: String, trim: true },
     nameAsked: { type: Boolean, default: false },
+    nameTries: { type: Number, default: 0 },
+    pendingQuestion: { type: String, trim: true },
     phone: { type: String, trim: true },
     lang: { type: String, default: 'en' },
     agent: { type: Schema.Types.Mixed, default: false },

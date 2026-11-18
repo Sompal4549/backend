@@ -53,7 +53,7 @@ CRITICAL LINKING & ROUTING RULES:
   • Specific product: [Burma Teak Droni Table](/products/panchkarma-droni-table)
   • Turnkey solutions: [Turnkey Clinic Setup](/solutions/turnkey-ayurvedic-clinic)
   • About page: [About Ensis](/about)
-- NEVER write absolute live domain URLs like "https://ensis.in/contact" or "https://ensis.in/products/..."!
+- NEVER write absolute live domain URLs like "https://ensis.in/contact", and NEVER include "http://localhost:3000"!
 - Root-relative paths keep the visitor seamlessly within their current site session without redirecting to external live domains.
 
 VISITOR NAME POLICY (ASK AT MOST ONCE, NEVER BLOCK OR WITHHOLD ANSWERS):
@@ -445,6 +445,140 @@ export function detectLanguageInstruction(userMessage: string, langHint = 'en'):
   };
 }
 
+
+export const ENSIS_COPY = {
+  en: {
+    greetTitle: 'Namaste! 🙏',
+    welcome: "Welcome to Ensis! I'm Ensis Assist 😊 Tell me, how can I help you today?",
+    askName: "Hello! 😊 Nice to hear from you. May I know your name?",
+    askNameFirst: "Sure, I'll help you with that! 😊 First, may I know your name?",
+    askNameBeforeAnswer: "I'll answer that right away 😊 Just tell me your name first?",
+    typeHere: "Sure! 😊 Go ahead and type here. Tell me, how can I help you today?",
+    tapMic: "Sure! 😊 Tap the mic button below to talk to me, or type here if you like.",
+    howCanIHelp: "Hello! 😊 Tell me, how can I help you today?",
+    welcomeAgain: (name: string) => `Welcome back, ${name}! 😊 How can I help you today?`,
+    goodbye: "Thank you for chatting with Ensis. Have a great day! 😊",
+    callWelcome: "Welcome to Ensis! I'm Ensis Assist. Would you like to talk to me, or would you rather type?",
+    callWelcomeAgain: (name: string) => `Welcome back, ${name}! Would you like to talk to me, or would you rather type?`,
+    nameThanks: (name: string) => `Nice to meet you, ${name}! 😊 Tell me, how can I help you?`,
+    askNameAgain: [
+      "😄 Haha, that doesn't sound like a name! What should I call you?",
+      "Hehe 😊 I'd really like to know your name — what is it?",
+      "😅 Nice one! But tell me your real name, please?",
+    ],
+    abuseWarning: (count: number, _hours?: number) =>
+      `⚠️ Warning ${count}/3: Please don't use that kind of language with me 🙏 Let's keep it friendly and I'll happily help you.`,
+    blocking: (hours: number) =>
+      `You kept using offensive language even after 3 warnings, so I'm blocking this chat${hours ? ` for ${hours} hours ⛔` : ' ⛔'}. For genuine enquiries, please call +91 9810242841.`,
+    blocked: "This chat is blocked because of offensive language ⛔ For genuine enquiries, please call +91 9810242841.",
+    unavailable: "Sorry, I can't look that up right now. Please call +91 9810242841 or email info@ensis.in, and our team will help you.",
+  },
+  hi: {
+    greetTitle: 'Namaste! 🙏',
+    welcome: "Ensis mein aapka swagat hai! Main Ensis Assist hoon 😊 Bataiye, aaj main aapki kya madad kar sakti hoon?",
+    askName: "Namaste! 😊 Aapse baat karke accha laga. Pehle apna naam bata dijiye?",
+    askNameFirst: "Zaroor, main bataungi! 😊 Pehle apna naam bata dijiye?",
+    askNameBeforeAnswer: "Main abhi bataati hoon 😊 Bas pehle apna naam bata dijiye?",
+    typeHere: "Ji zaroor! 😊 Yahan likhiye. Bataiye, main aapki kya madad kar sakti hoon?",
+    tapMic: "Ji zaroor! 😊 Baat karne ke liye neeche mic button dabaiye, ya chahein toh yahan likhiye.",
+    howCanIHelp: "Namaste! 😊 Bataiye, main aapki kya madad kar sakti hoon?",
+    welcomeAgain: (name: string) => `${name} ji, phir se aapka swagat hai! 😊 Bataiye, aaj main aapki kya madad kar sakti hoon?`,
+    goodbye: "Ensis se baat karne ke liye dhanyavaad! Aapka din accha rahe 😊",
+    callWelcome: "Ensis mein aapka swagat hai! Main Ensis Assist hoon. Aap mujhse bolkar baat karna chahenge, ya type karna chahenge?",
+    callWelcomeAgain: (name: string) => `${name} ji, phir se aapka swagat hai! Aap bolkar baat karna chahenge, ya type karna chahenge?`,
+    nameThanks: (name: string) => `${name} ji, aapse milkar accha laga! 😊 Bataiye, main aapki kya madad kar sakti hoon?`,
+    askNameAgain: [
+      "😄 Haha, ye toh naam nahi lagta! Aapka naam kya hai?",
+      "Hehe 😊 Pehle apna asli naam bata dijiye na!",
+      "😅 Accha mazaak tha! Ab apna naam bataiye?",
+    ],
+    abuseWarning: (count: number, _hours?: number) =>
+      `⚠️ Warning ${count}/3: Arey, mere saath aisi bhasha mat use kijiye 🙏 Aaram se baat karenge toh main poori madad karungi.`,
+    blocking: (hours: number) =>
+      `3 warning ke baad bhi aapne galat bhasha use ki, isliye main ye chat${hours ? ` ${hours} ghante ke liye block kar rahi hoon ⛔` : ' block kar rahi hoon ⛔'}. Agar sach mein koi kaam hai, toh +91 9810242841 par call kijiye.`,
+    blocked: "Galat bhasha ki wajah se ye chat block hai ⛔ Agar sach mein koi kaam hai, toh +91 9810242841 par call kijiye.",
+    unavailable: "Maaf kijiye, abhi main ye dekh nahi pa rahi hoon. +91 9810242841 par call kijiye ya info@ensis.in par email kijiye, hamari team madad karegi.",
+  },
+  bn: {
+    greetTitle: 'নমস্কার! 🙏',
+    welcome: "এনসিস (Ensis)-এ আপনাকে স্বাগত! আমি এনসিস অ্যাসিস্ট (Ensis Assist) 😊 বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?",
+    askName: "নমস্কার! 😊 আপনার সাথে কথা বলে ভালো লাগল। প্রথমে কি আপনার নামটি জানতে পারি?",
+    askNameFirst: "নিশ্চয়ই, আমি সাহায্য করব! 😊 প্রথমে কি আপনার শুভ নামটি জানতে পারি?",
+    askNameBeforeAnswer: "আমি এখনই জানাচ্ছি 😊 তার আগে অনুগ্রহ করে আপনার নামটি বলে দিন?",
+    typeHere: "হ্যাঁ নিশ্চয়ই! 😊 এখানে লিখুন। বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?",
+    tapMic: "হ্যাঁ নিশ্চয়ই! 😊 কথা বলতে নিচে মাইক বোতামটি টিপুন, অথবা এখানে লিখুন।",
+    howCanIHelp: "নমস্কার! 😊 বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?",
+    welcomeAgain: (name: string) => `স্বাগত ${name}! 😊 বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?`,
+    goodbye: "এনসিস-এর সাথে যোগাযোগ করার জন্য ধন্যবাদ! আপনার দিনটি সুন্দর কাটুক 😊",
+    callWelcome: "এনসিস-এ আপনাকে স্বাগত! আমি এনসিস অ্যাসিস্ট। আপনি কি কথা বলতে চান নাকি টাইপ করতে পছন্দ করবেন?",
+    callWelcomeAgain: (name: string) => `স্বাগত ${name}! আপনি কি কথা বলতে চান নাকি টাইপ করবেন?`,
+    nameThanks: (name: string) => `${name}, আপনার সাথে পরিচিত হয়ে আনন্দিত হলাম! 😊 বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?`,
+    askNameAgain: [
+      "😄 হাহা, এটা তো নাম বলে মনে হচ্ছে না! আপনার নাম কী?",
+      "হেহে 😊 আপনার আসল নামটি জানতে পারলে খুব ভালো হতো!",
+      "😅 বেশ মজার ছিল! এবার আপনার নামটি বলুন?",
+    ],
+    abuseWarning: (count: number, _hours?: number) =>
+      `⚠️ সতর্কতা ${count}/৩: দয়া করে অপ্রীতিকর ভাষা ব্যবহার করবেন না 🙏 শান্তভাবে কথা বলুন, আমি সম্পূর্ণ সাহায্য করব।`,
+    blocking: (hours: number) =>
+      `৩টি সতর্কতার পরেও আপনি অনুপযুক্ত ভাষা ব্যবহার করেছেন, তাই এই চ্যাটটি${hours ? ` ${hours} ঘণ্টার জন্য বন্ধ করা হলো ⛔` : ' বন্ধ করা হলো ⛔'}। যোগাযোগের জন্য +91 9810242841 নম্বরে কল করুন।`,
+    blocked: "অনুপযুক্ত ভাষার কারণে এই চ্যাটটি ব্লক করা হয়েছে ⛔ যোগাযোগের জন্য +91 9810242841 নম্বরে কল করুন।",
+    unavailable: "দুঃখিত, এই মুহূর্তে তথ্যটি পাওয়া যাচ্ছে না। অনুগ্রহ করে +91 9810242841 নম্বরে কল বা info@ensis.in-এ ইমেল করুন।",
+  },
+  pa: {
+    greetTitle: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! 🙏',
+    welcome: "ਐਨਸਿਸ (Ensis) ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ! ਮੈਂ ਐਨਸਿਸ ਅਸਿਸਟ (Ensis Assist) ਹਾਂ 😊 ਦੱਸੋ ਜੀ, ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?",
+    askName: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਜੀ! 😊 ਤੁਹਾਡੇ ਨਾਲ ਗੱਲ ਕਰਕੇ ਚੰਗਾ ਲੱਗਿਆ। ਪਹਿਲਾਂ ਆਪਣਾ ਸ਼ੁਭ ਨਾਮ ਦੱਸ ਦਿਓ ਜੀ?",
+    askNameFirst: "ਜ਼ਰੂਰ, ਮੈਂ ਮਦਦ ਕਰਾਂਗੀ! 😊 ਪਹਿਲਾਂ ਆਪਣਾ ਸ਼ੁਭ ਨਾਮ ਦੱਸ ਦਿਓ ਜੀ?",
+    askNameBeforeAnswer: "ਮੈਂ ਹੁਣੇ ਦੱਸਦੀ ਹਾਂ 😊 ਬਸ ਪਹਿਲਾਂ ਆਪਣਾ ਨਾਮ ਦੱਸ ਦਿਓ ਜੀ?",
+    typeHere: "ਜੀ ਜ਼ਰੂਰ! 😊 ਇੱਥੇ ਲਿਖੋ। ਦੱਸੋ ਜੀ, ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?",
+    tapMic: "ਜੀ ਜ਼ਰੂਰ! 😊 ਗੱਲ ਕਰਨ ਲਈ ਹੇਠਾਂ ਮਾਈਕ ਬਟਨ ਦਬਾਓ, ਜਾਂ ਇੱਥੇ ਲਿਖੋ।",
+    howCanIHelp: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਜੀ! 😊 ਦੱਸੋ ਜੀ, ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?",
+    welcomeAgain: (name: string) => `${name} ਜੀ, ਫਿਰ ਤੋਂ ਸੁਆਗਤ ਹੈ! 😊 ਦੱਸੋ ਜੀ, ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?`,
+    goodbye: "ਐਨਸਿਸ ਨਾਲ ਗੱਲ ਕਰਨ ਲਈ ਧੰਨਵਾਦ! ਤੁਹਾਡਾ ਦਿਨ ਸ਼ੁਭ ਰਹੇ 😊",
+    callWelcome: "ਐਨਸਿਸ ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ! ਮੈਂ ਐਨਸਿਸ ਅਸਿਸਟ ਹਾਂ। ਤੁਸੀਂ ਬੋਲ ਕੇ ਗੱਲ ਕਰਨੀ ਚਾਹੋਗੇ ਜਾਂ ਟਾਈਪ ਕਰੋਗੇ?",
+    callWelcomeAgain: (name: string) => `${name} ਜੀ, ਫਿਰ ਤੋਂ ਸੁਆਗਤ ਹੈ! ਤੁਸੀਂ ਬੋਲ ਕੇ ਗੱਲ ਕਰਨੀ ਚਾਹੋਗੇ ਜਾਂ ਟਾਈਪ ਕਰੋਗੇ?`,
+    nameThanks: (name: string) => `${name} ਜੀ, ਤੁਹਾਡੇ ਨਾਲ ਗੱਲ ਕਰਕੇ ਚੰਗਾ ਲੱਗਿਆ! 😊 ਦੱਸੋ ਜੀ, ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?`,
+    askNameAgain: [
+      "😄 ਹਾਹਾ, ਇਹ ਤਾਂ ਨਾਮ ਨਹੀਂ ਲੱਗਦਾ! ਤੁਹਾਡਾ ਨਾਮ ਕੀ ਹੈ ਜੀ?",
+      "ਹੇਹੇ 😊 ਪਹਿਲਾਂ ਆਪਣਾ ਅਸਲੀ ਨਾਮ ਦੱਸ ਦਿਓ ਜੀ!",
+      "😅 ਚੰਗਾ ਮਜ਼ਾਕ ਸੀ! ਹੁਣ ਆਪਣਾ ਨਾਮ ਦੱਸੋ ਜੀ?",
+    ],
+    abuseWarning: (count: number, _hours?: number) =>
+      `⚠️ ਚੇਤਾਵਨੀ ${count}/3: ਕਿਰਪਾ ਕਰਕੇ ਗਲਤ ਭਾਸ਼ਾ ਦੀ ਵਰਤੋਂ ਨਾ ਕਰੋ 🙏 ਅਰਾਮ ਨਾਲ ਗੱਲ ਕਰੋਗੇ ਤਾਂ ਮੈਂ ਪੂਰੀ ਮਦਦ ਕਰਾਂਗੀ।`,
+    blocking: (hours: number) =>
+      `3 ਚੇਤਾਵਨੀਆਂ ਤੋਂ ਬਾਅਦ ਵੀ ਗਲਤ ਭਾਸ਼ਾ ਵਰਤੀ ਗਈ, ਇਸ ਲਈ ਇਹ ਚੈਟ${hours ? ` ${hours} ਘੰਟਿਆਂ ਲਈ ਬਲਾਕ ਕੀਤੀ ਜਾਂਦੀ ਹੈ ⛔` : ' ਬਲਾਕ ਕੀਤੀ ਜਾਂਦੀ ਹੈ ⛔'}। ਸਹਾਇਤਾ ਲਈ +91 9810242841 ਤੇ ਕਾਲ ਕਰੋ।`,
+    blocked: "ਗਲਤ ਭਾਸ਼ਾ ਕਾਰਨ ਇਹ ਚੈਟ ਬਲਾਕ ਹੈ ⛔ ਸਹਾਇਤਾ ਲਈ +91 9810242841 ਤੇ ਕਾਲ ਕਰੋ।",
+    unavailable: "ਮਾਫ਼ ਕਰਨਾ, ਇਸ ਵੇਲੇ ਜਾਣਕਾਰੀ ਨਹੀਂ ਮਿਲ ਰਹੀ। ਕਿਰਪਾ ਕਰਕੇ +91 9810242841 'ਤੇ ਕਾਲ ਕਰੋ ਜਾਂ info@ensis.in 'ਤੇ ਈਮੇਲ ਕਰੋ।",
+  },
+};
+
+export const getCopy = (lang: string) => {
+  if (lang === 'bn') return ENSIS_COPY.bn;
+  if (lang === 'pa') return ENSIS_COPY.pa;
+  if (lang === 'hi') return ENSIS_COPY.hi;
+  return ENSIS_COPY.en;
+};
+
+const GREETING_WORDS = new Set([
+  'hi', 'hii', 'hiii', 'hello', 'helo', 'hey', 'heya', 'namaste', 'namaskar', 'pranam', 'hola',
+  'good', 'morning', 'afternoon', 'evening', 'ok', 'okay', 'hmm', 'hm', 'yes', 'yeah', 'haan', 'han',
+  'ha', 'ji', 'sure', 'thanks', 'thank', 'you', 'dhanyavaad', 'shukriya', 'there',
+  'नमस्ते', 'नमस्कार', 'हेलो', 'हैलो', 'हाय', 'हाँ', 'हां', 'जी', 'ठीक', 'धन्यवाद',
+  'নমস্কার', 'হ্যালো', 'হ্যাঁ', 'ধন্যবাদ', 'সত', 'ਸ੍ਰੀ', 'ਅਕਾਲ', 'ਸਤਿ', 'ਜੀ'
+]);
+
+export const isGreeting = (text: string): boolean => {
+  const words = text.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+  return words.length > 0 && words.length <= 4 && words.every((w) => GREETING_WORDS.has(w));
+};
+
+export const looksLikeRequest = (text: string): boolean =>
+  /[?؟]/.test(text) || text.trim().split(/\s+/).length >= 4;
+
+export const conversationIsOver = (text: string): boolean =>
+  /\b(bye|goodbye|see you|tata|alvida|khatam|bas|theek hai bas|aur kuch nahi|no more|thanks that's all|thank you that's all|dhanyawad bas|ধন্যবাদ আর কিছু নেই|अलविदा|बस इतना ही)\b/i.test(text);
+
 export async function generateBotReply(
   userMessage: string,
   history: Array<{ role: string; content: string }> = [],
@@ -452,8 +586,12 @@ export async function generateBotReply(
   language?: string,
   knowledge = '',
   userPhone?: string,
-  nameAlreadyAsked = false
+  nameAlreadyAsked = false,
+  answerEarlier = ''
 ): Promise<{ reply: string; provider: string }> {
+  const answerEarlierInstruction = answerEarlier
+    ? `\nNOTE ON EARLIER QUESTION: Before sharing their name, the visitor asked: "${answerEarlier}". The visitor just shared their name as "${userName || 'Friend'}". Start by warmly greeting/acknowledging them by name in their detected language (e.g. "${userName} ji, aapse milkar accha laga! 😊"), and immediately provide a complete, direct, helpful answer to their earlier question: "${answerEarlier}".`
+    : '';
   const nameInstruction = userName
     ? `\nClient Name: "${userName}". You may address them politely as "${userName} ji" (or "${userName}" in English/Bengali).`
     : nameAlreadyAsked
@@ -468,14 +606,18 @@ export async function generateBotReply(
     if (passages.length) {
       dynamicKnowledge = `\n\nRELEVANT WEBSITE & SPECIFICATION KNOWLEDGE:\n${passages.map((p) => `- ${p.title} (${p.url}): ${p.text}`).join('\n')}`;
     }
-  } catch {}
+  } catch {
+    // ignore search knowledge error
+  }
 
   let teamRules = '';
   try {
     teamRules = await getTrainingRulesText();
-  } catch {}
+  } catch {
+    // ignore training rules error
+  }
 
-  const systemContent = `${ENSIS_SYSTEM_PROMPT}${nameInstruction}${phoneInstruction}${langInstruction}${knowledge}${teamRules}${dynamicKnowledge}`;
+  const systemContent = `${ENSIS_SYSTEM_PROMPT}${answerEarlierInstruction}${nameInstruction}${phoneInstruction}${langInstruction}${knowledge}${teamRules}${dynamicKnowledge}`;
 
   // Deterministic Instant Reply when visitor asks for the Assistant's own name
   const cleanQuery = userMessage.trim().toLowerCase();
@@ -909,10 +1051,10 @@ const visitorOf = (req: Request) => ({
   userAgent: String(req.headers['user-agent'] || '').slice(0, 300),
 });
 
-const DEFAULT_ENSIS_OVERVIEW = [
+export const DEFAULT_ENSIS_OVERVIEW = [
   {
     title: '🌿 Namaste! Welcome to Ensis',
-    text: "India's premier manufacturer of authentic **Ayurvedic Panchkarma equipment**, therapy furniture, and **turnkey clinic setups**.\n\nHow may I assist you today? Feel free to ask about our **Droni tables**, **Shirodhara units**, **Steam Bath Chambers**, or request a custom quotation.\n\n📞 **Call:** [+91 9810242841](tel:+919810242841) | [+91 9654900525](tel:+919654900525)\n✉️ **Email:** [info@ensis.in](mailto:info@ensis.in)",
+    text: "Ensis mein aapka swagat hai! Main Ensis Assist hoon 😊 Bataiye, aaj main aapki kya madad kar sakti hoon?",
     greeting: true,
     link: { href: '/products', label: 'View Products' },
   },
@@ -1257,28 +1399,136 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
     }
   }
 
-  const activeUserName = req.body?.userName || session.userName || userName;
   const { detectedLang } = detectLanguageInstruction(
     userText,
     session.lang || lang
   );
   session.lang = detectedLang;
+  const copy = getCopy(detectedLang);
 
-  const nameAlreadyAsked = Boolean(session.nameAsked);
-  if (!session.userName && !session.nameAsked) {
-    session.nameAsked = true;
+  // 1. Check if conversation is over (e.g. "thanks", "theek hai bas", "bye")
+  if (conversationIsOver(userText)) {
+    const farewell = session.userName
+      ? (detectedLang === 'hi'
+          ? `${session.userName} जी, एन्सिस से जुड़ने के लिए बहुत-बहुत धन्यवाद! आपका दिन शुभ और मंगलमय हो 😊`
+          : detectedLang === 'bn'
+          ? `${session.userName}, এনসিস-এর সাথে যোগাযোগ করার জন্য অনেক ধন্যবাদ! আপনার দিনটি সুন্দর কাটুক 😊`
+          : detectedLang === 'pa'
+          ? `${session.userName} ਜੀ, ਐਨਸਿਸ ਨਾਲ ਗੱਲ ਕਰਨ ਲਈ ਧੰਨਵਾਦ! ਤੁਹਾਡਾ ਦਿਨ ਸ਼ੁਭ ਰਹੇ 😊`
+          : `Thank you for chatting with Ensis, ${session.userName}! Have a wonderful day ahead 😊`)
+      : copy.goodbye;
+
+    const nextSpeakId = (session.messages?.length || 0) + 1;
+    session.messages.push({ role: 'user', content: userText, timestamp: new Date() });
+    session.messages.push({ role: 'assistant', content: farewell, speakId: nextSpeakId, timestamp: new Date() });
+    await session.save();
+
+    return successResponse(res, {
+      sessionId: session.sessionId,
+      lang: detectedLang,
+      userName: session.userName || '',
+      reply: farewell,
+      replies: [{ text: farewell, speakId: nextSpeakId }],
+      provider: 'direct',
+      blocked: false,
+      end: true,
+      serverTime: Date.now(),
+      needsOtp: false,
+      otpSent: false,
+      leadVerified: Boolean(session.phoneVerifiedAt),
+      phone: session.phone || '',
+    });
   }
 
-  const generated = await generateBotReply(
-    userText,
-    history,
-    activeUserName,
-    detectedLang,
-    knowledge,
-    targetPhone,
-    nameAlreadyAsked
-  );
-  let replyText = generated.reply.replace(/\s*\[\[\s*LEAD\s*\]\]\s*/gi, ' ').trim();
+  // 2. Design House Conversational State Machine for Name & Questions
+  let directReply = '';
+  let answerEarlier = '';
+  let queryToAnswer = userText;
+
+  if (!session.userName && !session.nameAsked) {
+    // User has never been asked for their name yet
+    if (isGreeting(userText)) {
+      // Greeting message (hi, hello, namaste, etc.): reply warmly, do NOT ask for name yet!
+      directReply = copy.howCanIHelp;
+    } else if (candidateName) {
+      session.userName = candidateName;
+      if (looksLikeRequest(userText)) {
+        queryToAnswer = userText;
+      } else {
+        directReply = copy.nameThanks(candidateName);
+      }
+    } else {
+      // First real inquiry/question from visitor!
+      // Store question in session.pendingQuestion and ask for name once (Design House standard)
+      session.nameAsked = true;
+      session.pendingQuestion = userText;
+      directReply = copy.askNameFirst;
+    }
+  } else if (!session.userName && session.nameAsked) {
+    // Bot previously asked for visitor's name
+    if (candidateName) {
+      // Visitor shared their name!
+      session.userName = candidateName;
+      const waiting = session.pendingQuestion || '';
+      session.pendingQuestion = undefined;
+      if (waiting) {
+        // Answer the earlier question now, warmly addressing them by name!
+        answerEarlier = waiting;
+        queryToAnswer = waiting;
+      } else if (looksLikeRequest(userText)) {
+        queryToAnswer = userText;
+      } else {
+        directReply = copy.nameThanks(candidateName);
+      }
+    } else if (looksLikeRequest(userText) || (session.pendingQuestion && !isGreeting(userText))) {
+      // Visitor did not give name, but asks question or insists on answer
+      session.nameTries = (session.nameTries || 0) + 1;
+      if ((session.nameTries || 0) < 2) {
+        directReply = copy.askNameBeforeAnswer;
+      } else {
+        // Visitor refuses to share name: stop asking, answer directly!
+        session.nameTries = 99;
+        if (session.pendingQuestion && !looksLikeRequest(userText)) {
+          queryToAnswer = session.pendingQuestion;
+        }
+        session.pendingQuestion = undefined;
+      }
+    } else {
+      // Gibberish or non-name response
+      session.nameTries = (session.nameTries || 0) + 1;
+      if ((session.nameTries || 0) < 3) {
+        const lines = copy.askNameAgain;
+        directReply = lines[Math.floor(Math.random() * lines.length)];
+      } else {
+        session.nameTries = 99;
+        directReply = copy.howCanIHelp;
+      }
+    }
+  }
+
+  let replyText = directReply;
+  let replyProvider = 'direct';
+
+  if (!replyText) {
+    const activeUserName = req.body?.userName || session.userName || userName;
+    const generated = await generateBotReply(
+      queryToAnswer,
+      history,
+      activeUserName,
+      detectedLang,
+      knowledge,
+      targetPhone,
+      true,
+      answerEarlier
+    );
+    replyText = generated.reply.replace(/\s*\[\[\s*LEAD\s*\]\]\s*/gi, ' ').trim();
+    replyProvider = generated.provider;
+  }
+
+  // Scrub any localhost or live domain prefixes so links are strictly root-relative (/products/..., /contact)
+  replyText = replyText
+    .replace(/https?:\/\/localhost:\d+/gi, '')
+    .replace(/https?:\/\/(?:www\.)?ensis\.in/gi, '');
 
   // Sanitize any hallucinated phone numbers in replyText so visitor never receives corrupted digits
   if (targetPhone) {
@@ -1335,8 +1585,8 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
         speakId: nextSpeakId,
       },
     ],
-    provider: generated.provider,
-    showLeadForm: /\[\[\s*LEAD\s*\]\]/i.test(generated.reply),
+    provider: replyProvider,
+    showLeadForm: /\[\[\s*LEAD\s*\]\]/i.test(replyText),
     blocked: false,
     end: /goodbye|have a nice day|alvida|বিদায়/i.test(replyText),
     serverTime: Date.now(),

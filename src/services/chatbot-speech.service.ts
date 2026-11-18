@@ -21,25 +21,76 @@ export const spellOtp = (code: string, isHindi = false): string => {
   return digits.split('').map((d) => (isHindi ? DIGITS_HI[Number(d)] : DIGITS_EN[Number(d)])).join(', ');
 };
 
-/** Text formatting for speech: removes markdown, emojis, asterisks, fixes pronunciation of abbreviations & brand names */
+/** Text formatting for speech: removes markdown, emojis, asterisks, fixes pronunciation of abbreviations & brand names, cleans hyphens before prices, cleans plus before taxes, and removes repetitive link anchors */
 export const forSpeech = (raw: string): string => {
   const isGurmukhi = /[\u0A00-\u0A7F]/.test(raw);
   const isGujarati = /[\u0A80-\u0AFF]/.test(raw);
   const isBengali = /[\u0980-\u09FF]/.test(raw);
   const isDevanagari = /[\u0900-\u097F]/.test(raw);
 
-  const brandName = isGurmukhi ? 'ਐਨਸਿਸ' : isGujarati ? 'એન્સિસ' : isBengali ? 'এনসিস' : isDevanagari ? 'एन्सिस' : 'Ensis';
-  const brandAssist = isGurmukhi ? 'ਐਨਸਿਸ ਅਸਿਸਟ' : isGujarati ? 'એન્સિસ આસિસ્ટ' : isBengali ? 'এনসিস অ্যাসিস্ট' : isDevanagari ? 'एन्सिस असिस्ट' : 'Ensis Assist';
+  const brandName = isGurmukhi ? 'ਐਨਸਿਸ' : isGujarati ? 'એન્સਿਸ' : isBengali ? 'এনসিস' : isDevanagari ? 'एन्सिस' : 'Ensis';
+  const brandAssist = isGurmukhi ? 'ਐਨਸਿਸ ਅਸਿਸਟ' : isGujarati ? 'ਐਨਸਿਸ ਆਸਿਸਟ' : isBengali ? 'এনসিস অ্যাসিস্ট' : isDevanagari ? 'एन्सिस असिस्ट' : 'Ensis Assist';
   const domainPronounce = isDevanagari ? 'एन्सिस डॉट इन' : isGurmukhi ? 'ਐਨਸਿਸ ਡਾਟ ਇਨ' : 'Ensis dot in';
 
   const word = (hi: string, en: string) => (isDevanagari ? hi : en);
 
-  return String(raw || '')
+  // Check if repetitive product detail / CTA links exist (e.g. "[डिटेल्स देखें](url)", "[View Details](url)")
+  const hasProductLinks = /\[(?:डिटेल्स देखें|विवरण देखें|details dekhein|view details|learn more|details|click here|dekhein)\]\([^)]+\)/i.test(raw);
+
+  let text = String(raw || '');
+
+  // 1. Strip emojis, markdown images, and icons
+  text = text
     .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, '')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [link text](url) → link text
-    .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1') // Strip markdown **bold** or *italic* text
-    .replace(/\*+/g, ' ') // Strip any remaining asterisks so Sarvam TTS never speaks "तारंकन" (tarankan)
-    .replace(/[•●▪■◆★☆✓✔☑]/g, ' ') // Strip bullet points and symbols
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+    // Strip repetitive product link calls-to-action so speech doesn't repeat "details dekhein details dekhein"
+    .replace(/\[(?:डिटेल्स देखें|विवरण देखें|details dekhein|view details|learn more|details|click here|dekhein)\]\([^)]+\)/gi, '')
+    // For normal informative markdown links, keep only the link title text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove bare URLs or localhost URLs
+    .replace(/https?:\/\/[^\s)]+/gi, '')
+    // Strip markdown formatting (*, _, ~)
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+    .replace(/\*+/g, ' ')
+    .replace(/[•●▪■◆★☆✓✔☑]/g, ' ');
+
+  // 2. Fix hyphen / dash before currency symbol ₹, Rs or digits so it is NEVER read as "minus" (माइनस)!
+  // e.g. "शिरोधारा थेरेपी टेबल - ₹1,25,000" → "शिरोधारा थेरेपी टेबल, ₹1,25,000"
+  text = text
+    .replace(/\s*[-–—]\s*(?=₹|Rs\b|\d)/gi, ', ')
+    // Range between two numbers: "10-12" → "10 से 12"
+    .replace(/(\d)\s*[–-]\s*(\d)/g, `$1 ${word('से', 'to')} $2`)
+    // Hyphen between words or list items: "टेबल - उच्च गुणवत्ता" → "टेबल, उच्च गुणवत्ता"
+    .replace(/(\p{L})\s*[-–—]\s*(\p{L})/gu, '$1, $2');
+
+  // 3. Fix currency symbol ₹ so it is read out as "rupaye" / "rupees" / "taka" instead of being ignored or mangled
+  text = text.replace(/₹\s*([\d,]+)/g, (_, amt) => {
+    if (isDevanagari) return `${amt} रुपये`;
+    if (isBengali) return `${amt} টাকা`;
+    if (isGurmukhi) return `${amt} ਰੁਪਏ`;
+    if (isGujarati) return `${amt} રૂપિયા`;
+    return `${amt} rupees`;
+  });
+
+  // 4. Fix "+ 18% GST" or "+ GST" so "+" is NEVER read as "जोड़" (jod)!
+  // e.g. "+ 18% GST" → "और 18 प्रतिशत जीएसटी"
+  const andWord = isBengali ? 'এবং' : isGurmukhi ? 'ਅਤੇ' : isGujarati ? 'અને' : isDevanagari ? 'और' : 'plus';
+  const percentWord = isBengali ? 'শতাংশ' : isGurmukhi ? 'ਫ਼ੀਸਦੀ' : isDevanagari ? 'प्रतिशत' : 'percent';
+  const gstWord = isBengali ? 'জিএসটি' : isGurmukhi ? 'ਜੀਐੱਸਟੀ' : isDevanagari ? 'जीएसटी' : 'GST';
+
+  text = text
+    .replace(/\s*\+\s*(\d+)%\s*GST\b/gi, ` ${andWord} $1 ${percentWord} ${gstWord}`)
+    .replace(/\s*\+\s*GST\b/gi, ` ${andWord} ${gstWord}`)
+    .replace(/\s*\+\s*(\d+)%\s*tax\b/gi, ` ${andWord} $1 ${percentWord} tax`)
+    .replace(/(\d+)%/g, `$1 ${percentWord}`)
+    .replace(/\bGST\b/g, gstWord)
+    // "5000+" → "5000 se zyada"
+    .replace(/(\d+)\+/g, `$1 ${word('से ज़्यादा', 'plus')}`)
+    // Any remaining lone "+"
+    .replace(/\s*\+\s*/g, ` ${andWord} `);
+
+  // 5. Fix brand names, phone numbers, emails, domains
+  text = text
     .replace(/\bPvt\.?\s*Ltd\b\.?/gi, word('प्राइवेट लिमिटेड', 'Private Limited'))
     .replace(/\bPvt\b\.?/gi, word('प्राइवेट', 'Private'))
     .replace(/\bLtd\b\.?/gi, word('लिमिटेड', 'Limited'))
@@ -48,17 +99,29 @@ export const forSpeech = (raw: string): string => {
     .replace(/\bEnsis Assist\b/gi, brandAssist)
     .replace(/\bEnsis\b/gi, brandName)
     .replace(/\bensis\b/gi, brandName)
-    .replace(/(?:\+?91[\s-]*)?\b[6-9]\d{9}\b|(?:\+?91[\s-]*)?\b[6-9]\d{4}[\s-]?\d{5}\b/g, (m) => spellPhone(m, isDevanagari))
+    .replace(/(?:\+?91[\s-]*)?\b[6-9]\d{9}\b|(?:\+?91[\s-]*)?\b[6-9]\d{4}[\s-]?[\d]{5}\b/g, (m) => spellPhone(m, isDevanagari))
     .replace(/\b\d{6}\b/g, (m) => spellOtp(m, isDevanagari))
     .replace(/([\w.+-]+)@([\w-]+(?:\.[\w-]+)+)/g, (_, name, domain) => `${name} ${word('एट', 'at')} ${domain.replace(/\./g, ` ${word('डॉट', 'dot')} `)}`)
-    .replace(/(\d)\s*[–-]\s*(\d)/g, `$1 ${word('से', 'to')} $2`)
-    .replace(/(\d)\+/g, `$1 ${word('से ज़्यादा', 'plus')}`)
     .replace(/\s&\s/g, ` ${word('और', 'and')} `)
     .replace(/\n+/g, '. ')
     .replace(/([.!?।,:])\s*\.(\s|$)/g, '$1$2')
     .replace(/\s{2,}/g, ' ')
-    .trim()
-    .slice(0, 2000);
+    .trim();
+
+  // 6. If repetitive product links were stripped, mention once at the end where details are available
+  if (hasProductLinks && !/स्क्रीन|screen|লিঙ্ক|ਸਕ੍ਰੀਨ/i.test(text)) {
+    if (isBengali) {
+      text += '. বিস্তারিত বিবরণ এবং লিঙ্ক স্ক্রিনে দেওয়া আছে।';
+    } else if (isGurmukhi) {
+      text += '. ਵਿਸਤ੍ਰਿਤ ਜਾਣਕਾਰੀ ਅਤੇ ਲਿੰਕ ਸਕ੍ਰੀਨ ਤੇ ਦਿੱਤੇ ਗਏ ਹਨ।';
+    } else if (isDevanagari) {
+      text += '. विस्तृत विवरण और लिंक्स स्क्रीन पर दिए गए हैं।';
+    } else {
+      text += '. Detailed specifications and links are displayed on screen.';
+    }
+  }
+
+  return text.slice(0, 2000).trim();
 };
 
 export const detectSarvamLang = (text: string): string => {
@@ -293,7 +356,9 @@ export const streamSpeech = async (text: string, res: Response): Promise<void> =
           const audio = await synthesizeSarvamSpeech(clean, abort.signal);
           res.type('audio/mpeg').set('Cache-Control', 'no-store').send(audio);
           return;
-        } catch {}
+        } catch {
+          // ignore fallback error
+        }
       }
     } finally {
       clearTimeout(timer);
