@@ -56,17 +56,14 @@ CRITICAL LINKING & ROUTING RULES:
 - NEVER write absolute live domain URLs like "https://ensis.in/contact" or "https://ensis.in/products/..."!
 - Root-relative paths keep the visitor seamlessly within their current site session without redirecting to external live domains.
 
-LEARNING & ADDRESSING THE VISITOR BY NAME (DESIGN HOUSE STANDARD):
-- If you do not know the visitor's name yet:
-  The FIRST time the visitor asks a question, makes a product inquiry, or asks about pricing/clinic setup, do NOT dump the full answer yet!
-  Say ONE short warm line acknowledging their query, and politely ask for their name first:
-  • English: "Sure, I would be happy to help you with that! First, may I know your name?"
-  • Hindi / Hinglish: "ज़रूर, मैं आपकी पूरी सहायता करूँगी! पहले क्या मैं आपका शुभ नाम जान सकती हूँ?" / "Zaroor, main poori jaankari dungi! Pehle kya main aapka shubh naam jaan sakti hoon?"
-  • Bengali: "নিশ্চয়ই, আমি আমাদের পঞ্চকর্ম সরঞ্জাম এবং মূল্যের সম্পূর্ণ বিবরণ দেব! প্রথমে কি আপনার শুভ নামটি জানতে পারি?"
-- As soon as the visitor shares their name (e.g. "Rahul", "Dr. Sharma", "Amit", "Rahul Sharma"):
-  Thank them warmly by name, politely address them as "[Name] ji" (or "[Name]" in English/Bengali), and immediately answer what they had asked!
-- If the visitor insists ("pehle batao", "first tell me", "naam baad me") or declines to give a name:
-  Kindly assure them and provide the answer directly without asking again.
+VISITOR NAME POLICY (ASK AT MOST ONCE, NEVER BLOCK OR WITHHOLD ANSWERS):
+- If you already know the visitor's name, address them politely as "[Name] ji" (or "[Name]" in English/Bengali).
+- If the visitor's name is NOT known yet:
+  • ALWAYS answer their question first, helpfully, directly, and completely in their detected language!
+  • You may ask for their name at most ONCE across the entire chat conversation.
+  • NEVER withhold answers, never refuse to answer, and NEVER say "पहले क्या मैं आपका शुभ नाम जान सकती हूँ?" without answering their question!
+  • If the visitor has already been asked for their name once, or if they continue asking questions, NEVER ask for their name again! Continue directly answering all their questions in their detected language.
+- When asked "What is your name?", your name is strictly "Ensis Assist" (एन्सिस असिस्ट / এনসিস অ্যাসিস্ট), while the company is "Ensis".
 
 MULTILINGUAL LANGUAGE CONSISTENCY RULES:
 1. Detect the language of every incoming user message.
@@ -315,8 +312,8 @@ const NOT_NAMES = new Set([
 
 export function extractVisitorName(text: string): string {
   const clean = String(text || '').trim();
-  // 1. Explicit introduction ("my name is Rahul", "mera naam Rahul Sharma", "ami Subhash", "amar naam Amit")
-  const introMatch = clean.match(/(?:(?:my name is|mera naam|i am|this is|i'm|naam hai|call me|ami|amar naam|naam holo)\s+([A-Za-z\u0900-\u097F\u0980-\u09FF]+(?:\s+[A-Za-z\u0900-\u097F\u0980-\u09FF]+)?))/i);
+  // 1. Explicit introduction ("my name is Rahul", "mera naam Rahul Sharma", "ami Subhash", "amar naam Amit", "ਮੇਰਾ ਨਾਮ ਗੁਰਪ੍ਰੀਤ")
+  const introMatch = clean.match(/(?:(?:my name is|mera naam|i am|this is|i'm|naam hai|call me|ami|amar naam|naam holo|ਮੇਰਾ ਨਾਮ)\s+([A-Za-z\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F]+(?:\s+[A-Za-z\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F]+)?))/i);
   if (introMatch) {
     const candidate = introMatch[1].trim();
     if (candidate.length >= 2 && candidate.length <= 40 && !NOT_NAMES.has(candidate.toLowerCase())) {
@@ -337,6 +334,11 @@ export function extractVisitorName(text: string): string {
   }
   return '';
 }
+
+const ROMAN_PUNJABI_WORDS = new Set([
+  'sat', 'sri', 'akaal', 'satsriakal', 'satsriakaal', 'mainu', 'tussi', 'tuhada', 'tuhadi', 'kivein', 'kiven',
+  'chahida', 'chahidi', 'chahide', 'dasso', 'paaji', 'veerji', 'karda', 'kardi', 'karde', 'daso', 'pind'
+]);
 
 export function detectLanguageInstruction(userMessage: string, langHint = 'en'): {
   instruction: string;
@@ -359,7 +361,7 @@ export function detectLanguageInstruction(userMessage: string, langHint = 'en'):
   if (/[\u0A00-\u0A7F]/.test(text)) {
     return {
       instruction:
-        '\nCRITICAL MULTILINGUAL RULE (PUNJABI DETECTED):\n- The user wrote in Punjabi (Gurmukhi). You MUST respond in warm, respectful Punjabi in Gurmukhi script.',
+        '\nCRITICAL MULTILINGUAL RULE (PUNJABI GURMUKHI DETECTED):\n- The user wrote in Punjabi (Gurmukhi: ਗੁਰਮੁਖੀ). You MUST respond in warm, respectful, fluent Punjabi in Gurmukhi script.\n- NEVER respond in Hindi or Devanagari or English.\n- Maintain pure Punjabi in Gurmukhi script throughout the conversation.',
       style: 'punjabi',
       detectedLang: 'pa',
     };
@@ -394,9 +396,20 @@ export function detectLanguageInstruction(userMessage: string, langHint = 'en'):
     };
   }
 
-  // 6. Hinglish (Hindi written in Roman English alphabet)
-  // CRITICAL: Must be genuine Hindi Roman words; NEVER match English words like "me", "to", "in", "is", or product names!
+  // 6. Roman Punjabi
   const words = text.toLowerCase().split(/[^a-z]+/);
+  const hasRomanPunjabi = words.some((w) => ROMAN_PUNJABI_WORDS.has(w));
+  if (hasRomanPunjabi) {
+    return {
+      instruction:
+        '\nCRITICAL MULTILINGUAL RULE (PUNJABI DETECTED):\n- The user wrote in Punjabi. You MUST respond in warm, polite, respectful Punjabi (Gurmukhi script or natural Punjabi). Maintain Punjabi throughout.',
+      style: 'punjabi',
+      detectedLang: 'pa',
+    };
+  }
+
+  // 7. Hinglish (Hindi written in Roman English alphabet)
+  // CRITICAL: Must be genuine Hindi Roman words; NEVER match English words like "me", "to", "in", "is", or product names!
   const hasHinglish = words.some((w) => HINGLISH_WORDS.has(w));
   if (hasHinglish) {
     return {
@@ -407,16 +420,23 @@ export function detectLanguageInstruction(userMessage: string, langHint = 'en'):
     };
   }
 
-  // 7. If previous session was Bengali and current text has no letters (e.g. only numbers/emoji/ok), preserve Bengali
-  if (langHint === 'bn' && !/[a-zA-Z]/.test(text)) {
+  // 8. If previous session was Bengali or Punjabi and current text is short / continuation, preserve language
+  if (langHint === 'bn' && (!/[a-z]{4,}/i.test(text) || text.split(/\s+/).length <= 3)) {
     return {
-      instruction: '\nLanguage Instruction: The conversation is in Bengali. Reply in pure Bengali in Bengali script.',
+      instruction: '\nLanguage Instruction: The conversation is in Bengali. Reply in pure Bengali in Bengali script (বাংলা লিপি).',
       style: 'bengali',
       detectedLang: 'bn',
     };
   }
+  if (langHint === 'pa' && (!/[a-z]{4,}/i.test(text) || text.split(/\s+/).length <= 3)) {
+    return {
+      instruction: '\nLanguage Instruction: The conversation is in Punjabi. Reply in respectful Punjabi in Gurmukhi script (ਗੁਰਮੁਖੀ).',
+      style: 'punjabi',
+      detectedLang: 'pa',
+    };
+  }
 
-  // 8. Default: English
+  // 9. Default: English
   return {
     instruction:
       '\nCRITICAL MULTILINGUAL RULE (ENGLISH DETECTED):\n- The user wrote in English. You MUST reply in polished, professional, warm Indian English. Do NOT reply in Hindi or Hinglish.',
@@ -431,11 +451,14 @@ export async function generateBotReply(
   userName?: string,
   language?: string,
   knowledge = '',
-  userPhone?: string
+  userPhone?: string,
+  nameAlreadyAsked = false
 ): Promise<{ reply: string; provider: string }> {
   const nameInstruction = userName
-    ? `\nClient Name: "${userName}". You may address them as "${userName} ji" (or "${userName}" in English/Bengali) politely.`
-    : `\nClient Name: Unknown yet. RULE: If this is their first inquiry or question, acknowledge what they asked in 1 short warm sentence and ask for their name first (e.g. "Sure, I'll help you with that! First, may I know your name?"). Once they share their name, address them politely by name and answer what they had asked.`;
+    ? `\nClient Name: "${userName}". You may address them politely as "${userName} ji" (or "${userName}" in English/Bengali).`
+    : nameAlreadyAsked
+    ? `\nClient Name: Unknown. CRITICAL: The visitor's name has ALREADY been asked previously. DO NOT ask for their name again under any circumstance! Directly, thoroughly, and helpfully answer their question in their detected language.`
+    : `\nClient Name: Unknown yet. Answer their question clearly and helpfully in their detected language. You may politely ask for their name once at the very end of your response, but NEVER withhold or delay answering their question.`;
   const phoneInstruction = userPhone ? `\nCRITICAL: The visitor's verified 10-digit mobile number is strictly "${userPhone}". If you repeat or confirm their number, you MUST use ONLY these exact digits: ${userPhone}. NEVER prepend 98 or alter any digits.` : '';
   const { instruction: langInstruction, style: langStyle } = detectLanguageInstruction(userMessage, language);
 
@@ -456,11 +479,25 @@ export async function generateBotReply(
 
   // Deterministic Instant Reply when visitor asks for the Assistant's own name
   const cleanQuery = userMessage.trim().toLowerCase();
-  const isAskingBotName = /\b(what(?:'s|\s+is)\s+your\s+name|who\s+(?:are|r)\s+you|tell\s+me\s+your\s+name|aap(?:ka)?\s*(?:kya)?\s*naam|tumhara\s*naam|apna\s*naam|naam\s*kya\s*hai|aap\s*kaun\s*(?:ho|hai|hain)|tomar\s*naam\s*ki)\b/i.test(cleanQuery);
-  if (isAskingBotName && cleanQuery.split(/\s+/).length <= 7) {
+  const isAskingBotName = /\b(what(?:'s|\s+is)\s+your\s+name|who\s+(?:are|r)\s+you|tell\s+me\s+your\s+name|aap(?:ka)?\s*(?:kya)?\s*naam|tumhara\s*naam|apna\s*naam|naam\s*kya\s*hai|aap\s*kaun\s*(?:ho|hai|hain)|tomar\s*naam\s*ki)\b/i.test(cleanQuery)
+    || /(आपका\s*नाम|तुम्हारा\s*नाम|अपना\s*नाम|आप\s*कौन\s*हैं|आप\s*कौन\s*हो|ਤੁਹਾਡਾ\s*ਨਾਮ|ਤੁਸੀਂ\s*ਕੌਣ|তোমার\s*নাম)/i.test(userMessage);
+
+  if (isAskingBotName && userMessage.trim().split(/\s+/).length <= 8) {
     if (langStyle === 'bengali') {
       return {
         reply: 'আমার নাম এনসিস অ্যাসিস্ট (Ensis Assist)। আমি এনসিস (Ensis)-এর এআই ওয়েলনেস ও পঞ্চকর্ম সরঞ্জাম বিশেষজ্ঞ। বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?',
+        provider: 'direct',
+      };
+    }
+    if (langStyle === 'punjabi') {
+      return {
+        reply: 'ਮੇਰਾ ਨਾਮ ਐਨਸਿਸ ਅਸਿਸਟ (Ensis Assist) ਹੈ। ਮੈਂ ਐਨਸਿਸ (Ensis) ਦੀ ਏਆਈ ਵੈੱਲਨੈੱਸ ਅਤੇ ਪੰਚਕਰਮਾ ਉਪਕਰਨ ਮਾਹਿਰ ਹਾਂ। ਦੱਸੋ ਜੀ, ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਸਹਾਇਤਾ ਕਰ ਸਕਦੀ ਹਾਂ?',
+        provider: 'direct',
+      };
+    }
+    if (langStyle === 'devanagari') {
+      return {
+        reply: 'मेरा नाम एन्सिस असिस्ट (Ensis Assist) है! मैं एन्सिस (Ensis) की एआई वेलनेस और पंचकर्म उपकरण विशेषज्ञ हूँ। बताइए, आज मैं आपकी क्या सहायता कर सकती हूँ?',
         provider: 'direct',
       };
     }
@@ -1227,7 +1264,20 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
   );
   session.lang = detectedLang;
 
-  const generated = await generateBotReply(userText, history, activeUserName, detectedLang, knowledge, targetPhone);
+  const nameAlreadyAsked = Boolean(session.nameAsked);
+  if (!session.userName && !session.nameAsked) {
+    session.nameAsked = true;
+  }
+
+  const generated = await generateBotReply(
+    userText,
+    history,
+    activeUserName,
+    detectedLang,
+    knowledge,
+    targetPhone,
+    nameAlreadyAsked
+  );
   let replyText = generated.reply.replace(/\s*\[\[\s*LEAD\s*\]\]\s*/gi, ' ').trim();
 
   // Sanitize any hallucinated phone numbers in replyText so visitor never receives corrupted digits
