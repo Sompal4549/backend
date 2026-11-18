@@ -22,6 +22,8 @@ export interface IChatbotSession extends Document {
   status?: 'active' | 'closed' | 'blocked';
   messages: IChatbotMessage[];
   capturedLead: boolean;
+  /** Whether the official catalogue and product details WhatsApp message has been sent */
+  whatsappConfirmationSent?: boolean;
   /** When the lead's mobile number was verified with the WhatsApp OTP */
   phoneVerifiedAt?: Date;
   /** Website page the chat was started from */
@@ -64,6 +66,7 @@ const chatbotSessionSchema = new Schema<IChatbotSession>(
     status: { type: String, enum: ['active', 'closed', 'blocked'], default: 'active' },
     messages: { type: [messageSchema], default: [] },
     capturedLead: { type: Boolean, default: false },
+    whatsappConfirmationSent: { type: Boolean, default: false },
     phoneVerifiedAt: { type: Date },
     pageUrl: { type: String, trim: true },
     visitor: { ip: String, userAgent: String },

@@ -23,8 +23,16 @@ export const spellOtp = (code: string, isHindi = false): string => {
 
 /** Text formatting for speech: removes markdown, emojis, asterisks, fixes pronunciation of abbreviations & brand names */
 export const forSpeech = (raw: string): string => {
-  const isHindi = /[\u0900-\u097F]/.test(raw);
-  const word = (hi: string, en: string) => (isHindi ? hi : en);
+  const isGurmukhi = /[\u0A00-\u0A7F]/.test(raw);
+  const isGujarati = /[\u0A80-\u0AFF]/.test(raw);
+  const isBengali = /[\u0980-\u09FF]/.test(raw);
+  const isDevanagari = /[\u0900-\u097F]/.test(raw);
+
+  const brandName = isGurmukhi ? 'ਐਨਸਿਸ' : isGujarati ? 'એન્સિસ' : isBengali ? 'এনসিস' : isDevanagari ? 'एन्सिस' : 'Ensis';
+  const brandAssist = isGurmukhi ? 'ਐਨਸਿਸ ਅਸਿਸਟ' : isGujarati ? 'એન્સિસ આસિસ્ટ' : isBengali ? 'এনসিস অ্যাসিস্ট' : isDevanagari ? 'एन्सिस असिस्ट' : 'Ensis Assist';
+  const domainPronounce = isDevanagari ? 'एन्सिस डॉट इन' : isGurmukhi ? 'ਐਨਸਿਸ ਡਾਟ ਇਨ' : 'Ensis dot in';
+
+  const word = (hi: string, en: string) => (isDevanagari ? hi : en);
 
   return String(raw || '')
     .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, '')
@@ -35,13 +43,13 @@ export const forSpeech = (raw: string): string => {
     .replace(/\bPvt\.?\s*Ltd\b\.?/gi, word('प्राइवेट लिमिटेड', 'Private Limited'))
     .replace(/\bPvt\b\.?/gi, word('प्राइवेट', 'Private'))
     .replace(/\bLtd\b\.?/gi, word('लिमिटेड', 'Limited'))
-    .replace(/\bhttps?:\/\/(?:www\.)?ensis\.in\b/gi, word('एन्सिस डॉट इन', 'En-sis dot in'))
-    .replace(/\bensis\.in\b/gi, word('एन्सिस डॉट इन', 'En-sis dot in'))
-    .replace(/\bEnsis Assist\b/gi, word('एन्सिस असिस्ट', 'En-sis Assist'))
-    .replace(/\bEnsis\b/gi, word('एन्सिस', 'En-sis'))
-    .replace(/\bensis\b/gi, word('एन्सिस', 'En-sis'))
-    .replace(/(?:\+?91[\s-]*)?\b[6-9]\d{9}\b|(?:\+?91[\s-]*)?\b[6-9]\d{4}[\s-]?\d{5}\b/g, (m) => spellPhone(m, isHindi))
-    .replace(/\b\d{6}\b/g, (m) => spellOtp(m, isHindi))
+    .replace(/\bhttps?:\/\/(?:www\.)?ensis\.in\b/gi, domainPronounce)
+    .replace(/\bensis\.in\b/gi, domainPronounce)
+    .replace(/\bEnsis Assist\b/gi, brandAssist)
+    .replace(/\bEnsis\b/gi, brandName)
+    .replace(/\bensis\b/gi, brandName)
+    .replace(/(?:\+?91[\s-]*)?\b[6-9]\d{9}\b|(?:\+?91[\s-]*)?\b[6-9]\d{4}[\s-]?\d{5}\b/g, (m) => spellPhone(m, isDevanagari))
+    .replace(/\b\d{6}\b/g, (m) => spellOtp(m, isDevanagari))
     .replace(/([\w.+-]+)@([\w-]+(?:\.[\w-]+)+)/g, (_, name, domain) => `${name} ${word('एट', 'at')} ${domain.replace(/\./g, ` ${word('डॉट', 'dot')} `)}`)
     .replace(/(\d)\s*[–-]\s*(\d)/g, `$1 ${word('से', 'to')} $2`)
     .replace(/(\d)\+/g, `$1 ${word('से ज़्यादा', 'plus')}`)
@@ -53,11 +61,46 @@ export const forSpeech = (raw: string): string => {
     .slice(0, 2000);
 };
 
+export const detectSarvamLang = (text: string): string => {
+  if (/[\u0A00-\u0A7F]/.test(text)) return 'pa-IN'; // Punjabi
+  if (/[\u0A80-\u0AFF]/.test(text)) return 'gu-IN'; // Gujarati
+  if (/[\u0980-\u09FF]/.test(text)) return 'bn-IN'; // Bengali
+  if (/[\u0B80-\u0BFF]/.test(text)) return 'ta-IN'; // Tamil
+  if (/[\u0C00-\u0C7F]/.test(text)) return 'te-IN'; // Telugu
+  if (/[\u0C80-\u0CFF]/.test(text)) return 'kn-IN'; // Kannada
+  if (/[\u0D00-\u0D7F]/.test(text)) return 'ml-IN'; // Malayalam
+  if (/[\u0B00-\u0B7F]/.test(text)) return 'od-IN'; // Odia
+  if (/[\u0900-\u097F]/.test(text)) {
+    if (/\b(आहे|आहेत|काय|कुठे|कसे|माझे|तुमचे|नाही|झाले|पाहिजे|हवे)\b/.test(text)) return 'mr-IN';
+    return 'hi-IN';
+  }
+  return 'en-IN';
+};
+
+export const detectOpenAiVoiceInstructions = (text: string): string => {
+  if (/[\u0A00-\u0A7F]/.test(text)) {
+    return 'Voice: a friendly native Punjabi speaker with authentic, warm Punjabi pronunciation, rhythm and intonation. Tone: polite, smiling, natural.';
+  }
+  if (/[\u0A80-\u0AFF]/.test(text)) {
+    return 'Voice: a friendly native Gujarati speaker with authentic Gujarati pronunciation. Tone: polite, warm, natural.';
+  }
+  if (/[\u0980-\u09FF]/.test(text)) {
+    return 'Voice: a friendly native Bengali speaker with sweet, melodic, authentic Bengali pronunciation. Tone: warm, polite.';
+  }
+  if (/[\u0900-\u097F]/.test(text)) {
+    if (/\b(आहे|आहेत|काय|कुठे|कसे|माझे|तुमचे|नाही|झाले|पाहिजे|हवे)\b/.test(text)) {
+      return 'Voice: a friendly native Marathi speaker from Pune/Mumbai with authentic Marathi pronunciation and intonation. Tone: polite, warm.';
+    }
+    return VOICE_STYLE.hindi;
+  }
+  return VOICE_STYLE.english;
+};
+
 export const VOICE_STYLE = {
   hindi:
-    'Voice: a young woman from Delhi, a native Hindi speaker, working as a friendly customer-care executive. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र), with no American or British accent at all. English words are said the way people in India say them in everyday Hindi. Pronounce the brand name "Ensis" as "एन्सिस" (En-sis), with crisp "एन" and "सिस", never as "इन्सिस". Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
+    'Voice: a young woman from Delhi, a native Hindi speaker, working as a friendly customer-care executive. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र), with no American or British accent at all. English words are said the way people in India say them in everyday Hindi. Pronounce the brand name simply as "Ensis" (or "एन्सिस" in Hindi), clean and natural without pause or explanation. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
   english:
-    'Voice: a young woman from Delhi who speaks Indian English natively, working as a friendly customer-care executive. Accent: clearly Indian English, the way an educated Indian professional speaks, with Indian rhythm and intonation and a light retroflex t and d, not American or British. Pronounce the brand name "Ensis" as "En-sis" (एन्सिस). Say Indian names and places with their Indian pronunciation. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
+    'Voice: a young woman from Delhi who speaks Indian English natively, working as a friendly customer-care executive. Accent: clearly Indian English, the way an educated Indian professional speaks, with Indian rhythm and intonation and a light retroflex t and d, not American or British. Pronounce the brand name simply as "Ensis", clean and natural. Say Indian names and places with their Indian pronunciation. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
 };
 
 export const sarvamVoiceEnabled = (): boolean =>
@@ -86,7 +129,7 @@ export const synthesizeSarvamSpeech = async (text: string, signal?: AbortSignal)
   const clean = forSpeech(text);
 
   for (const piece of sarvamPieces(clean)) {
-    const isDevanagari = /[\u0900-\u097F]/.test(piece);
+    const langCode = detectSarvamLang(piece);
     const res = await fetch('https://api.sarvam.ai/text-to-speech', {
       method: 'POST',
       headers: {
@@ -95,7 +138,7 @@ export const synthesizeSarvamSpeech = async (text: string, signal?: AbortSignal)
       },
       body: JSON.stringify({
         text: piece,
-        language_code: isDevanagari ? 'hi-IN' : 'en-IN',
+        language_code: langCode,
         model: process.env.SARVAM_TTS_MODEL || 'bulbul:v3',
         speaker: process.env.SARVAM_TTS_SPEAKER || 'priya',
         pace: Number(process.env.SARVAM_TTS_PACE) || 1.0,
@@ -146,7 +189,7 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
         model,
         voice,
         input: clean,
-        instructions: VOICE_STYLE.hindi,
+        instructions: detectOpenAiVoiceInstructions(clean),
         response_format: 'mp3',
       }),
       signal,

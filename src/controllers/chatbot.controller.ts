@@ -19,8 +19,11 @@ import { isAbusive, toHinglish, DEVANAGARI, GURMUKHI, URDU_LETTERS, looksMarathi
 
 const ENSIS_SYSTEM_PROMPT = `You are "Ensis Assist", the expert Ayurvedic wellness & Panchkarma equipment specialist for ENSIS (ensis.in), manufactured by Design House India Pvt. Ltd.
 
-PRONUNCIATION:
-- Pronounce "Ensis" strictly as "एन्सिस" (En-sis), with crisp "एन" and "सिस". Never mispronounce as "इन्सिस", "इन-सिस", or "एनसिज़".
+BRAND NAME & SPEAKING RULES:
+- The brand and company name is simply "Ensis" (in Devanagari / Hindi: "एन्सिस").
+- CRITICAL: Always say "Ensis" (or "एन्सिस") directly.
+- NEVER say "Ensis, matlab Ensis", "Ensis matlab Ainsis", or explain the pronunciation/spelling.
+- Do NOT add "matlab", "yani", or any explanation after the word Ensis. Just say the name "Ensis" cleanly in the sentence.
 
 WHO WE ARE & OUR TRACK RECORD:
 - ENSIS is India's leading designer, manufacturer, and global exporter of authentic Ayurvedic & Panchkarma therapy equipment, spa therapy furniture, and complete turnkey clinic/hospital setups.
@@ -73,12 +76,14 @@ STRICT GUARDRAILS & OFF-TOPIC POLICY:
   • Hindi: "क्षमा करें, मैं केवल एन्सिस आयुर्वेदिक एवं पंचकर्म उपकरण, क्लिनिक सेटअप और वेलनेस फर्नीचर से संबंधित प्रश्नों में ही आपकी सहायता कर सकती हूँ। क्या आप हमारे पंचकर्म टेबल, स्टीम बाथ या क्लिनिक प्रोजेक्ट्स के बारे में कुछ जानना चाहते हैं?"
   • English: "I apologize, but I can only assist with inquiries regarding Ensis Ayurvedic & Panchkarma therapy equipment, turnkey clinic setups, and wellness furniture. Would you like to know about our treatment tables, steam chambers, or clinic solutions?"
 
-MULTILINGUAL CAPABILITY:
-- You fluently understand and communicate in Hindi, English, Punjabi (Gurmukhi or Roman Punjabi), Marathi, Gujarati, and other Indian languages.
-- Always reply in the visitor's language:
-  • If the user speaks or types in Punjabi (e.g. "Panchkarma de equipment chahide ne", "Sat Sri Akal"), reply respectfully and warmly in natural Punjabi!
-  • If in Marathi, reply in Marathi!
-  • If in Gujarati, reply in Gujarati!
+MULTILINGUAL CAPABILITY & NATIVE ACCENTS:
+- You fluently understand and communicate in Hindi, English, Punjabi (Gurmukhi or Roman Punjabi), Gujarati, Marathi, Bengali, Bhojpuri, and other Indian languages.
+- Always reply in the visitor's language with authentic native vocabulary and pronunciation:
+  • If the user speaks or types in Punjabi (e.g. "Panchkarma de equipment chahide ne", "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ", "ਕੀ ਹਾਲ ਹੈ"), reply respectfully and warmly in natural Punjabi with authentic words!
+  • If in Gujarati ("નમસ્તે", "કેમ છો", "તમારો નંબર"), reply warmly in natural Gujarati!
+  • If in Marathi ("नमस्कार", "कसे आहात"), reply in authentic Marathi! Marathi is NOT Hindi; do not mix Hindi words.
+  • If in Bengali ("নমস্কার", "কেমন আছেন"), reply in sweet, fluent Bengali!
+  • If in Bhojpuri ("प्रणाम", "रउवा"), reply warmly in authentic Bhojpuri!
   • If in Hindi / Hinglish, reply in Hindi / Hinglish!
   • If in English, reply in polished Indian English!
 
@@ -751,6 +756,90 @@ export const postChatbotSessionClear = asyncHandler(async (req: Request, res: Re
   return successResponse(res, { cleared: true, serverTime: Date.now() }, 'All chats cleared successfully');
 });
 
+export const extractCleanPhone = (text: string): string | null => {
+  if (!text) return null;
+  const standard = text.match(/(?:\+?91[\s-]*)?([6-9]\d{9})\b/);
+  if (standard) return standard[1];
+
+  const cleanedDigits = text.replace(/[^\d]/g, '');
+  if (cleanedDigits.length === 10 && /^[6-9]/.test(cleanedDigits)) {
+    return cleanedDigits;
+  }
+  if (cleanedDigits.length > 10 && cleanedDigits.startsWith('91')) {
+    const after91 = cleanedDigits.slice(2);
+    if (after91.length === 10 && /^[6-9]/.test(after91)) {
+      return after91;
+    }
+  }
+
+  const WORD_DIGITS: Record<string, string> = {
+    zero: '0', one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9',
+    shunya: '0', ek: '1', do: '2', teen: '3', char: '4', paanch: '5', chhah: '6', che: '6', saat: '7', aath: '8', nau: '9',
+  };
+  const words = text.toLowerCase().split(/[\s,.-]+/);
+  let built = '';
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (w === 'double' && i + 1 < words.length && WORD_DIGITS[words[i + 1]]) {
+      built += WORD_DIGITS[words[i + 1]] + WORD_DIGITS[words[i + 1]];
+      i++;
+    } else if (w === 'triple' && i + 1 < words.length && WORD_DIGITS[words[i + 1]]) {
+      built += WORD_DIGITS[words[i + 1]] + WORD_DIGITS[words[i + 1]] + WORD_DIGITS[words[i + 1]];
+      i++;
+    } else if (WORD_DIGITS[w]) {
+      built += WORD_DIGITS[w];
+    } else if (/^\d+$/.test(w)) {
+      built += w;
+    }
+  }
+  const phone10 = built.replace(/^91/, '');
+  if (phone10.length === 10 && /^[6-9]/.test(phone10)) return phone10;
+
+  return null;
+};
+
+export const sendChatbotCatalogueWhatsApp = async (phone: string, userName?: string): Promise<boolean> => {
+  const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+  if (cleanPhone.length !== 10) return false;
+  const clientName = userName && userName !== 'Client' && userName !== 'Valued Client' ? userName : 'Valued Client';
+
+  const message = `🌿 *Namaste ${clientName}!*
+
+Thank you for contacting *Ensis Panchkarma & Wellness Equipment* (by Design House India Pvt. Ltd. — trusted since 2003, 1000+ completed projects).
+
+Here are our authentic Ayurvedic equipment details and 2026 digital catalogue:
+
+📖 *2026 PRODUCT CATALOGUE & BLUEPRINT:*
+👉 https://ensis.in/products
+
+✨ *AUTHENTIC PANCHKARMA & CLINIC RANGE:*
+1️⃣ *Solid Burma Teak Droni Table*: Traditional peripheral brass oil-drainage gutters, 100% medicated hot-oil resistant PU coating, 5-year structural warranty.
+2️⃣ *Pure Brass Shirodhara Pot (3L) & Stand*: Hand-spun heavy brass with precision needle flow control valve, arched height-adjustable stand on rolling castors.
+3️⃣ *Teakwood Steam Bath Chamber*: Food-grade SS304 steam dispersion pipelines, digital temperature regulator, ergonomic head-out collar.
+4️⃣ *Turnkey Clinic & Hospital Setup*: 2D/3D Vastu layout planning, specialized herbal oil drainage plumbing, and complete teakwood furniture packages.
+
+📍 *Corporate Office & Factory:*
+Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007
+
+📞 *Direct Helpline & WhatsApp:*
++91 9810242841 / +91 9654900525
+✉️ Email: info@ensis.in
+🌐 Website: https://ensis.in/contact
+
+Our technical specialist team will connect with you shortly for customized quotations and clinic layouts.
+
+— *Team Ensis*
+_Spaces that Heal. Experiences that Last._`;
+
+  try {
+    const res = await sendWhatsAppMessage(cleanPhone, message, clientName);
+    return Boolean(res?.success);
+  } catch (err: unknown) {
+    console.warn('sendChatbotCatalogueWhatsApp error:', (err as Error).message);
+    return false;
+  }
+};
+
 // POST /api/chatbot/message
 export const postChatbotMessage = asyncHandler(async (req: Request, res: Response) => {
   const userText = String(req.body?.text ?? req.body?.message ?? req.body?.query ?? '').trim();
@@ -866,15 +955,14 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
     }));
 
   // Extract phone number if user provides it in the message
-  const phoneMatch = userText.match(/(?:\+?91[\s-]*)?([6-9]\d{9})\b/);
+  const rawCleanPhone = extractCleanPhone(userText);
   let autoOtpSent = false;
-  if (phoneMatch) {
-    const rawPhone = phoneMatch[1];
-    session.phone = rawPhone;
+  if (rawCleanPhone) {
+    session.phone = rawCleanPhone;
     session.capturedLead = true;
     if (!session.phoneVerifiedAt) {
       try {
-        await sendPhoneOtp(rawPhone, 'CONTACT', session.userName || 'Client');
+        await sendPhoneOtp(rawCleanPhone, 'CONTACT', session.userName || 'Client');
         autoOtpSent = true;
       } catch (otpErr) {
         console.warn('sendPhoneOtp error:', (otpErr as Error).message);
@@ -882,28 +970,15 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
     }
   }
 
-  // Trigger professional WhatsApp notification if visitor requests a call/message or shares phone number
-  const isCallOrWhatsAppRequest = /\b(call\s*me|call\s*karo|mujhe\s*call|whatsapp\s*karo|whatsapp\s*pe\s*bhejo|whatsapp\s*kijiye|message\s*karo|message\s*kijiye|contact\s*me|phone\s*karo|phone\s*kijiye|connect\s*with\s*me|call\s*karein)\b/i.test(userText);
-  const targetPhone = phoneMatch ? phoneMatch[1] : (session.phone || '');
-  if (targetPhone && (isCallOrWhatsAppRequest || phoneMatch) && !(session as any).whatsappConfirmationSent) {
-    const clientName = session.userName || 'Valued Client';
-    const whatsappMsg = `🌿 *Namaste ${clientName}!*
-Thank you for contacting *Ensis Panchkarma & Wellness Equipment* (by Design House India Pvt. Ltd.).
-
-We have received your callback & inquiry request. Our Ayurvedic technical specialist team has been notified and will connect with you shortly with our comprehensive 2026 product catalogue, equipment specifications, and customized quotation.
-
-*For immediate assistance or site visit bookings:*
-📞 Direct Helpline: +91 9810242841 / +91 9654900525
-🌐 Website: https://ensis.in
-✉️ Email: info@ensis.in
-
-— *Team Ensis*
-_Spaces that Heal. Experiences that Last._`;
-
-    sendWhatsAppMessage(targetPhone, whatsappMsg, clientName).catch((waErr) => {
-      console.warn('sendWhatsAppMessage error:', (waErr as Error).message);
+  // Trigger professional WhatsApp notification with Product Details & Catalogue
+  const isCatalogueOrWhatsAppRequest = /\b(whatsapp|catalog|catalogue|brochure|product\s*detail|details|quote|quotation|price\s*list|call\s*me|call\s*karo|call\s*karein|contact\s*me|message\s*karo|message\s*kijiye|bhej|send|करो|भेजो|व्हाट्सएप|कैटलॉग|ब्रोशर)\b/i.test(userText);
+  const targetPhone = rawCleanPhone || session.phone || '';
+  if (targetPhone && (isCatalogueOrWhatsAppRequest || rawCleanPhone) && !session.whatsappConfirmationSent) {
+    sendChatbotCatalogueWhatsApp(targetPhone, session.userName).catch((waErr) => {
+      console.warn('sendChatbotCatalogueWhatsApp error:', (waErr as Error).message);
     });
-    (session as any).whatsappConfirmationSent = true;
+    session.whatsappConfirmationSent = true;
+    session.capturedLead = true;
   }
 
   // Extract name if user introduces themselves
@@ -1089,9 +1164,12 @@ export const postChatbotCallTurn = asyncHandler(async (req: Request, res: Respon
     return successResponse(res, { ok: true });
   }
 
-  // Rewrite speech transcribed in Urdu/Arabic, Gurmukhi or Devanagari script into clean Romanized Hinglish
-  // (unless it's Marathi or other supported native scripts)
-  const needsRewrite = (DEVANAGARI.test(rawText) && !looksMarathi(rawText)) || URDU_LETTERS.test(rawText) || GURMUKHI.test(rawText);
+  // Rewrite speech transcribed in Urdu/Arabic script or Devanagari Hindi into clean Romanized Hinglish
+  // (Punjabi/Gurmukhi, Marathi, Gujarati, Bengali and other native languages stay untouched)
+  const isGurmukhi = GURMUKHI.test(rawText);
+  const isGujarati = /[\u0A80-\u0AFF]/.test(rawText);
+  const isBengali = /[\u0980-\u09FF]/.test(rawText);
+  const needsRewrite = !isGurmukhi && !isGujarati && !isBengali && ((DEVANAGARI.test(rawText) && !looksMarathi(rawText)) || URDU_LETTERS.test(rawText));
   const text = needsRewrite ? await toHinglish(rawText, { allArabicScript: true }) : rawText;
 
   let block = await ChatBlockModel.findOne({ ip: clientIp });
@@ -1156,6 +1234,33 @@ export const postChatbotCallTurn = asyncHandler(async (req: Request, res: Respon
       },
       { upsert: true }
     );
+
+    // Check if phone number was spoken in call or user asked for catalogue/WhatsApp
+    const phoneInSpoken = extractCleanPhone(rawText) || extractCleanPhone(text);
+    if (phoneInSpoken) {
+      const session = await ChatbotSessionModel.findOneAndUpdate(
+        { sessionId },
+        { $set: { phone: phoneInSpoken, capturedLead: true } },
+        { new: true }
+      );
+      if (session && !session.whatsappConfirmationSent) {
+        sendChatbotCatalogueWhatsApp(phoneInSpoken, session.userName).catch((err: any) => {
+          console.warn('Call turn WhatsApp catalogue error:', (err as Error).message);
+        });
+        await ChatbotSessionModel.findOneAndUpdate({ sessionId }, { $set: { whatsappConfirmationSent: true } });
+      }
+    } else {
+      const isWaReq = /\b(whatsapp|catalog|catalogue|brochure|product\s*detail|details|quote|quotation|price\s*list|bhej|send|करो|भेजो|व्हाट्सएप|कैटलॉग)\b/i.test(rawText + ' ' + text);
+      if (isWaReq) {
+        const session = await ChatbotSessionModel.findOne({ sessionId });
+        if (session?.phone && !session.whatsappConfirmationSent) {
+          sendChatbotCatalogueWhatsApp(session.phone, session.userName).catch((err: any) => {
+            console.warn('Call turn WhatsApp catalogue error:', (err as Error).message);
+          });
+          await ChatbotSessionModel.findOneAndUpdate({ sessionId }, { $set: { whatsappConfirmationSent: true } });
+        }
+      }
+    }
   }
 
   return successResponse(res, { text, role, ok: true });
@@ -1165,9 +1270,30 @@ export const postChatbotCallTurn = asyncHandler(async (req: Request, res: Respon
 export const postChatbotCallTool = asyncHandler(async (req: Request, res: Response) => {
   const { name, args, sessionId } = req.body;
 
-  if (name === 'update_visitor' && args?.name && sessionId) {
-    await ChatbotSessionModel.findOneAndUpdate({ sessionId }, { $set: { userName: String(args.name).trim() } });
-    return successResponse(res, { output: { ok: true, name: args.name } });
+  if (name === 'update_visitor' && sessionId) {
+    const updateObj: Record<string, any> = {};
+    if (args?.name) updateObj.userName = String(args.name).trim();
+    if (args?.phone) {
+      const cleanPhone = extractCleanPhone(String(args.phone)) || String(args.phone).replace(/\D/g, '').slice(-10);
+      if (cleanPhone && cleanPhone.length === 10) updateObj.phone = cleanPhone;
+    }
+    if (args?.email) updateObj['manual.email'] = String(args.email).trim();
+
+    const updatedSession = await ChatbotSessionModel.findOneAndUpdate(
+      { sessionId },
+      { $set: updateObj },
+      { new: true }
+    );
+
+    const effectivePhone = updateObj.phone || updatedSession?.phone;
+    if (effectivePhone && !updatedSession?.whatsappConfirmationSent) {
+      sendChatbotCatalogueWhatsApp(effectivePhone, updateObj.userName || updatedSession?.userName).catch((err: any) => {
+        console.warn('Call tool WhatsApp catalogue error:', (err as Error).message);
+      });
+      await ChatbotSessionModel.findOneAndUpdate({ sessionId }, { $set: { whatsappConfirmationSent: true, capturedLead: true } });
+    }
+
+    return successResponse(res, { output: { ok: true, name: args?.name, phone: args?.phone } });
   }
 
   if (name === 'continue_typing') {
