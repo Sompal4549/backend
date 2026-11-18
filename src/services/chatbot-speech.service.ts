@@ -104,7 +104,7 @@ export const VOICE_STYLE = {
 };
 
 export const sarvamVoiceEnabled = (): boolean =>
-  (process.env.CHAT_TTS_PROVIDER === 'sarvam' || !process.env.OPENAI_API_KEY) && Boolean(process.env.SARVAM_API_KEY);
+  process.env.CHAT_TTS_PROVIDER !== 'openai' && Boolean(process.env.SARVAM_API_KEY);
 
 const sarvamPieces = (text: string): string[] => {
   const pieces: string[] = [];
@@ -212,7 +212,7 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
     },
     body: JSON.stringify({
       model: 'tts-1',
-      voice: 'nova',
+      voice: process.env.OPENAI_TTS_VOICE || 'marin',
       input: clean,
       response_format: 'mp3',
     }),

@@ -20,16 +20,67 @@ import { searchKnowledge, getTrainingRulesText } from '../services/chatbot-knowl
 
 const ENSIS_SYSTEM_PROMPT = `You are "Ensis Assist", the expert Ayurvedic wellness & Panchkarma equipment specialist for ENSIS (ensis.in), manufactured by Design House India Pvt. Ltd.
 
+ASSISTANT NAME VS COMPANY BRAND (CRITICAL):
+- The COMPANY / BRAND is "Ensis" (in Devanagari / Hindi: "एन्सिस", in Bengali: "এনসিস").
+- YOUR PERSONAL ASSISTANT NAME is strictly "Ensis Assist" (in Devanagari: "एन्सिस असिस्ट", in Bengali: "এনসিস অ্যাসিস্ট").
+- When a visitor asks "What is your name?", "Aapka naam kya hai?", "Who are you?", "Aap kaun ho?", "Tomar naam ki?":
+  You MUST answer with your assistant name "Ensis Assist":
+  • English: "My name is Ensis Assist! I am the AI wellness & Panchkarma equipment specialist for Ensis."
+  • Hindi / Hinglish: "Mera naam Ensis Assist hai! Main Ensis ki AI wellness aur Panchkarma equipment specialist hoon." / "मेरा नाम एन्सिस असिस्ट (Ensis Assist) है।"
+  • Bengali: "আমার নাম এনসিস অ্যাসিস্ট (Ensis Assist)। আমি এনসিস-এর এআই ওয়েলনেস ও পঞ্চকর্ম বিশেষজ্ঞ।"
+- NEVER say your name is just "Ensis"! The company is Ensis, but your own name is "Ensis Assist".
+
 BRAND NAME & SPEAKING RULES:
-- The brand and company name is simply "Ensis" (in Devanagari / Hindi: "एन्सिस").
-- CRITICAL: Always say "Ensis" (or "एन्सिस") directly.
+- The brand and company name is simply "Ensis" (in Devanagari / Hindi: "एन्सिस", in Bengali: "এনসিস").
+- CRITICAL: Always say "Ensis" (or "एन्सिस" / "এনসিস") directly.
 - NEVER say "Ensis, matlab Ensis", "Ensis matlab Ainsis", or explain the pronunciation/spelling.
 - Do NOT add "matlab", "yani", or any explanation after the word Ensis. Just say the name "Ensis" cleanly in the sentence.
+
+BROCHURE & CATALOG DOWNLOAD RULES:
+- When a visitor asks for the brochure, catalogue, price list, or PDF (e.g. "brochure bhejo", "send brochure", "catalogue chahiye", "price list", "e-brochure"):
+  ALWAYS provide the direct link: [Download Ensis 2026 E-Brochure (PDF)](/pdf/e-brochure.pdf) along with [View Online Products Catalog](/products).
+  If you know their 10-digit mobile number, assure them: "Maine aapke WhatsApp par bhi official 2026 E-Brochure (PDF) link bhej diya hai!"
 
 CRITICAL PHONE NUMBER & CONFIRMATION RULES:
 - When the visitor shares, types, or updates their 10-digit mobile number, you MUST use and repeat ONLY their EXACT 10 digits as given by them!
 - NEVER hallucinate, never invent, never prepend "98", "91", or any extra digits.
 - Example: If the visitor gave "7678221037", the number is strictly "7678221037". Never say "98767821037" or "9876543210".
+
+CRITICAL LINKING & ROUTING RULES:
+- When sharing links to website pages, products, or clinic setups, ALWAYS write root-relative Markdown links:
+  • Contact page: [Contact Us](/contact)
+  • All products: [Products](/products)
+  • Specific product: [Burma Teak Droni Table](/products/panchkarma-droni-table)
+  • Turnkey solutions: [Turnkey Clinic Setup](/solutions/turnkey-ayurvedic-clinic)
+  • About page: [About Ensis](/about)
+- NEVER write absolute live domain URLs like "https://ensis.in/contact" or "https://ensis.in/products/..."!
+- Root-relative paths keep the visitor seamlessly within their current site session without redirecting to external live domains.
+
+LEARNING & ADDRESSING THE VISITOR BY NAME (DESIGN HOUSE STANDARD):
+- If you do not know the visitor's name yet:
+  The FIRST time the visitor asks a question, makes a product inquiry, or asks about pricing/clinic setup, do NOT dump the full answer yet!
+  Say ONE short warm line acknowledging their query, and politely ask for their name first:
+  • English: "Sure, I would be happy to help you with that! First, may I know your name?"
+  • Hindi / Hinglish: "ज़रूर, मैं आपकी पूरी सहायता करूँगी! पहले क्या मैं आपका शुभ नाम जान सकती हूँ?" / "Zaroor, main poori jaankari dungi! Pehle kya main aapka shubh naam jaan sakti hoon?"
+  • Bengali: "নিশ্চয়ই, আমি আমাদের পঞ্চকর্ম সরঞ্জাম এবং মূল্যের সম্পূর্ণ বিবরণ দেব! প্রথমে কি আপনার শুভ নামটি জানতে পারি?"
+- As soon as the visitor shares their name (e.g. "Rahul", "Dr. Sharma", "Amit", "Rahul Sharma"):
+  Thank them warmly by name, politely address them as "[Name] ji" (or "[Name]" in English/Bengali), and immediately answer what they had asked!
+- If the visitor insists ("pehle batao", "first tell me", "naam baad me") or declines to give a name:
+  Kindly assure them and provide the answer directly without asking again.
+
+MULTILINGUAL LANGUAGE CONSISTENCY RULES:
+1. Detect the language of every incoming user message.
+2. If the user speaks Bengali, ALWAYS respond in Bengali.
+3. Use Bengali script (বাংলা লিপি), never Punjabi, Marathi, Hindi, or Romanized text.
+4. Maintain the detected language throughout the conversation unless the user changes it.
+5. Never randomly switch languages.
+6. Product names and technical brand names can remain in English (e.g., "Ensis", "Burma Teak Droni Table", "Shirodhara Unit", "Steam Bath Chamber").
+7. Understand product queries in the detected language.
+8. Preserve conversation context and user intent.
+9. If the user asks in Bengali, respond naturally in standard conversational Bengali (e.g., "নমস্কার! এনসিস (Ensis)-এ আপনাকে স্বাগত...").
+10. Never mix multiple languages unnecessarily.
+11. If the user communicates in English, reply in polished, professional English.
+12. If the user communicates in Hindi or Hinglish, reply in warm, respectful, fluent Hindi (Devanagari) or natural Hinglish.
 
 WHO WE ARE & OUR TRACK RECORD:
 - ENSIS is India's leading designer, manufacturer, and global exporter of authentic Ayurvedic & Panchkarma therapy equipment, spa therapy furniture, and complete turnkey clinic/hospital setups.
@@ -65,12 +116,12 @@ WHO WE ARE & OUR TRACK RECORD:
   • Official Phone / WhatsApp: +91 9810242841 / +91 9654900525
   • Email: info@ensis.in
   • Website: https://ensis.in
-  • Official Contact Page: https://ensis.in/contact (route: /contact)
+  • Official Contact Page: /contact (route: /contact)
   • Working Hours: Monday to Saturday, 9:00 AM – 7:00 PM IST
 
 IMPORTANT RULES:
 - When sharing contact details or office address, provide ONLY the Corporate Office: Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007. Do not invent or include other branch addresses.
-- For website contact links, strictly use "/contact" (do NOT use /contact-us).
+- For website contact links, strictly use "/contact" (do NOT use /contact-us or full https://ensis.in URLs).
 - We manufacture authentic equipment: Panchakarma Droni Tables, Ayurvedic Steam Bath Chambers, and Brass Shirodhara Sets. We do NOT use the term "Swedana chambers".
 - If user provides their phone number, politely confirm that our technical specialist will connect shortly on WhatsApp and a verification code has been sent.
 - If user requests a call or WhatsApp message ("call me", "whatsapp karo"), assure them that our team will contact them immediately and request their 10-digit mobile number if not already provided.
@@ -81,17 +132,7 @@ STRICT GUARDRAILS & OFF-TOPIC POLICY:
 - Politely decline and guide them back:
   • Hindi: "क्षमा करें, मैं केवल एन्सिस आयुर्वेदिक एवं पंचकर्म उपकरण, क्लिनिक सेटअप और वेलनेस फर्नीचर से संबंधित प्रश्नों में ही आपकी सहायता कर सकती हूँ। क्या आप हमारे पंचकर्म टेबल, स्टीम बाथ या क्लिनिक प्रोजेक्ट्स के बारे में कुछ जानना चाहते हैं?"
   • English: "I apologize, but I can only assist with inquiries regarding Ensis Ayurvedic & Panchkarma therapy equipment, turnkey clinic setups, and wellness furniture. Would you like to know about our treatment tables, steam chambers, or clinic solutions?"
-
-MULTILINGUAL CAPABILITY & NATIVE ACCENTS:
-- You fluently understand and communicate in Hindi, English, Punjabi (Gurmukhi or Roman Punjabi), Gujarati, Marathi, Bengali, Bhojpuri, and other Indian languages.
-- Always reply in the visitor's language with authentic native vocabulary and pronunciation:
-  • If the user speaks or types in Punjabi (e.g. "Panchkarma de equipment chahide ne", "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ", "ਕੀ ਹਾਲ ਹੈ"), reply respectfully and warmly in natural Punjabi with authentic words!
-  • If in Gujarati ("નમસ્તે", "કેમ છો", "તમારો નંબર"), reply warmly in natural Gujarati!
-  • If in Marathi ("नमस्कार", "कसे आहात"), reply in authentic Marathi! Marathi is NOT Hindi; do not mix Hindi words.
-  • If in Bengali ("নমস্কার", "কেমন আছেন"), reply in sweet, fluent Bengali!
-  • If in Bhojpuri ("प्रणाम", "रउवा"), reply warmly in authentic Bhojpuri!
-  • If in Hindi / Hinglish, reply in Hindi / Hinglish!
-  • If in English, reply in polished Indian English!
+  • Bengali: "ক্ষমা করবেন, আমি কেবল এনসিস আয়ুর্বেদিক ও পঞ্চকর্ম সরঞ্জাম, ক্লিনিক সেটআপ এবং ওয়েলনেস ফার্নিচার সংক্রান্ত বিষয়ে সাহায্য করতে পারি। আপনি কি আমাদের পঞ্চকর্ম টেবিল, স্টিম বাথ বা ক্লিনিক সেটআপ সম্পর্কে জানতে চান?"
 
 PRODUCTS & MANUFACTURING SPECIFICATIONS:
 1. Panchkarma Massage Tables (Droni):
@@ -133,7 +174,7 @@ TURNKEY CLINIC & HOSPITAL SETUP SERVICES:
 CONVERSATIONAL RULES (WHEN TO ANSWER VS. WHEN TO ASK):
 1. SHORT, CLEAR & WARM RESPONSES:
    - Keep answers short, clear, and warm (around 2 to 4 sentences or a tidy 2-bullet point recommendation, under 100–140 words). Never dump dry, encyclopedic walls of text.
-   - Tone is friendly, polite, smiling, and consultative. Address clients respectfully ("Dr. Sharma ji", "Rahul ji", "जी बिल्कुल").
+   - Tone is friendly, polite, smiling, and consultative. Address clients respectfully ("Dr. Sharma ji", "Rahul ji", "জি নিশ্চয়ই").
    - Offer warm, helpful guidance so the visitor feels supported in their project.
 
 2. HIGHLIGHT MATCHING PRODUCTS & SOLUTIONS (PERSONALIZED RECOMMENDATIONS):
@@ -148,21 +189,18 @@ CONVERSATIONAL RULES (WHEN TO ANSWER VS. WHEN TO ASK):
      • Politely ask for their 10-digit mobile number:
        - Hindi: "क्या आप अपना 10-अंकों का WhatsApp/मोबाइल नंबर साझा कर सकते हैं? ताकि हमारी टेक्निकल टीम आपको विस्तृत कोटेशन और 2026 कैटलॉग सीधे WhatsApp पर भेज सके।"
        - English: "Could you please share your 10-digit mobile number? Our technical specialist team will send our detailed quotation, layout plans, and 2026 catalogue directly to your WhatsApp."
+       - Bengali: "আপনি কি আপনার ১০-সংখ্যার মোবাইল বা WhatsApp নম্বরটি শেয়ার করতে পারেন? যাতে আমাদের টেকনিক্যাল টিম সরাসরি আপনার WhatsApp-এ বিস্তারিত কোটেশন এবং ২০২৬ ক্যাটালগ পাঠাতে পারে।"
      • If they have already shared their 10-digit number, warmly confirm: "Thank you! Our technical specialist team has received your request and will connect with you on WhatsApp shortly."
 
 4. WHEN NOT TO ASK:
    - NEVER ask multiple questions at once. Ask at most ONE question per message.
    - NEVER interrogate. If they decline sharing contact details, simply continue helping with products and specs.
-   - When the user signals that the conversation is complete (e.g. "thank you", "theek hai", "aur kuch nahi", "bas", "bye", "ok thanks"):
+   - When the user signals that the conversation is complete (e.g. "thank you", "theek hai", "aur kuch nahi", "bas", "bye", "ok thanks", "ধন্যবাদ"):
      • DO NOT ask any further questions.
      • Give a warm, gracious farewell:
        - Hindi: "एन्सिस से जुड़ने के लिए बहुत-बहुत धन्यवाद [Name] जी! आपका दिन शुभ और मंगलमय हो। किसी भी सहायता के लिए आप हमें +91 9810242841 / +91 9654900525 पर कभी भी संपर्क कर सकते हैं।"
        - English: "Thank you for contacting Ensis, [Name]! Have a wonderful day ahead. For any assistance, feel free to call or WhatsApp us at +91 9810242841 or +91 9654900525."
-
-LANGUAGE & TONE:
-- If the visitor communicates in Hindi or Hinglish, reply in warm, respectful, fluent Hindi (Devanagari) or natural Hinglish.
-- If the visitor communicates in English, reply in polished, professional English.
-- Exclusively discuss manufacturing, supply, equipment specifications, pricing, and turnkey setups. Never offer individual salon/spa massage therapy appointments.`;
+       - Bengali: "এনসিস-এর সাথে যোগাযোগ করার জন্য আপনাকে অনেক ধন্যবাদ [Name]! আপনার দিনটি শুভ হোক। যেকোনো সহায়তার জন্য +91 9810242841 বা +91 9654900525 নম্বরে নির্দ্বিধায় কল বা WhatsApp করতে পারেন।"`;
 
 const MAX_REPLY_WORDS = 220;
 
@@ -258,36 +296,132 @@ export const buildKnowledge = (config: any): string => {
     : '';
 };
 
+const HINGLISH_WORDS = new Set([
+  'kya', 'kyu', 'kyun', 'kyon', 'kaise', 'kaisa', 'kaisi', 'kab', 'kahan', 'kaha', 'kitna', 'kitni', 'kitne', 'kaun', 'kon', 'kaunsi', 'konsi', 'kaunsa', 'konsa',
+  'hai', 'hain', 'hoon', 'hu', 'tha', 'thi', 'hoga', 'hogi', 'hota', 'hoti', 'hote', 'ho', 'ka', 'ki', 'ke', 'ko', 'se', 'ne', 'ya', 'aur', 'bhi', 'koi', 'kuch', 'sab', 'sabhi', 'abhi',
+  'nahi', 'nahin', 'nhi', 'haan', 'ji', 'ye', 'yeh', 'woh', 'wo', 'vo', 'isme', 'usme', 'isko', 'usko', 'liye', 'wala', 'wali', 'wale',
+  'aap', 'aapka', 'aapki', 'aapke', 'apka', 'apki', 'apke', 'tum', 'tumhara', 'tumhari', 'mera', 'meri', 'mere', 'mujhe', 'muje', 'hum', 'hume', 'humein', 'hamara', 'hamari', 'hamare', 'humara', 'humari', 'humare',
+  'chahiye', 'chaiye', 'karti', 'karte', 'karta', 'krti', 'krte', 'krta', 'kar', 'kr', 'karo', 'kro', 'karna', 'krna', 'karwana', 'karwani', 'kaam', 'dete', 'deta', 'deti', 'dena', 'dijiye', 'batao', 'btao', 'bataiye', 'btaiye', 'bataye', 'dikhao', 'dikhaiye', 'dikhaye',
+  'milega', 'milegi', 'milta', 'milti', 'banate', 'banati', 'banwana', 'banwani', 'sakte', 'sakta', 'sakti', 'bahut', 'bhut', 'acha', 'accha', 'achha', 'theek', 'thik', 'yaar', 'yar', 'bhai'
+]);
+
+const NOT_NAMES = new Set([
+  'good', 'morning', 'afternoon', 'evening', 'night', 'sir', 'madam', 'mam', 'maam', 'test', 'testing', 'bot', 'chatbot', 'assistant', 'assist',
+  'what', 'why', 'who', 'how', 'when', 'where', 'name', 'naam', 'nothing', 'none', 'anonymous', 'guest', 'user', 'visitor', 'unknown',
+  'price', 'cost', 'rate', 'quote', 'quotation', 'retail', 'help', 'service', 'services', 'project', 'projects', 'contact', 'number', 'phone', 'mobile', 'email', 'address', 'location', 'website', 'home',
+  'नमस्ते', 'नमस्कार', 'हेलो', 'हैलो', 'हाय', 'हाँ', 'हां', 'नहीं', 'जी', 'ठीक', 'धन्यवाद', 'नाम', 'নমস্কার', 'হ্যালো', 'হ্যাঁ', 'না', 'ধন্যবাদ',
+  'droni', 'panchakarma', 'panchkarma', 'steam', 'shirodhara', 'table', 'chair', 'bed', 'wood', 'teak', 'brochure', 'catalog', 'catalogue'
+]);
+
+export function extractVisitorName(text: string): string {
+  const clean = String(text || '').trim();
+  // 1. Explicit introduction ("my name is Rahul", "mera naam Rahul Sharma", "ami Subhash", "amar naam Amit")
+  const introMatch = clean.match(/(?:(?:my name is|mera naam|i am|this is|i'm|naam hai|call me|ami|amar naam|naam holo)\s+([A-Za-z\u0900-\u097F\u0980-\u09FF]+(?:\s+[A-Za-z\u0900-\u097F\u0980-\u09FF]+)?))/i);
+  if (introMatch) {
+    const candidate = introMatch[1].trim();
+    if (candidate.length >= 2 && candidate.length <= 40 && !NOT_NAMES.has(candidate.toLowerCase())) {
+      return candidate.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+  }
+
+  // 2. Direct name response (1 to 3 words, no digits, not stop-words / question words)
+  const words = clean.split(/\s+/);
+  if (words.length >= 1 && words.length <= 3 && !/\d/.test(clean)) {
+    const raw = clean.replace(/[!?.,;:।]+$/u, '').trim();
+    const lowerWords = raw.toLowerCase().split(/\s+/);
+    if (!lowerWords.some((w) => NOT_NAMES.has(w) || HINGLISH_WORDS.has(w))) {
+      if (/^[\p{L}.' -]{2,40}$/u.test(raw)) {
+        return raw.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+    }
+  }
+  return '';
+}
+
 export function detectLanguageInstruction(userMessage: string, langHint = 'en'): {
   instruction: string;
-  style: 'devanagari' | 'hinglish' | 'urdu' | 'english';
+  style: 'bengali' | 'devanagari' | 'punjabi' | 'gujarati' | 'urdu' | 'hinglish' | 'english';
+  detectedLang: 'bn' | 'hi' | 'pa' | 'gu' | 'en';
 } {
   const text = String(userMessage || '').trim();
-  if (/[\u0900-\u097F]/.test(text)) {
+
+  // 1. Bengali script (বাংলা লিপি)
+  if (/[\u0980-\u09FF]/.test(text)) {
     return {
       instruction:
-        '\nLanguage Instruction: The user wrote in Hindi (Devanagari script: हिंदी). You MUST reply in warm, polite, natural Hindi in Devanagari script. Never reply in English or Roman letters.',
-      style: 'devanagari',
+        '\nCRITICAL MULTILINGUAL RULE (BENGALI SCRIPT DETECTED):\n- The user wrote in Bengali (বাংলা). You MUST respond in pure Bengali using Bengali script (বাংলা লিপি).\n- NEVER respond in Hindi, Devanagari, Gurmukhi, Marathi, or Romanized text.\n- Maintain Bengali throughout the conversation. Never randomly switch to Hindi or English.\n- Technical brand and product names may remain in English (e.g. Ensis, Burma Teak Droni Table, Shirodhara Unit).\n- Reply naturally in warm, standard conversational Bengali (e.g., "হ্যাঁ নিশ্চয়ই! এনসিস (Ensis)-এ আপনাকে স্বাগত...").',
+      style: 'bengali',
+      detectedLang: 'bn',
     };
   }
+
+  // 2. Punjabi / Gurmukhi script (ਗੁਰਮੁਖੀ)
+  if (/[\u0A00-\u0A7F]/.test(text)) {
+    return {
+      instruction:
+        '\nCRITICAL MULTILINGUAL RULE (PUNJABI DETECTED):\n- The user wrote in Punjabi (Gurmukhi). You MUST respond in warm, respectful Punjabi in Gurmukhi script.',
+      style: 'punjabi',
+      detectedLang: 'pa',
+    };
+  }
+
+  // 3. Gujarati script
+  if (/[\u0A80-\u0AFF]/.test(text)) {
+    return {
+      instruction:
+        '\nCRITICAL MULTILINGUAL RULE (GUJARATI DETECTED):\n- The user wrote in Gujarati. You MUST respond in warm, polite Gujarati script.',
+      style: 'gujarati',
+      detectedLang: 'gu',
+    };
+  }
+
+  // 4. Urdu script
   if (/[\u0600-\u06FF]/.test(text)) {
     return {
       instruction: '\nLanguage Instruction: The user wrote in Urdu script. Reply in polite Urdu.',
       style: 'urdu',
+      detectedLang: 'hi',
     };
   }
-  const hinglishWords =
-    /\b(aap|aapka|aapke|aapki|kya|hai|hain|ho|kaise|kaisi|batao|bataiye|chahiye|kitna|kitne|kitni|ka|ki|ke|ko|se|me|mein|par|kare|karna|nahi|nhi|haan|ji|theek|thik|achha|accha|shukriya|namaste|namaskar|droni|shira?odhara|bhi|aur|lekin|kab|kahan|kaha|dena|bhejo|bhejiye|mil|jayega|hoti|hota|hote|ruko|paas|sabse|kuch|kuchh|pehle|bolo|karu|karen|hoga|hogi)\b/i;
-  if (hinglishWords.test(text) || langHint === 'hi') {
+
+  // 5. Hindi / Devanagari script (हिंदी)
+  if (/[\u0900-\u097F]/.test(text)) {
     return {
       instruction:
-        '\nLanguage Instruction: The user spoke/wrote in Hinglish (Hindi written in Roman letters, e.g. "droni table ka price kya hai"). You MUST reply in warm, friendly, natural Hinglish (Hindi in Roman letters, e.g. "Ji bilkul! Ensis droni tables Burma Teak wood mein...", "Aapko delivery kis city mein chahiye?") exactly like people chat on WhatsApp in India. NEVER reply in English.',
-      style: 'hinglish',
+        '\nCRITICAL MULTILINGUAL RULE (HINDI DEVANAGARI DETECTED):\n- The user wrote in Hindi (Devanagari script: हिंदी). You MUST reply in warm, polite, natural Hindi in Devanagari script. Never reply in English or Roman letters. Maintain Hindi throughout.',
+      style: 'devanagari',
+      detectedLang: 'hi',
     };
   }
+
+  // 6. Hinglish (Hindi written in Roman English alphabet)
+  // CRITICAL: Must be genuine Hindi Roman words; NEVER match English words like "me", "to", "in", "is", or product names!
+  const words = text.toLowerCase().split(/[^a-z]+/);
+  const hasHinglish = words.some((w) => HINGLISH_WORDS.has(w));
+  if (hasHinglish) {
+    return {
+      instruction:
+        '\nCRITICAL MULTILINGUAL RULE (HINGLISH DETECTED):\n- The user wrote in Hinglish (Hindi written in Roman letters, e.g. "droni table ka price kya hai", "mujhe catalog chahiye"). You MUST reply in warm, friendly, natural Hinglish (Hindi in Roman letters) exactly like professional WhatsApp chat in India. Do not switch to English unless explicitly asked.',
+      style: 'hinglish',
+      detectedLang: 'hi',
+    };
+  }
+
+  // 7. If previous session was Bengali and current text has no letters (e.g. only numbers/emoji/ok), preserve Bengali
+  if (langHint === 'bn' && !/[a-zA-Z]/.test(text)) {
+    return {
+      instruction: '\nLanguage Instruction: The conversation is in Bengali. Reply in pure Bengali in Bengali script.',
+      style: 'bengali',
+      detectedLang: 'bn',
+    };
+  }
+
+  // 8. Default: English
   return {
-    instruction: '\nLanguage Instruction: The user spoke/wrote in English. You MUST reply in polished, professional English.',
+    instruction:
+      '\nCRITICAL MULTILINGUAL RULE (ENGLISH DETECTED):\n- The user wrote in English. You MUST reply in polished, professional, warm Indian English. Do NOT reply in Hindi or Hinglish.',
     style: 'english',
+    detectedLang: 'en',
   };
 }
 
@@ -299,7 +433,9 @@ export async function generateBotReply(
   knowledge = '',
   userPhone?: string
 ): Promise<{ reply: string; provider: string }> {
-  const nameInstruction = userName ? `\nClient Name: "${userName}". You may address them as "${userName} ji" politely.` : '';
+  const nameInstruction = userName
+    ? `\nClient Name: "${userName}". You may address them as "${userName} ji" (or "${userName}" in English/Bengali) politely.`
+    : `\nClient Name: Unknown yet. RULE: If this is their first inquiry or question, acknowledge what they asked in 1 short warm sentence and ask for their name first (e.g. "Sure, I'll help you with that! First, may I know your name?"). Once they share their name, address them politely by name and answer what they had asked.`;
   const phoneInstruction = userPhone ? `\nCRITICAL: The visitor's verified 10-digit mobile number is strictly "${userPhone}". If you repeat or confirm their number, you MUST use ONLY these exact digits: ${userPhone}. NEVER prepend 98 or alter any digits.` : '';
   const { instruction: langInstruction, style: langStyle } = detectLanguageInstruction(userMessage, language);
 
@@ -317,6 +453,28 @@ export async function generateBotReply(
   } catch {}
 
   const systemContent = `${ENSIS_SYSTEM_PROMPT}${nameInstruction}${phoneInstruction}${langInstruction}${knowledge}${teamRules}${dynamicKnowledge}`;
+
+  // Deterministic Instant Reply when visitor asks for the Assistant's own name
+  const cleanQuery = userMessage.trim().toLowerCase();
+  const isAskingBotName = /\b(what(?:'s|\s+is)\s+your\s+name|who\s+(?:are|r)\s+you|tell\s+me\s+your\s+name|aap(?:ka)?\s*(?:kya)?\s*naam|tumhara\s*naam|apna\s*naam|naam\s*kya\s*hai|aap\s*kaun\s*(?:ho|hai|hain)|tomar\s*naam\s*ki)\b/i.test(cleanQuery);
+  if (isAskingBotName && cleanQuery.split(/\s+/).length <= 7) {
+    if (langStyle === 'bengali') {
+      return {
+        reply: 'আমার নাম এনসিস অ্যাসিস্ট (Ensis Assist)। আমি এনসিস (Ensis)-এর এআই ওয়েলনেস ও পঞ্চকর্ম সরঞ্জাম বিশেষজ্ঞ। বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?',
+        provider: 'direct',
+      };
+    }
+    if (langStyle === 'english') {
+      return {
+        reply: "My name is Ensis Assist! I am the AI wellness & Panchkarma therapy equipment specialist for Ensis. Tell me, how can I help you today?",
+        provider: 'direct',
+      };
+    }
+    return {
+      reply: 'Mera naam Ensis Assist (एन्सिस असिस्ट) hai! Main Ensis ki AI wellness aur Panchkarma equipment specialist hoon. Bataiye, aaj main aapki kya madad kar sakti hoon?',
+      provider: 'direct',
+    };
+  }
 
   if (process.env.OPENAI_API_KEY) {
     try {
@@ -399,7 +557,14 @@ export async function generateBotReply(
   }
 
   // 2. Greetings & Pleasantries
-  if (/^(hi|hello|hey|namaste|namaskar|pranam|good\s*(morning|afternoon|evening)|kaise\s*ho|kya\s*haal|sunao|batao)\b/i.test(q) || /नमस्ते|प्रणाम|हेलो|हाय|कैसा|हालचाल/i.test(q)) {
+  if (/^(hi|hello|hey|namaste|namaskar|pranam|good\s*(morning|afternoon|evening)|kaise\s*ho|kya\s*haal|sunao|batao)\b/i.test(q) || /नमस्ते|प्रणाम|हेलो|हाय|कैसा|हालचाल|নমস্কার|হ্যালো/i.test(q)) {
+    if (langStyle === 'bengali') {
+      const greetingName = userName ? `${userName}` : '';
+      return {
+        reply: `নমস্কার ${greetingName}! এনসিস (Ensis)-এ আপনাকে স্বাগত। আমরা প্রামাণিক আয়ুর্বেদিক পঞ্চকর্ম সরঞ্জাম ও সম্পূর্ণ ক্লিনিক সেটআপ তৈরি করি।\n\nআজ আমি আপনাকে কীভাবে সাহায্য করতে পারি? আপনি কি দ্রোণী টেবিল, বাষ্প স্নান (Steam Bath) বা পুরো ক্লিনিক সেটআপ সম্পর্কে জানতে চান?`,
+        provider: 'fallback',
+      };
+    }
     if (langStyle === 'devanagari') {
       const greetingName = userName ? `${userName} जी` : '';
       return {
@@ -421,7 +586,13 @@ export async function generateBotReply(
   }
 
   // 3. Farewell / Closing / Thanks
-  if (/^(bye|goodbye|alvida|thank\s*you|thanks|dhanyawad|shukriya|ok\s*bye|bas|theek\s*hai\s*bye)\b/i.test(q) || /धन्यवाद|शुक्रिया|अलविदा|बाय/i.test(q)) {
+  if (/^(bye|goodbye|alvida|thank\s*you|thanks|dhanyawad|shukriya|ok\s*bye|bas|theek\s*hai\s*bye)\b/i.test(q) || /धन्यवाद|शुक्रिया|अलविदा|बाय|ধন্যবাদ|বিদায়/i.test(q)) {
+    if (langStyle === 'bengali') {
+      return {
+        reply: `এনসিস-এর সাথে যোগাযোগ করার জন্য আপনাকে অনেক ধন্যবাদ${userName ? ` ${userName}` : ''}! আপনার প্র্যাকটিস সফল হোক। যেকোনো সহায়তার জন্য আমাদের সাথে **+91 9810242841** বা **+91 9654900525** নম্বরে যোগাযোগ করতে পারেন।`,
+        provider: 'fallback',
+      };
+    }
     if (langStyle === 'devanagari') {
       return {
         reply: `एन्सिस से जुड़ने के लिए बहुत-बहुत धन्यवाद${userName ? ` ${userName} जी` : ''}! आपका स्वास्थ्य और क्लिनिक हमेशा प्रगति करे। किसी भी सहायता के लिए आप हमारे कॉर्पोरेट कार्यालय में **+91 9810242841** या **+91 9654900525** पर कभी भी संपर्क कर सकते हैं।`,
@@ -490,7 +661,13 @@ export async function generateBotReply(
   }
 
   // 6. Pricing & Quotations
-  if (/price|cost|quote|quotation|rate|discount|budget|kitna|daam|paisa|कीमत|दाम|रेट|खर्च|कोटेशन|बजट/i.test(q)) {
+  if (/price|cost|quote|quotation|rate|discount|budget|kitna|daam|paisa|कीमत|दाम|रेट|खर्च|कोटेशन|बजট|দাম|মূল্য/i.test(q)) {
+    if (langStyle === 'bengali') {
+      return {
+        reply: 'এনসিস পঞ্চকর্ম সরঞ্জামের দাম ₹৫,৪৯৯ (ব্রাস সামগ্রী) থেকে শুরু করে ₹৪৭,৫০০ (অটোমেটেড স্টিম বক্স) পর্যন্ত রয়েছে:\n\n• **সম্পূর্ণ ১-রুম ক্লিনিক প্যাকেজ**: প্রায় ₹১.১০ লক্ষ থেকে শুরু (দ্রোণী টেবিল + স্টিম চেম্বার + ব্রাস শিরোধারা সেট অন্তর্ভুক্ত)।\n• ক্লিনিক ও হাসপাতালের জন্য বাল্ক ডিসকাউন্ট ও জিএসটি ইনভয়েস উপলব্ধ।\n\nতাত্ক্ষণিক কোটেশনের জন্য আপনার ১০-সংখ্যার WhatsApp নম্বরটি শেয়ার করুন বা [যোগাযোগ পৃষ্ঠা](/contact) দেখুন!',
+        provider: 'fallback',
+      };
+    }
     if (langStyle === 'devanagari') {
       return {
         reply: 'एन्सिस उपकरणों की कीमतें ₹5,499 (ब्रास एक्सेसरीज़) से शुरू होकर ₹47,500 (ऑटोमेटेड स्टीम बॉक्स) तक हैं:\n\n• **1-रूम पंचकर्म पैकेज**: लगभग ₹1.10 लाख से शुरू (द्रोणी टेबल + स्टीम चैंबर + शिरोधारा स्टैंड व पॉट शामिल)।\n• क्लिनिक्स व हॉस्पिटल्स के लिए बल्क डिस्काउंट एवं GST इनवॉइसिंग उपलब्ध है।\n\nतुरंत कोटेशन के लिए अपना मोबाइल नंबर साझा करें या [ensis.in/contact](/contact) पर फॉर्म भरें।',
@@ -510,7 +687,13 @@ export async function generateBotReply(
   }
 
   // 7. Contact / Office / Address
-  if (/contact|phone|call|email|address|office|location|where|sampark|pata|kahan|kaha/i.test(q) || /संपर्क|फोन|फ़ोन|नंबर|पता|कार्यालय|कहाँ|कहा|ईमेल|कॉल/i.test(q)) {
+  if (/contact|phone|call|email|address|office|location|where|sampark|pata|kahan|kaha|যোগাযোগ|ঠিকানা|ফোন|অফিস/i.test(q) || /संपर्क|फोन|फ़ोन|नंबर|पता|कार्यालय|कहाँ|कहा|ईमेल|कॉल/i.test(q)) {
+    if (langStyle === 'bengali') {
+      return {
+        reply: '🌿 **এনসিস যোগাযোগ বিবরণ ও কর্পোরেট অফিস**:\n\n📍 **কর্পোরেট অফিস ও ফ্যাক্টরি**:\nPlot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007\n\n📞 **ফোন / WhatsApp**: **+91 9810242841** / **+91 9654900525**\n✉️ **ইমেল**: info@ensis.in\n🌐 **ওয়েবসাইট**: [যোগাযোগ করুন](/contact)',
+        provider: 'fallback',
+      };
+    }
     if (langStyle === 'devanagari') {
       return {
         reply: '🌿 **एन्सिस संपर्क विवरण एवं कॉर्पोरेट कार्यालय**:\n\n📍 **कॉर्पोरेट कार्यालय एवं फैक्ट्री**:\nPlot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007\n\n📞 **फ़ोन / WhatsApp**: **+91 9810242841** / **+91 9654900525**\n✉️ **ईमेल**: info@ensis.in\n🌐 **वेबसाइट**: [ensis.in/contact](/contact)',
@@ -828,9 +1011,12 @@ export const sendChatbotCatalogueWhatsApp = async (phone: string, userName?: str
 
 Thank you for contacting *Ensis Panchkarma & Wellness Equipment* (by Design House India Pvt. Ltd. — trusted since 2003, 1000+ completed projects).
 
-Here are our authentic Ayurvedic equipment details and 2026 digital catalogue:
+Here is our official 2026 digital brochure & equipment catalog:
 
-📖 *2026 PRODUCT CATALOGUE & BLUEPRINT:*
+📥 *DOWNLOAD COMPLETE 2026 E-BROCHURE (PDF):*
+👉 https://ensis.in/pdf/e-brochure.pdf
+
+📖 *EXPLORE 2026 PRODUCT CATALOGUE:*
 👉 https://ensis.in/products
 
 ✨ *AUTHENTIC PANCHKARMA & CLINIC RANGE:*
@@ -977,24 +1163,17 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
 
   // Extract phone number if user provides it in the message
   const rawCleanPhone = extractCleanPhone(userText);
-  let autoOtpSent = false;
+  const autoOtpSent = false;
   if (rawCleanPhone) {
     session.phone = rawCleanPhone;
     session.capturedLead = true;
-    if (!session.phoneVerifiedAt) {
-      try {
-        await sendPhoneOtp(rawCleanPhone, 'CONTACT', session.userName || 'Client');
-        autoOtpSent = true;
-      } catch (otpErr) {
-        console.warn('sendPhoneOtp error:', (otpErr as Error).message);
-      }
-    }
   }
 
   // Trigger professional WhatsApp notification with Product Details & Catalogue
+  // STRICT RULE: Send at most ONCE per chat session so the user is never spammed with repeating messages!
   const isCatalogueOrWhatsAppRequest = /\b(whatsapp|catalog|catalogue|brochure|product\s*detail|details|quote|quotation|price\s*list|call\s*me|call\s*karo|call\s*karein|contact\s*me|message\s*karo|message\s*kijiye|bhej|send|करो|भेजो|व्हाट्सएप|कैटलॉग|ब्रोशर)\b/i.test(userText);
   const targetPhone = rawCleanPhone || session.phone || '';
-  if (targetPhone && (isCatalogueOrWhatsAppRequest || rawCleanPhone)) {
+  if (targetPhone && !session.whatsappConfirmationSent && (isCatalogueOrWhatsAppRequest || rawCleanPhone)) {
     sendChatbotCatalogueWhatsApp(targetPhone, session.userName).catch((waErr: any) => {
       console.warn('sendChatbotCatalogueWhatsApp error:', (waErr as Error).message);
     });
@@ -1002,10 +1181,10 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
     session.capturedLead = true;
   }
 
-  // Extract name if user introduces themselves
-  const nameMatch = userText.match(/(?:(?:my name is|mera naam|i am|this is|i'm|naam hai)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?))/i);
-  if (nameMatch && !session.userName) {
-    session.userName = nameMatch[1].trim();
+  // Extract name if user introduces themselves or provides their name
+  const candidateName = extractVisitorName(userText);
+  if (candidateName && !session.userName) {
+    session.userName = candidateName;
   }
 
   // Extract OTP if user types a 6-digit code
@@ -1042,8 +1221,13 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
   }
 
   const activeUserName = req.body?.userName || session.userName || userName;
+  const { detectedLang } = detectLanguageInstruction(
+    userText,
+    session.lang || lang
+  );
+  session.lang = detectedLang;
 
-  const generated = await generateBotReply(userText, history, activeUserName, lang, knowledge, targetPhone);
+  const generated = await generateBotReply(userText, history, activeUserName, detectedLang, knowledge, targetPhone);
   let replyText = generated.reply.replace(/\s*\[\[\s*LEAD\s*\]\]\s*/gi, ' ').trim();
 
   // Sanitize any hallucinated phone numbers in replyText so visitor never receives corrupted digits
@@ -1056,15 +1240,21 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
   }
 
   if (autoOtpVerified) {
-    const isHi = lang === 'hi';
-    replyText = isHi
-      ? `✅ धन्यवाद ${session.userName ? session.userName + ' जी' : ''}! आपका मोबाइल नंबर +91 ${session.phone} सफलतापूर्वक सत्यापित हो गया है। हमारी पंचकर्म टेक्निकल टीम जल्द ही WhatsApp पर आपसे संपर्क करेगी और कम्प्लीट कोटेशन शेयर करेगी। आप और क्या जानना चाहते हैं?`
-      : `✅ Thank you ${session.userName ? session.userName : ''}! Your mobile number +91 ${session.phone} has been verified successfully. Our Ayurvedic specialist will connect with you on WhatsApp shortly to share our 2026 catalogue and custom quotation. How else may I assist you today?`;
+    if (detectedLang === 'bn') {
+      replyText = `✅ ধন্যবাদ ${session.userName ? session.userName : ''}! আপনার মোবাইল নম্বর +91 ${session.phone} সফলভাবে যাচাই করা হয়েছে। আমাদের টেকনিক্যাল টিম খুব শীঘ্রই WhatsApp-এ আপনার সাথে যোগাযোগ করবে এবং সম্পূর্ণ কোটেশন পাঠাবে।`;
+    } else if (detectedLang === 'hi') {
+      replyText = `✅ धन्यवाद ${session.userName ? session.userName + ' जी' : ''}! आपका मोबाइल नंबर +91 ${session.phone} सफलतापूर्वक सत्यापित हो गया है। हमारी पंचकर्म टेक्निकल टीम जल्द ही WhatsApp पर आपसे संपर्क करेगी और कम्प्लीट कोटेशन शेयर करेगी। आप और क्या जानना चाहते हैं?`;
+    } else {
+      replyText = `✅ Thank you ${session.userName ? session.userName : ''}! Your mobile number +91 ${session.phone} has been verified successfully. Our Ayurvedic specialist will connect with you on WhatsApp shortly to share our 2026 catalogue and custom quotation. How else may I assist you today?`;
+    }
   } else if (autoOtpSent) {
-    const isHi = lang === 'hi';
-    replyText = isHi
-      ? `${replyText}\n\n📱 *मैंने आपके WhatsApp नंबर +91 ${session.phone} पर 6-अंकों का OTP भेज दिया है।* कृपया पुष्टि के लिए यहाँ 6-अंकों का OTP दर्ज करें।`
-      : `${replyText}\n\n📱 *I have sent a 6-digit verification OTP to your WhatsApp number +91 ${session.phone}.* Please enter the 6-digit code here to verify and connect with our specialist.`;
+    if (detectedLang === 'bn') {
+      replyText = `${replyText}\n\n📱 *আমি আপনার WhatsApp নম্বর +91 ${session.phone}-এ একটি ৬-সংখ্যার OTP পাঠিয়েছি।* নিশ্চিতকরণের জন্য দয়া করে এখানে কোডটি লিখুন।`;
+    } else if (detectedLang === 'hi') {
+      replyText = `${replyText}\n\n📱 *मैंने आपके WhatsApp नंबर +91 ${session.phone} पर 6-अंकों का OTP भेज दिया है।* कृपया पुष्टि के लिए यहाँ 6-अंकों का OTP दर्ज करें।`;
+    } else {
+      replyText = `${replyText}\n\n📱 *I have sent a 6-digit verification OTP to your WhatsApp number +91 ${session.phone}.* Please enter the 6-digit code here to verify and connect with our specialist.`;
+    }
   }
 
   const userMsgCount = (session.messages || []).filter((m) => m.role === 'user').length + 1;
@@ -1086,7 +1276,8 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
 
   return successResponse(res, {
     sessionId: session.sessionId,
-    lang,
+    lang: detectedLang,
+    userName: session.userName || '',
     reply: replyText,
     replies: [
       {
@@ -1097,7 +1288,7 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
     provider: generated.provider,
     showLeadForm: /\[\[\s*LEAD\s*\]\]/i.test(generated.reply),
     blocked: false,
-    end: /goodbye|have a nice day|alvida/i.test(replyText),
+    end: /goodbye|have a nice day|alvida|বিদায়/i.test(replyText),
     serverTime: Date.now(),
     needsOtp,
     otpSent: autoOtpSent,
@@ -1268,19 +1459,22 @@ export const postChatbotCallTurn = asyncHandler(async (req: Request, res: Respon
     // Check if phone number was spoken in call or user asked for catalogue/WhatsApp
     const phoneInSpoken = extractCleanPhone(rawText) || extractCleanPhone(text);
     if (phoneInSpoken) {
+      const existing = await ChatbotSessionModel.findOne({ sessionId });
       const session = await ChatbotSessionModel.findOneAndUpdate(
         { sessionId },
         { $set: { phone: phoneInSpoken, capturedLead: true, whatsappConfirmationSent: true } },
         { new: true }
       );
-      sendChatbotCatalogueWhatsApp(phoneInSpoken, session?.userName).catch((err: any) => {
-        console.warn('Call turn WhatsApp catalogue error:', (err as Error).message);
-      });
+      if (!existing?.whatsappConfirmationSent) {
+        sendChatbotCatalogueWhatsApp(phoneInSpoken, session?.userName).catch((err: any) => {
+          console.warn('Call turn WhatsApp catalogue error:', (err as Error).message);
+        });
+      }
     } else {
-      const isWaReq = /\b(whatsapp|catalog|catalogue|brochure|product\s*detail|details|quote|quotation|price\s*list|bhej|send|करो|भेजो|व्हाट्सएप|कैटलॉग)\b/i.test(rawText + ' ' + text);
+      const isWaReq = /\b(whatsapp|catalog|catalogue|brochure|कैटलॉग|ब्रोशर)\b/i.test(rawText + ' ' + text);
       if (isWaReq) {
         const session = await ChatbotSessionModel.findOne({ sessionId });
-        if (session?.phone) {
+        if (session?.phone && !session.whatsappConfirmationSent) {
           sendChatbotCatalogueWhatsApp(session.phone, session.userName).catch((err: any) => {
             console.warn('Call turn WhatsApp catalogue error:', (err as Error).message);
           });
@@ -1320,7 +1514,7 @@ export const postChatbotCallTool = asyncHandler(async (req: Request, res: Respon
     );
 
     const effectivePhone = updateObj.phone || updatedSession?.phone;
-    if (effectivePhone) {
+    if (effectivePhone && !updatedSession?.whatsappConfirmationSent) {
       sendChatbotCatalogueWhatsApp(effectivePhone, updateObj.userName || updatedSession?.userName).catch((err: any) => {
         console.warn('Call tool WhatsApp catalogue error:', (err as Error).message);
       });
