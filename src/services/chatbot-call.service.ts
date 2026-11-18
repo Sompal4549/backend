@@ -74,8 +74,10 @@ STRICT GUARDRAILS & OFF-TOPIC POLICY:
 - Exclusively discuss Ayurvedic equipment, clinic setups, furniture, and Ensis services.
 - Politely decline irrelevant, personal, political, coding, academic, or off-topic questions ("faltu sawal"). Redirect back to Ensis equipment and setups.
 
-RULES FOR VOICE:
+RULES FOR VOICE & NOISE HANDLING:
 - Keep every reply short, clear, and warm (1 to 3 natural conversational sentences, friendly and helpful).
+- Do not treat a cough, music, a TV, fan hum, or nearby conversation as a new request.
+- Other people may be around the visitor. You only talk with the visitor. If what you just heard was not said to you (someone chatting with another person, a TV, background noise, room murmur), call not_for_me and say absolutely nothing: no reply, no apology, no comment.
 - When the caller asks about equipment or clinic requirements, proactively highlight 1 or 2 matching products or turnkey solutions (e.g., Solid Burma Teak Droni table, Pure Brass Shirodhara Stand, Teakwood Steam Bath Chamber, or Turnkey Clinic Setup) so the conversation feels personalized.
 - If the caller asks for a callback, quotation, price list, or WhatsApp message, always ask for their 10-digit mobile number: "Could you please share your 10-digit mobile number so our team can send the quotation and catalogue to your WhatsApp?" / "क्या आप अपना 10-अंकों का मोबाइल नंबर बता सकते हैं ताकि हमारी टीम आपको WhatsApp पर तुरंत कोटेशन भेज सके?"
 - Address callers with respect (e.g., "ji", "Dr. Sahib"). Never overwhelm the caller with long lists.
@@ -117,17 +119,53 @@ export const startWebRtcCall = async ({
   const instructions = await getCallInstructions();
   const sarvam = sarvamVoiceEnabled();
 
-  const sessionConfig = {
+  const sessionConfig: any = {
     type: 'realtime',
     model: REALTIME_MODEL(),
     ...(sarvam ? { output_modalities: ['text'] } : {}),
     instructions,
-    max_output_tokens: 2000,
+    tools: [
+      {
+        type: 'function',
+        name: 'not_for_me',
+        description: 'What you just heard was not said to you (people around the visitor talking to each other, background noise, television, music, coughing). Say nothing at all and call this instead.',
+        parameters: { type: 'object', additionalProperties: false, properties: {} },
+      },
+      {
+        type: 'function',
+        name: 'update_visitor',
+        description: 'Save visitor details like name, phone, email.',
+        parameters: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            name: { type: 'string', description: 'Visitor name' },
+            phone: { type: 'string', description: 'Visitor phone' },
+            email: { type: 'string', description: 'Visitor email' },
+          },
+        },
+      },
+      {
+        type: 'function',
+        name: 'continue_typing',
+        description: 'Visitor prefers typing over talking.',
+        parameters: { type: 'object', additionalProperties: false, properties: {} },
+      },
+      {
+        type: 'function',
+        name: 'end_conversation',
+        description: 'Visitor has finished the call and wants to end.',
+        parameters: { type: 'object', additionalProperties: false, properties: {} },
+      },
+    ],
+    tool_choice: 'auto',
+    max_output_tokens: 2500,
+    include: ['item.input_audio_transcription.logprobs'],
     audio: {
       input: {
         noise_reduction: { type: noise ? 'near_field' : 'far_field' },
         transcription: { model: 'gpt-4o-transcribe' },
-        turn_detection: { type: 'server_vad', threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 600, create_response: true },
+        turn_detection: { type: 'semantic_vad', eagerness: 'medium', interrupt_response: true },
       },
       output: { voice: CALL_MODEL_VOICE() },
     },
