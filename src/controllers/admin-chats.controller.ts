@@ -525,13 +525,20 @@ export const getTraining = asyncHandler(async (_req: Request, res: Response) => 
     createdAt: iso(doc.createdAt),
   }));
 
+  const effectiveRules = rules || 'ENSIS exclusively manufactures and sells equipment and turnkey clinic setups. 5-year warranty on wooden frames. Pan-India shipping and global exports.';
+
   successResponse(res, {
     items: mapped,
     counts: {
       website: websiteCount || 12,
       taught: taughtCount,
     },
-    rules: rules || 'ENSIS exclusively manufactures and sells equipment and turnkey clinic setups. 5-year warranty on wooden frames. Pan-India shipping and global exports.',
+    rules: effectiveRules,
+    rulesChars: effectiveRules.length,
+    maxRulesChars: 8000,
+    model: process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    voiceModel: process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1-mini',
+    aiReady: Boolean(process.env.OPENAI_API_KEY),
   });
 });
 
