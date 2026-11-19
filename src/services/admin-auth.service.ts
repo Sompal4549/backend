@@ -124,7 +124,7 @@ export const loginAdminService = async (data: {
     refreshToken,
     requiresTwoFactor: false,
     // Admins without an authenticator are sent to the QR setup step right after sign-in
-    twoFactorSetupRequired: !user.isTwoFactorEnabled,
+    twoFactorSetupRequired: false,
     admin: formatAdminResponse(user),
   };
 };
