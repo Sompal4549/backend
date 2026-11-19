@@ -13,6 +13,13 @@ const startServer = async (): Promise<void> => {
     console.warn('[chatbot-knowledge] schedule init warning:', err.message);
   }
 
+  try {
+    const { startLearningSchedule } = await import('./services/chatbot-learn.service');
+    startLearningSchedule();
+  } catch (err: any) {
+    console.warn('[chatbot-learn] schedule init warning:', err.message);
+  }
+
   if (process.env.INFRASTRUCTURE_ENABLED === 'true') {
     const { initInfrastructure } = await import('./modules/infrastructure/infra.init');
     await initInfrastructure().catch((err) => {

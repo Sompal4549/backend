@@ -4,6 +4,8 @@ import { adminMiddleware } from '../middlewares/admin.middleware';
 import {
   getManager,
   getReviewQueue,
+  dismissReview,
+  approveReview,
   listSources,
   publishManager,
   restoreVersion,
@@ -31,4 +33,5 @@ chatbotManagerRouter.delete('/sources/:id', sourcesNotAvailable);
 
 chatbotManagerRouter.post('/test', testBot);
 chatbotManagerRouter.get('/review', getReviewQueue);
-chatbotManagerRouter.post('/review/dismiss', getReviewQueue);
+chatbotManagerRouter.post('/review/dismiss', dismissReview);
+chatbotManagerRouter.post('/review/approve', approveReview);

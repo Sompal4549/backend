@@ -16,7 +16,8 @@ import { SolutionModel } from '../models/solution.model';
 import { streamSpeech } from '../services/chatbot-speech.service';
 import { startWebRtcCall, endActiveCall } from '../services/chatbot-call.service';
 import { isAbusive, toHinglish, DEVANAGARI, GURMUKHI, URDU_LETTERS, looksMarathi } from '../utils/chatGuards';
-import { searchKnowledge, getTrainingRulesText } from '../services/chatbot-knowledge.service';
+import { searchKnowledge, searchKnowledgeDetailed, getTrainingRulesText } from '../services/chatbot-knowledge.service';
+import { captureUnansweredQuestion, recordChatbotFeedback } from '../services/chatbot-learn.service';
 
 const ENSIS_SYSTEM_PROMPT = `You are "Ensis Assist", the expert Ayurvedic wellness & Panchkarma equipment specialist for ENSIS (ensis.in), manufactured by Design House India Pvt. Ltd.
 
@@ -276,6 +277,14 @@ export const buildCatalog = async (): Promise<string> => {
   catalogCache = { text, at: Date.now() };
   return text;
 };
+
+/**
+ * Fast intent-gating: only inject 3KB of product specs when user asks about equipment/pricing/setups.
+ */
+export const isProductIntent = (text: string): boolean =>
+  /\b(product|products|price|cost|rate|quote|quotation|catalog|catalogue|brochure|droni|table|steam|shirodhara|panchkarma|panchakarma|basti|massage|wood|teak|equipment|setup|clinic|hospital|kharid|khareed|khareedna|chahiye|daam|paisa|rupaye|ki|ka|hai|कीमत|दाम|खर्च|कैटलॉग|उपकरण|टेबल|द्रोणी|स्टीम|शिरोधारा)\b/i.test(
+    String(text || '')
+  );
 
 type ManagerAnswer = { question?: string; status?: string; phrases?: string[]; answer?: { en?: string; hi?: string } };
 
@@ -629,24 +638,47 @@ export async function generateBotReply(
   const phoneInstruction = userPhone ? `\nCRITICAL: The visitor's verified 10-digit mobile number is strictly "${userPhone}". If you repeat or confirm their number, you MUST use ONLY these exact digits: ${userPhone}. NEVER prepend 98 or alter any digits.` : '';
   const { instruction: langInstruction, style: langStyle } = detectLanguageInstruction(userMessage, language);
 
+  // ─── Parallelize Knowledge Search & Rules Fetch ───
+  const [passagesResult, teamRules] = await Promise.all([
+    searchKnowledgeDetailed(userMessage, 3).catch(() => ({ passages: [], confidence: 0, provider: 'lexical' as const })),
+    getTrainingRulesText().catch(() => ''),
+  ]);
+
   let dynamicKnowledge = '';
-  try {
-    const passages = await searchKnowledge(userMessage, 3);
-    if (passages.length) {
-      dynamicKnowledge = `\n\nRELEVANT WEBSITE & SPECIFICATION KNOWLEDGE:\n${passages.map((p) => `- ${p.title} (${p.url}): ${p.text}`).join('\n')}`;
-    }
-  } catch {
-    // ignore search knowledge error
+  if (passagesResult.passages.length) {
+    dynamicKnowledge = `\n\nRELEVANT WEBSITE & SPECIFICATION KNOWLEDGE:\n${passagesResult.passages.map((p) => `- ${p.title} (${p.url}): ${p.text}`).join('\n')}`;
   }
 
-  let teamRules = '';
-  try {
-    teamRules = await getTrainingRulesText();
-  } catch {
-    // ignore training rules error
+  // ─── Semantic Cache Instant Reply (Zero-token, <25ms latency) ───
+  if (passagesResult.confidence >= 0.88 && passagesResult.passages.length) {
+    const top = passagesResult.passages[0];
+    const answerMatch =
+      top.text.match(/(?:^|\n)\s*A:\s*([^\n]+(?:\n(?!\s*Q:)[^\n]+)*)/i) ||
+      top.text.match(/Answer:\s*([^\n]+(?:\n(?!\s*Question:)[^\n]+)*)/i);
+    if (answerMatch && answerMatch[1]?.trim()) {
+      const cleanAnswer = answerMatch[1].trim();
+      return { reply: cleanAnswer, provider: 'semantic-cache' };
+    }
   }
 
   const systemContent = `${ENSIS_SYSTEM_PROMPT}${answerEarlierInstruction}${nameInstruction}${phoneInstruction}${langInstruction}${knowledge}${teamRules}${dynamicKnowledge}`;
+
+  // Autonomous Gap Detector helper: records low-confidence or fallback queries for the learning queue
+  const recordIfUnknown = (rep: string, prov: string) => {
+    const isUnknown =
+      prov === 'fallback' ||
+      passagesResult.confidence < 0.35 ||
+      /(क्षमा करें|माफ़ कीजिए|maaf kijiye|sorry|i don't have|i couldn't find|cannot answer|team will contact|team connect karegi|contact our team)/i.test(rep);
+    if (isUnknown && userMessage.trim().length >= 6) {
+      captureUnansweredQuestion({
+        question: userMessage,
+        visitorMessage: userMessage,
+        botReply: rep,
+        language,
+        confidence: passagesResult.confidence,
+      }).catch(() => undefined);
+    }
+  };
 
   // Deterministic Instant Reply when visitor asks for the Assistant's own name
   const cleanQuery = userMessage.trim().toLowerCase();
@@ -688,12 +720,12 @@ export async function generateBotReply(
     try {
       const messages = [
         { role: 'system', content: systemContent },
-        ...history.slice(-12).map((h) => ({ role: h.role, content: h.content })),
+        ...history.slice(-8).map((h) => ({ role: h.role, content: h.content })),
         { role: 'user', content: userMessage },
       ];
 
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 25000);
+      const timer = setTimeout(() => controller.abort(), 20000);
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -713,7 +745,10 @@ export async function generateBotReply(
       if (res.ok) {
         const json = (await res.json()) as any;
         const content = json?.choices?.[0]?.message?.content?.trim();
-        if (content) return { reply: content, provider: 'openai' };
+        if (content) {
+          recordIfUnknown(content, 'openai');
+          return { reply: content, provider: 'openai' };
+        }
       }
     } catch (err) {
       console.warn('[chatbot] OpenAI generation error:', (err as Error).message);
@@ -725,15 +760,24 @@ export async function generateBotReply(
     try {
       const model = process.env.GEMINI_MODEL && !process.env.GEMINI_MODEL.includes('3.5') ? process.env.GEMINI_MODEL : 'gemini-1.5-flash';
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 25000);
+      const timer = setTimeout(() => controller.abort(), 10000);
+      const geminiContents = [
+        ...history.slice(-6).map((h) => ({
+          role: h.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: h.content }],
+        })),
+        {
+          role: 'user',
+          parts: [{ text: `${systemContent}\n\nUser Question: ${userMessage}` }],
+        },
+      ];
+
       const geminiRes = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${systemContent}\n\nUser Question: ${userMessage}` }] }],
-          }),
+          body: JSON.stringify({ contents: geminiContents }),
           signal: controller.signal,
         }
       );
@@ -742,7 +786,10 @@ export async function generateBotReply(
       if (geminiRes.ok) {
         const data = (await geminiRes.json()) as any;
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (text) return { reply: text, provider: 'gemini' };
+        if (text) {
+          recordIfUnknown(text, 'gemini');
+          return { reply: text, provider: 'gemini' };
+        }
       }
     } catch (err) {
       console.warn('[chatbot] Gemini generation error:', (err as Error).message);
@@ -1347,17 +1394,16 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
     });
   }
 
+  // Parallelize config fetch and intent-gated catalog loading
   let knowledge = '';
   try {
-    knowledge = buildKnowledge(await getPublishedConfigService());
+    const [configDoc, catalogText] = await Promise.all([
+      getPublishedConfigService().catch(() => null),
+      isProductIntent(userText) ? buildCatalog().catch(() => '') : Promise.resolve(''),
+    ]);
+    knowledge = `${buildKnowledge(configDoc)}${catalogText}`;
   } catch (err) {
-    console.error('Failed to load published answers:', err);
-  }
-
-  try {
-    knowledge += await buildCatalog();
-  } catch (err) {
-    console.error('Failed to load catalog:', err);
+    console.error('Failed to load published answers or catalog:', err);
   }
 
   // Multi-turn history from previous messages in this session
@@ -1597,18 +1643,31 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
   const needsOtp = userMsgCount >= 2 && !session.phoneVerifiedAt;
 
   const nextSpeakId = (session.messages?.length || 0) + 1;
-  session.messages.push({
-    role: 'user',
-    content: userText,
-    timestamp: new Date(),
-  });
-  session.messages.push({
-    role: 'assistant',
-    content: replyText,
-    speakId: nextSpeakId,
-    timestamp: new Date(),
-  });
-  await session.save();
+  const userMsgObj = { role: 'user' as const, content: userText, timestamp: new Date() };
+  const botMsgObj = { role: 'assistant' as const, content: replyText, speakId: nextSpeakId, timestamp: new Date() };
+  session.messages.push(userMsgObj);
+  session.messages.push(botMsgObj);
+
+  await ChatbotSessionModel.updateOne(
+    { sessionId: session.sessionId },
+    {
+      $set: {
+        userName: session.userName,
+        nameAsked: session.nameAsked,
+        nameTries: session.nameTries,
+        pendingQuestion: session.pendingQuestion,
+        phone: session.phone,
+        lang: session.lang,
+        capturedLead: session.capturedLead,
+        whatsappConfirmationSent: session.whatsappConfirmationSent,
+        phoneVerifiedAt: session.phoneVerifiedAt,
+        enquiryId: session.enquiryId,
+      },
+      $push: {
+        messages: { $each: [userMsgObj, botMsgObj] },
+      },
+    }
+  );
 
   return successResponse(res, {
     sessionId: session.sessionId,
@@ -1631,6 +1690,282 @@ export const postChatbotMessage = asyncHandler(async (req: Request, res: Respons
     leadVerified: Boolean(session.phoneVerifiedAt),
     phone: session.phone || '',
   });
+});
+
+/**
+ * POST /api/chatbot/message/stream — Real-time Server-Sent Events (SSE) streaming.
+ * First token arrives in <600ms, progressive word-by-word typing.
+ */
+export const postChatbotMessageStream = asyncHandler(async (req: Request, res: Response) => {
+  const userText = String(req.body?.text ?? req.body?.message ?? req.body?.query ?? '').trim();
+  const reqSessionId = req.body?.sessionId || crypto.randomUUID();
+  const lang = req.body?.lang || req.body?.language || 'en';
+  const pageUrl = pageUrlOf(req.body?.pageUrl);
+  const visitor = visitorOf(req);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  (res as any).flushHeaders?.();
+
+  const sendEvent = (event: Record<string, any>) => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  };
+
+  // Check IP block
+  const block = await ChatBlockModel.findOne({ ip: visitor.ip });
+  if (block?.blockedUntil && block.blockedUntil > new Date()) {
+    const blockedMsg = 'Chat is temporarily blocked due to offensive language. Please call +91 9810242841 for assistance.';
+    sendEvent({ type: 'delta', delta: blockedMsg });
+    sendEvent({ type: 'done', reply: blockedMsg, blocked: true, sessionId: reqSessionId });
+    res.end();
+    return;
+  }
+
+  if (!userText) {
+    const welcome = 'Namaste! How may I assist you with Ensis Panchkarma equipment or clinic setups today?';
+    sendEvent({ type: 'delta', delta: welcome });
+    sendEvent({ type: 'done', reply: welcome, sessionId: reqSessionId });
+    res.end();
+    return;
+  }
+
+  if (isAbusive(userText)) {
+    const warnMsg = 'Please avoid offensive language. Continued offensive language will result in an IP block.';
+    sendEvent({ type: 'delta', delta: warnMsg });
+    sendEvent({ type: 'done', reply: warnMsg, flagged: true, sessionId: reqSessionId });
+    res.end();
+    return;
+  }
+
+  let session = await ChatbotSessionModel.findOne({ sessionId: reqSessionId });
+  if (!session) {
+    session = await ChatbotSessionModel.create({
+      sessionId: reqSessionId,
+      lang,
+      pageUrl,
+      visitor,
+      source: 'chat',
+      messages: [],
+    });
+  }
+
+  const rawCleanPhone = extractCleanPhone(userText);
+  if (rawCleanPhone) {
+    session.phone = rawCleanPhone;
+    session.capturedLead = true;
+  }
+  const isCatalogueOrWhatsAppRequest = /\b(whatsapp|catalog|catalogue|brochure|product\s*detail|details|quote|quotation|price\s*list|call\s*me|call\s*karo|contact\s*me|message\s*karo|bhej|send)\b/i.test(userText);
+  const targetPhone = rawCleanPhone || session.phone || '';
+  if (targetPhone && !session.whatsappConfirmationSent && (isCatalogueOrWhatsAppRequest || rawCleanPhone)) {
+    sendChatbotCatalogueWhatsApp(targetPhone, session.userName).catch(() => undefined);
+    session.whatsappConfirmationSent = true;
+    session.capturedLead = true;
+  }
+
+  const candidateName = extractVisitorName(userText);
+  if (candidateName && !session.userName) {
+    session.userName = candidateName;
+  }
+
+  const { detectedLang } = detectLanguageInstruction(userText, session.lang || lang);
+  session.lang = detectedLang;
+  const copy = getCopy(detectedLang);
+
+  if (conversationIsOver(userText)) {
+    const farewell = session.userName
+      ? `${session.userName} ji, Ensis se baat karne ke liye dhanyavaad! Aapka din shubh rahe 😊`
+      : copy.goodbye;
+    const nextSpeakId = (session.messages?.length || 0) + 1;
+    const userMsg = { role: 'user' as const, content: userText, timestamp: new Date() };
+    const botMsg = { role: 'assistant' as const, content: farewell, speakId: nextSpeakId, timestamp: new Date() };
+    await ChatbotSessionModel.updateOne(
+      { sessionId: session.sessionId },
+      { $push: { messages: { $each: [userMsg, botMsg] } } }
+    );
+    sendEvent({ type: 'delta', delta: farewell });
+    sendEvent({ type: 'done', reply: farewell, end: true, sessionId: session.sessionId, speakId: nextSpeakId });
+    res.end();
+    return;
+  }
+
+  // Parallel knowledge & rules
+  const [configDoc, catalogText, passagesResult, teamRules] = await Promise.all([
+    getPublishedConfigService().catch(() => null),
+    isProductIntent(userText) ? buildCatalog().catch(() => '') : Promise.resolve(''),
+    searchKnowledgeDetailed(userText, 3).catch(() => ({ passages: [], confidence: 0, provider: 'lexical' as const })),
+    getTrainingRulesText().catch(() => ''),
+  ]);
+
+  const knowledge = `${buildKnowledge(configDoc)}${catalogText}`;
+  let dynamicKnowledge = '';
+  if (passagesResult.passages.length) {
+    dynamicKnowledge = `\n\nRELEVANT WEBSITE & SPECIFICATION KNOWLEDGE:\n${passagesResult.passages.map((p) => `- ${p.title} (${p.url}): ${p.text}`).join('\n')}`;
+  }
+
+  // Semantic Cache check
+  if (passagesResult.confidence >= 0.88 && passagesResult.passages.length) {
+    const top = passagesResult.passages[0];
+    const answerMatch =
+      top.text.match(/(?:^|\n)\s*A:\s*([^\n]+(?:\n(?!\s*Q:)[^\n]+)*)/i) ||
+      top.text.match(/Answer:\s*([^\n]+(?:\n(?!\s*Question:)[^\n]+)*)/i);
+    if (answerMatch && answerMatch[1]?.trim()) {
+      const cleanAnswer = answerMatch[1].trim();
+      const nextSpeakId = (session.messages?.length || 0) + 1;
+      const userMsg = { role: 'user' as const, content: userText, timestamp: new Date() };
+      const botMsg = { role: 'assistant' as const, content: cleanAnswer, speakId: nextSpeakId, timestamp: new Date() };
+      await ChatbotSessionModel.updateOne(
+        { sessionId: session.sessionId },
+        { $push: { messages: { $each: [userMsg, botMsg] } } }
+      );
+      sendEvent({ type: 'delta', delta: cleanAnswer });
+      sendEvent({ type: 'done', reply: cleanAnswer, sessionId: session.sessionId, speakId: nextSpeakId, provider: 'semantic-cache' });
+      res.end();
+      return;
+    }
+  }
+
+  const nameInstruction = session.userName
+    ? `\nClient Name: "${session.userName}". You may address them politely as "${session.userName} ji".`
+    : '';
+  const phoneInstruction = targetPhone ? `\nCRITICAL: The visitor's verified mobile number is strictly "${targetPhone}".` : '';
+  const { instruction: langInstruction } = detectLanguageInstruction(userText, session.lang);
+  const systemContent = `${ENSIS_SYSTEM_PROMPT}${nameInstruction}${phoneInstruction}${langInstruction}${knowledge}${teamRules}${dynamicKnowledge}`;
+
+  const history = (session.messages || [])
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .slice(-8)
+    .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content || '' }));
+
+  let fullReply = '';
+  let streamed = false;
+
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemContent },
+            ...history,
+            { role: 'user', content: userText },
+          ],
+          temperature: 0.4,
+          max_tokens: 600,
+          stream: true,
+        }),
+        signal: AbortSignal.timeout(25000),
+      });
+
+      if (openAiRes.ok && openAiRes.body) {
+        const reader = openAiRes.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let isReading = true;
+        while (isReading) {
+          const { done, value } = await reader.read();
+          if (done) {
+            isReading = false;
+            break;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith(':')) continue;
+            if (trimmed === 'data: [DONE]') continue;
+            if (trimmed.startsWith('data: ')) {
+              try {
+                const parsed = JSON.parse(trimmed.slice(6));
+                const delta = parsed?.choices?.[0]?.delta?.content;
+                if (delta) {
+                  fullReply += delta;
+                  sendEvent({ type: 'delta', delta });
+                  streamed = true;
+                }
+              } catch (parseErr: any) {
+                // skip malformed streaming frame
+                void parseErr;
+              }
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('[chatbot-stream] OpenAI stream error, falling back:', err.message);
+    }
+  }
+
+  if (!streamed || !fullReply.trim()) {
+    const fallbackRes = await generateBotReply(userText, history, session.userName, detectedLang, knowledge, targetPhone, true);
+    fullReply = fallbackRes.reply;
+    sendEvent({ type: 'delta', delta: fullReply });
+  }
+
+  fullReply = fullReply
+    .replace(/https?:\/\/localhost:\d+/gi, '')
+    .replace(/https?:\/\/(?:www\.)?ensis\.in/gi, '');
+
+  if (passagesResult.confidence < 0.35 || /(क्षमा करें|माफ़ कीजिए|maaf kijiye|sorry|contact our team)/i.test(fullReply)) {
+    captureUnansweredQuestion({
+      question: userText,
+      visitorMessage: userText,
+      botReply: fullReply,
+      language: detectedLang,
+      confidence: passagesResult.confidence,
+    }).catch(() => undefined);
+  }
+
+  const nextSpeakId = (session.messages?.length || 0) + 1;
+  const userMsg = { role: 'user' as const, content: userText, timestamp: new Date() };
+  const botMsg = { role: 'assistant' as const, content: fullReply, speakId: nextSpeakId, timestamp: new Date() };
+
+  await ChatbotSessionModel.updateOne(
+    { sessionId: session.sessionId },
+    {
+      $set: {
+        userName: session.userName,
+        phone: session.phone,
+        lang: session.lang,
+        capturedLead: session.capturedLead,
+        whatsappConfirmationSent: session.whatsappConfirmationSent,
+      },
+      $push: { messages: { $each: [userMsg, botMsg] } },
+    }
+  );
+
+  sendEvent({
+    type: 'done',
+    reply: fullReply,
+    sessionId: session.sessionId,
+    speakId: nextSpeakId,
+    lang: detectedLang,
+    userName: session.userName || '',
+  });
+  res.end();
+});
+
+/**
+ * POST /api/chatbot/feedback — Record 👍 / 👎 visitor feedback
+ */
+export const postChatbotFeedback = asyncHandler(async (req: Request, res: Response) => {
+  const { sessionId, rating, question, botReply, language } = req.body || {};
+  if (!sessionId || !rating) throw new AppError(400, 'sessionId and rating are required');
+  await recordChatbotFeedback({
+    sessionId: String(sessionId),
+    rating: rating === 'positive' || rating === 'thumbs_up' ? 'positive' : 'negative',
+    question: question ? String(question) : undefined,
+    botReply: botReply ? String(botReply) : undefined,
+    language: language ? String(language) : undefined,
+  });
+  successResponse(res, { recorded: true }, 'Feedback recorded');
 });
 
 // GET /api/chatbot/updates

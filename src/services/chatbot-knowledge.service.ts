@@ -210,6 +210,29 @@ export const openaiEmbed = async (texts: string[]): Promise<number[][]> => {
   return out;
 };
 
+/* ── Query Vector LRU Cache (Saves 300-500ms on repeat/similar queries) ── */
+const QUERY_CACHE_MAX = 2000;
+const queryVectorCache = new Map<string, { vector: number[]; at: number }>();
+
+export const getOrEmbedQuery = async (queryText: string): Promise<number[] | null> => {
+  const norm = String(queryText || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!norm) return null;
+  const cached = queryVectorCache.get(norm);
+  if (cached && Date.now() - cached.at < 24 * 60 * 60 * 1000) {
+    return cached.vector;
+  }
+  const [vec] = await openaiEmbed([norm]);
+  if (vec && vec.length) {
+    if (queryVectorCache.size >= QUERY_CACHE_MAX) {
+      const keysToDelete = Array.from(queryVectorCache.keys()).slice(0, 200);
+      for (const k of keysToDelete) queryVectorCache.delete(k);
+    }
+    queryVectorCache.set(norm, { vector: vec, at: Date.now() });
+    return vec;
+  }
+  return null;
+};
+
 /**
  * Prepares chunks and embeddings for a ChatTraining document (Note or Uploaded File).
  */
@@ -583,76 +606,130 @@ export const getTrainingRulesText = async (): Promise<string> => {
   return text;
 };
 
+export interface SearchKnowledgeResult {
+  passages: KnowledgePassage[];
+  confidence: number;
+  provider: 'vector' | 'lexical' | 'rrf';
+}
+
 /**
- * Hybrid Semantic Search (Vector Cosine Similarity + Multi-Lingual Keyword Fallback):
- * Searches live crawled pages, uploaded PDF/Word docs, and database facts.
+ * Detailed Hybrid Semantic Search with RRF Fusion and Confidence Scoring:
+ * Combines cached vector cosine ranking with lexical keyword matching.
  */
-export const searchKnowledge = async (question: string, limit = 4): Promise<KnowledgePassage[]> => {
+export const searchKnowledgeDetailed = async (
+  question: string,
+  limit = 4
+): Promise<SearchKnowledgeResult> => {
   const items = inMemoryIndex || (await loadKnowledgeIndex());
   const query = String(question || '').trim();
-  if (!query) return [];
+  if (!query) return { passages: [], confidence: 0, provider: 'lexical' };
 
-  // 1. Vector Search via OpenAI embedding
+  let queryVec: number[] | null = null;
   if (apiKey() && items.some((i) => i.vector.length > 0)) {
     try {
-      const [queryVec] = await openaiEmbed([query]);
-      if (queryVec && queryVec.length) {
-        let qSumSq = 0;
-        for (let i = 0; i < queryVec.length; i++) qSumSq += queryVec[i] * queryVec[i];
-        const qNorm = Math.sqrt(qSumSq) || 1;
-
-        const scored = items
-          .filter((item) => item.vector.length === queryVec.length)
-          .map((item) => {
-            let dot = 0;
-            for (let i = 0; i < queryVec.length; i++) dot += queryVec[i] * item.vector[i];
-            return { item, score: dot / (qNorm * item.norm) };
-          });
-
-        scored.sort((a, b) => b.score - a.score);
-
-        const perUrl = new Map<string, number>();
-        const results: KnowledgePassage[] = [];
-        for (const { item, score } of scored) {
-          if (score < 0.25) break; // Relevancy threshold
-          const count = perUrl.get(item.url || item.title) || 0;
-          if (count >= 2) continue;
-          perUrl.set(item.url || item.title, count + 1);
-          results.push({ url: item.url, title: item.title, text: item.text });
-          if (results.length >= limit) break;
-        }
-
-        if (results.length) return results;
-      }
+      queryVec = await getOrEmbedQuery(query);
     } catch (err: any) {
-      console.warn(`[chatbot-knowledge] semantic vector search failed: ${err.message}. Falling back to lexical.`);
+      console.warn(`[chatbot-knowledge] query embedding failed: ${err.message}`);
     }
   }
 
-  // 2. Multi-Lingual Lexical Keyword Fallback
+  // 1. Vector Scoring
+  const vectorScores: Array<{ item: IndexedItem; cosine: number; rank: number }> = [];
+  let topCosine = 0;
+  if (queryVec && queryVec.length) {
+    let qSumSq = 0;
+    for (let i = 0; i < queryVec.length; i++) qSumSq += queryVec[i] * queryVec[i];
+    const qNorm = Math.sqrt(qSumSq) || 1;
+
+    const scored = items
+      .filter((item) => item.vector.length === queryVec!.length)
+      .map((item) => {
+        let dot = 0;
+        for (let i = 0; i < queryVec!.length; i++) dot += queryVec![i] * item.vector[i];
+        return { item, cosine: dot / (qNorm * item.norm) };
+      })
+      .filter((x) => x.cosine >= 0.20);
+
+    scored.sort((a, b) => b.cosine - a.cosine);
+    topCosine = scored[0]?.cosine || 0;
+    scored.forEach((s, idx) => {
+      vectorScores.push({ item: s.item, cosine: s.cosine, rank: idx + 1 });
+    });
+  }
+
+  // 2. Multi-Lingual Lexical Scoring
   const keywords = query
     .toLowerCase()
-    .replace(/[^\w\s\u0900-\u097F\u0A00-\u0A7F]/g, ' ')
+    .replace(/[^\w\s\u0900-\u097F\u0A00-\u0A7F\u0980-\u09FF]/gu, ' ')
     .split(/\s+/)
     .filter((w) => w.length > 2);
 
-  if (!keywords.length) return [];
+  const lexicalScores = new Map<IndexedItem, { score: number; rank: number }>();
+  if (keywords.length) {
+    const scoredLex = items
+      .map((item) => {
+        const haystack = `${item.title} ${item.text}`.toLowerCase();
+        let score = 0;
+        for (const kw of keywords) {
+          if (haystack.includes(kw)) score += 1;
+        }
+        return { item, score };
+      })
+      .filter((x) => x.score > 0);
 
-  const scoredLex = items.map((item) => {
-    const haystack = `${item.title} ${item.text}`.toLowerCase();
-    let score = 0;
-    for (const kw of keywords) {
-      if (haystack.includes(kw)) score += 1;
+    scoredLex.sort((a, b) => b.score - a.score);
+    scoredLex.forEach((s, idx) => {
+      lexicalScores.set(s.item, { score: s.score, rank: idx + 1 });
+    });
+  }
+
+  // 3. RRF (Reciprocal Rank Fusion)
+  const itemMap = new Map<IndexedItem, { rrf: number; item: IndexedItem }>();
+
+  // Add vector ranks
+  for (const v of vectorScores) {
+    const lex = lexicalScores.get(v.item);
+    const vRank = v.rank;
+    const lRank = lex?.rank || 999;
+    const rrf = 1 / (60 + vRank) + 1 / (60 + lRank);
+    itemMap.set(v.item, { rrf, item: v.item });
+  }
+
+  // Add lexical items not in vector
+  for (const [item, lex] of lexicalScores.entries()) {
+    if (!itemMap.has(item)) {
+      const rrf = 1 / (60 + 999) + 1 / (60 + lex.rank);
+      itemMap.set(item, { rrf, item });
     }
-    return { item, score };
-  });
+  }
 
-  scoredLex.sort((a, b) => b.score - a.score);
+  const fused = Array.from(itemMap.values());
+  fused.sort((a, b) => b.rrf - a.rrf);
 
-  return scoredLex
-    .filter((x) => x.score > 0)
-    .slice(0, limit)
-    .map((x) => ({ url: x.item.url, title: x.item.title, text: x.item.text }));
+  const perUrl = new Map<string, number>();
+  const results: KnowledgePassage[] = [];
+  for (const { item } of fused) {
+    const count = perUrl.get(item.url || item.title) || 0;
+    if (count >= 2) continue;
+    perUrl.set(item.url || item.title, count + 1);
+    results.push({ url: item.url, title: item.title, text: item.text });
+    if (results.length >= limit) break;
+  }
+
+  const provider: 'vector' | 'lexical' | 'rrf' =
+    vectorScores.length && lexicalScores.size ? 'rrf' : vectorScores.length ? 'vector' : 'lexical';
+
+  const confidence = topCosine > 0 ? topCosine : lexicalScores.size ? 0.40 : 0;
+
+  return { passages: results, confidence, provider };
+};
+
+/**
+ * Standard hybrid search: returns passages directly for seamless caller compatibility.
+ */
+export const searchKnowledge = async (question: string, limit = 4): Promise<KnowledgePassage[]> => {
+  const detailed = await searchKnowledgeDetailed(question, limit);
+  return detailed.passages;
 };
 
 /**

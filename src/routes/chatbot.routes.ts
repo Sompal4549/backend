@@ -3,6 +3,8 @@ import {
   postChatbotSession,
   postChatbotSessionClear,
   postChatbotMessage,
+  postChatbotMessageStream,
+  postChatbotFeedback,
   getChatbotUpdates,
   getChatbotSpeak,
   postChatbotCall,
@@ -24,6 +26,8 @@ export const chatbotRouter = Router();
 chatbotRouter.post('/session', postChatbotSession);
 chatbotRouter.post('/session/clear', postChatbotSessionClear);
 chatbotRouter.post('/message', postChatbotMessage);
+chatbotRouter.post('/message/stream', postChatbotMessageStream);
+chatbotRouter.post('/feedback', postChatbotFeedback);
 chatbotRouter.get('/updates', getChatbotUpdates);
 chatbotRouter.get('/speak', getChatbotSpeak);
 
