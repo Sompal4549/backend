@@ -13,12 +13,12 @@ export const spellPhone = (number: string, isHindi = false): string => {
   const digits = number.replace(/\D/g, '').slice(-10);
   const words = digits.split('').map((d) => (isHindi ? DIGITS_HI[Number(d)] : DIGITS_EN[Number(d)]));
   const prefix = isHindi ? 'प्लस नौ एक, ' : 'plus nine one, ';
-  return prefix + words.slice(0, 5).join(', ') + ', ' + words.slice(5).join(', ');
+  return prefix + words.slice(0, 5).join(' ') + ', ' + words.slice(5).join(' ');
 };
 
 export const spellOtp = (code: string, isHindi = false): string => {
   const digits = code.replace(/\D/g, '');
-  return digits.split('').map((d) => (isHindi ? DIGITS_HI[Number(d)] : DIGITS_EN[Number(d)])).join(', ');
+  return digits.split('').map((d) => (isHindi ? DIGITS_HI[Number(d)] : DIGITS_EN[Number(d)])).join(' ');
 };
 
 /** Text formatting for speech: removes markdown, emojis, asterisks, fixes pronunciation of abbreviations & brand names, cleans hyphens before prices, cleans plus before taxes, and removes repetitive link anchors */
@@ -117,8 +117,14 @@ export const forSpeech = (raw: string): string => {
     .replace(/\b\d{6}\b/g, (m) => spellOtp(m, isDevanagari))
     .replace(/([\w.+-]+)@([\w-]+(?:\.[\w-]+)+)/g, (_, name, domain) => `${name} ${word('एट', 'at')} ${domain.replace(/\./g, ` ${word('डॉट', 'dot')} `)}`)
     .replace(/\s&\s/g, ` ${word('और', 'and')} `)
-    .replace(/\n+/g, '. ')
-    .replace(/([.!?।,:])\s*\.(\s|$)/g, '$1$2')
+    .replace(/[:;|~_]/g, ' ')
+    .replace(/([.!?।])\s*\n+/g, '$1 ')
+    .replace(/\n+/g, isDevanagari ? '। ' : '. ')
+    .replace(/([.!?।])[\s.!?।]+/g, '$1 ')
+    .replace(/\s*,\s*,+/g, ', ')
+    .replace(/,\s*([.!?।])/g, '$1')
+    .replace(/([.!?।])\s*,/g, '$1 ')
+    .replace(/\s*[-–—]\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
 
@@ -175,13 +181,13 @@ export const detectOpenAiVoiceInstructions = (text: string): string => {
 
 export const VOICE_STYLE = {
   hindi:
-    'Voice: Saumya, a calm Indian woman in her early thirties from North India who helps visitors for Ensis Panchkarma. A warm, soft, steady voice, never loud, never high-pitched. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र, clear अनुस्वार), with no American or British accent at all. Pronounce the brand name simply as "Ensis" (or "एन्सिस" in Hindi), soft and clean without pause or explanation. Tone: shaant, vinamra, samvedansheel: calm, humble and compassionate, but practical; never cheerful, salesy, dramatic or flat. Delivery: natural and conversational, like a real person on the phone, never robotic and never like a newsreader; the pitch rises and falls as in real talk. Read numbers and dates slowly and clearly. Pace: unhurried, with soft natural pauses at commas and full stops, a slightly longer pause after a greeting.',
+    'Voice: a young woman from Delhi, a native Hindi speaker, working as a friendly customer-care executive. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र), with no American or British accent at all. English words are said the way people in India say them in everyday Hindi. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
   english:
-    'Voice: Saumya, a calm Indian woman in her early thirties from North India who helps visitors for Ensis Panchkarma. A warm, soft, steady voice, never loud, never high-pitched. Accent: natural Indian English with a gentle, educated cadence and soft retroflex sounds, never harsh or robotic. Pronounce the brand name simply as "Ensis", soft and clean. Tone: calm, humble, polite, and reassuring, practical and natural. Delivery: conversational and authentic, like a real person on the phone. Pace: unhurried, with soft natural pauses at commas and full stops.',
+    'Voice: a young woman from Delhi who speaks Indian English natively, working as a friendly customer-care executive. Accent: clearly Indian English, the way an educated Indian professional speaks, with Indian rhythm and intonation and a light retroflex t and d, not American or British. Say Indian names and places with their Indian pronunciation. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
 };
 
 export const sarvamVoiceEnabled = (): boolean =>
-  process.env.CHAT_TTS_PROVIDER === 'sarvam' && Boolean(process.env.SARVAM_API_KEY);
+  Boolean(process.env.SARVAM_API_KEY) && process.env.CHAT_TTS_PROVIDER !== 'openai';
 
 const sarvamPieces = (text: string): string[] => {
   const pieces: string[] = [];
@@ -280,11 +286,11 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
     if (signal?.aborted) throw err;
   }
 
-  // 2. Fallback to standard OpenAI audio speech (tts-1 with sage or shimmer)
+  // 2. Fallback to standard OpenAI audio speech (tts-1 with shimmer)
   const safeVoice =
-    process.env.OPENAI_TTS_VOICE && process.env.OPENAI_TTS_VOICE !== 'marin'
+    process.env.OPENAI_TTS_VOICE && !/^(marin|sage)$/i.test(process.env.OPENAI_TTS_VOICE)
       ? process.env.OPENAI_TTS_VOICE
-      : 'sage';
+      : 'shimmer';
 
   const fallbackRes = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
