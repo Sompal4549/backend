@@ -1,9 +1,8 @@
 // =========================================================================================
-// 🔒 PERMANENT LOCKED CHATBOT VOICE CONFIGURATION (DESIGN HOUSE STANDARD - DO NOT MODIFY!)
-// DO NOT CHANGE THIS VOICE, SPEAKER, INSTRUCTIONS, OR TIMINGS! IT IS PERMANENTLY APPROVED.
-// - Provider: Sarvam Bulbul (speaker: 'priya', model: 'bulbul:v4-flash')
+// 🔒 PERMANENT CHATBOT VOICE CONFIGURATION (SARVAM AI - ISHITA FEMALE VOICE)
+// - Provider: Sarvam Bulbul (speaker: 'ishita', model: 'bulbul:v3')
 // - Fallback Provider: OpenAI TTS (model: 'gpt-4o-mini-tts' / 'tts-1', voice: 'marin' / 'shimmer')
-// - Style: Friendly customer-care executive from Delhi (natural North Indian Hindi accent)
+// - Style: Soft, natural, friendly female customer-care specialist with clear Hindi & Hinglish
 // =========================================================================================
 
 import { Response } from 'express';
@@ -190,9 +189,9 @@ export const detectOpenAiVoiceInstructions = (text: string): string => {
 
 export const VOICE_STYLE = {
   hindi:
-    'Voice: a young woman from Delhi, a native Hindi speaker, working as a friendly customer-care executive. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र), with no American or British accent at all. English words are said the way people in India say them in everyday Hindi. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
+    'Voice: an exceptionally sweet, soft, natural, and polite young woman from Delhi, a native Hindi speaker, working as a customer-care specialist. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र), with no American or British accent at all. English and Hinglish words are said the way educated Indians say them in everyday conversation. Tone: soft, polite, smiling, and warm. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
   english:
-    'Voice: a young woman from Delhi who speaks Indian English natively, working as a friendly customer-care executive. Accent: clearly Indian English, the way an educated Indian professional speaks, with Indian rhythm and intonation and a light retroflex t and d, not American or British. Say Indian names and places with their Indian pronunciation. Tone: warm, polite, smiling. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
+    'Voice: an exceptionally sweet, soft, natural, and polite young woman from Delhi who speaks Indian English natively, working as a customer-care specialist. Accent: clearly natural Indian English, the way an educated Indian professional speaks, with gentle rhythm and intonation, not American or British. Tone: soft, polite, smiling, and warm. Pace: relaxed and conversational, with natural pauses at commas and full stops, never robotic and never rushed.',
 };
 
 export const sarvamVoiceEnabled = (): boolean =>
@@ -212,7 +211,7 @@ const sarvamPieces = (text: string): string[] => {
   return pieces;
 };
 
-/** Synthesize speech using Sarvam AI Bulbul TTS */
+/** Synthesize speech using Sarvam AI Bulbul TTS (Ishita Female Voice) */
 export const synthesizeSarvamSpeech = async (text: string, signal?: AbortSignal): Promise<Buffer> => {
   const apiKey = process.env.SARVAM_API_KEY;
   if (!apiKey) throw new Error('SARVAM_API_KEY is not configured');
@@ -220,8 +219,28 @@ export const synthesizeSarvamSpeech = async (text: string, signal?: AbortSignal)
   const parts: Buffer[] = [];
   const clean = forSpeech(text);
 
+  const envModel = process.env.SARVAM_TTS_MODEL || 'bulbul:v3';
+  const envSpeaker = process.env.SARVAM_TTS_SPEAKER || 'ishita';
+  const pace = Number(process.env.SARVAM_TTS_PACE) || 1.0;
+
   for (const piece of sarvamPieces(clean)) {
     const langCode = detectSarvamLang(piece);
+
+    // Resolve speaker and model compatibility for Ishita female voice
+    let model = envModel;
+    let speaker = envSpeaker;
+
+    if (speaker.toLowerCase() === 'ishita') {
+      if (model === 'bulbul:v4-flash') {
+        // bulbul:v4-flash requires sub-variant IDs for Ishita
+        speaker = langCode === 'hi-IN' ? 'ishita_enhi_customer' : 'ishita_en_customer';
+      } else {
+        // bulbul:v3 natively supports 'ishita' for all Indian languages
+        model = 'bulbul:v3';
+        speaker = 'ishita';
+      }
+    }
+
     const res = await fetch('https://api.sarvam.ai/text-to-speech', {
       method: 'POST',
       headers: {
@@ -231,9 +250,9 @@ export const synthesizeSarvamSpeech = async (text: string, signal?: AbortSignal)
       body: JSON.stringify({
         text: piece,
         language_code: langCode,
-        model: process.env.SARVAM_TTS_MODEL || 'bulbul:v4-flash',
-        speaker: process.env.SARVAM_TTS_SPEAKER || 'ishita_hi_devotional',
-        pace: Number(process.env.SARVAM_TTS_PACE) || 1.0,
+        model,
+        speaker,
+        pace,
         output_audio_codec: 'mp3',
         speech_sample_rate: 24000,
       }),
