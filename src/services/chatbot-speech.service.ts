@@ -175,9 +175,9 @@ export const detectOpenAiVoiceInstructions = (text: string): string => {
 
 export const VOICE_STYLE = {
   hindi:
-    'Voice: an exceptionally sweet-voiced, gentle, and warm young Indian woman with a soft, melodious, and very pleasant voice (बहुत ही मीठी, मधुर और सौम्य आवाज़). Accent: pure, natural North Indian Hindi with soft, clear diction. English words are spoken gently the way educated Indians naturally say them. Pronounce the brand name simply as "Ensis" (or "एन्सिस" in Hindi), soft and clean without pause or explanation. Tone: melodious, smiling, polite, caring, and soothing (madhur, vinamra, and calming), like a caring Ayurvedic wellness specialist. Never harsh, never sharp, never robotic, never rushed. Pace: relaxed, sweet, and comforting with natural pauses.',
+    'Voice: Saumya, a calm Indian woman in her early thirties from North India who helps visitors for Ensis Panchkarma. A warm, soft, steady voice, never loud, never high-pitched. Accent: natural North Indian Hindi with authentic Hindi sounds (the hard ट ड and soft त द, a tapped र, clear अनुस्वार), with no American or British accent at all. Pronounce the brand name simply as "Ensis" (or "एन्सिस" in Hindi), soft and clean without pause or explanation. Tone: shaant, vinamra, samvedansheel: calm, humble and compassionate, but practical; never cheerful, salesy, dramatic or flat. Delivery: natural and conversational, like a real person on the phone, never robotic and never like a newsreader; the pitch rises and falls as in real talk. Read numbers and dates slowly and clearly. Pace: unhurried, with soft natural pauses at commas and full stops, a slightly longer pause after a greeting.',
   english:
-    'Voice: an exceptionally sweet-voiced, gentle, and warm young Indian woman with a soft, melodious, and very pleasant voice. Accent: natural Indian English with a gentle, educated cadence and soft retroflex sounds, never harsh or robotic. Pronounce the brand name simply as "Ensis", soft and clean. Tone: melodious, smiling, polite, caring, and soothing. Pace: relaxed, sweet, and comforting with natural pauses.',
+    'Voice: Saumya, a calm Indian woman in her early thirties from North India who helps visitors for Ensis Panchkarma. A warm, soft, steady voice, never loud, never high-pitched. Accent: natural Indian English with a gentle, educated cadence and soft retroflex sounds, never harsh or robotic. Pronounce the brand name simply as "Ensis", soft and clean. Tone: calm, humble, polite, and reassuring, practical and natural. Delivery: conversational and authentic, like a real person on the phone. Pace: unhurried, with soft natural pauses at commas and full stops.',
 };
 
 export const sarvamVoiceEnabled = (): boolean =>
@@ -216,8 +216,8 @@ export const synthesizeSarvamSpeech = async (text: string, signal?: AbortSignal)
       body: JSON.stringify({
         text: piece,
         language_code: langCode,
-        model: process.env.SARVAM_TTS_MODEL || 'bulbul:v3',
-        speaker: process.env.SARVAM_TTS_SPEAKER || 'priya',
+        model: process.env.SARVAM_TTS_MODEL || 'bulbul:v4-flash',
+        speaker: process.env.SARVAM_TTS_SPEAKER || 'ishita_hi_devotional',
         pace: Number(process.env.SARVAM_TTS_PACE) || 1.0,
         output_audio_codec: 'mp3',
         speech_sample_rate: 24000,
@@ -251,7 +251,7 @@ export const synthesizeOpenAiSpeech = async (text: string, signal?: AbortSignal)
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured');
 
   const model = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
-  const voice = process.env.OPENAI_TTS_VOICE || 'sage';
+  const voice = process.env.OPENAI_TTS_VOICE || 'marin';
   const clean = forSpeech(text);
 
   // 1. Try sweet, melodious OpenAI configuration (gpt-4o-mini-tts with sage & sweet VOICE_STYLE instructions)

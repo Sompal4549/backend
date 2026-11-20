@@ -14,7 +14,7 @@ const activeCalls = new Map<string, ActiveCall>();
 
 const REALTIME_MODEL = () => process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1-mini';
 const FALLBACK_MODELS = ['gpt-realtime-mini', 'gpt-realtime', 'gpt-4o-mini-realtime-preview'];
-const CALL_MODEL_VOICE = () => process.env.OPENAI_TTS_VOICE || 'sage';
+const CALL_MODEL_VOICE = () => process.env.OPENAI_REALTIME_VOICE || process.env.OPENAI_TTS_VOICE || 'marin';
 
 const MAX_CALL_MINUTES = 10;
 

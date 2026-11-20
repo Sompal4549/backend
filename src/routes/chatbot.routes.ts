@@ -30,6 +30,7 @@ chatbotRouter.post('/message/stream', postChatbotMessageStream);
 chatbotRouter.post('/feedback', postChatbotFeedback);
 chatbotRouter.get('/updates', getChatbotUpdates);
 chatbotRouter.get('/speak', getChatbotSpeak);
+chatbotRouter.post('/speak', getChatbotSpeak);
 
 // Spoken voice calls (OpenAI Realtime + Sarvam Bulbul TTS)
 chatbotRouter.post('/call', postChatbotCall);

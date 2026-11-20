@@ -1998,8 +1998,13 @@ export const getChatbotUpdates = asyncHandler(async (req: Request, res: Response
   });
 });
 
-// GET /api/chatbot/speak
+// GET & POST /api/chatbot/speak
 export const getChatbotSpeak = asyncHandler(async (req: Request, res: Response) => {
+  const directText = typeof req.query.text === 'string' ? req.query.text.trim() : typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  if (directText) {
+    return await streamSpeech(directText.slice(0, 1500), res);
+  }
+
   const sessionId = String(req.query.session || '').trim();
   const messageIndex = Number(req.query.message);
 
