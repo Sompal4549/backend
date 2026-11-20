@@ -184,7 +184,8 @@ export const detectOpenAiVoiceInstructions = (text: string): string => {
     }
     return VOICE_STYLE.hindi;
   }
-  return VOICE_STYLE.english;
+  // The Hindi voice accent for English too: keeps the friendly North Indian Desi accent consistent across all languages
+  return VOICE_STYLE.hindi;
 };
 
 export const VOICE_STYLE = {
