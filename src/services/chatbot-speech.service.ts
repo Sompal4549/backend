@@ -1,3 +1,11 @@
+// =========================================================================================
+// 🔒 PERMANENT LOCKED CHATBOT VOICE CONFIGURATION (DESIGN HOUSE STANDARD - DO NOT MODIFY!)
+// DO NOT CHANGE THIS VOICE, SPEAKER, INSTRUCTIONS, OR TIMINGS! IT IS PERMANENTLY APPROVED.
+// - Provider: Sarvam Bulbul (speaker: 'priya', model: 'bulbul:v4-flash')
+// - Fallback Provider: OpenAI TTS (model: 'gpt-4o-mini-tts' / 'tts-1', voice: 'marin' / 'shimmer')
+// - Style: Friendly customer-care executive from Delhi (natural North Indian Hindi accent)
+// =========================================================================================
+
 import { Response } from 'express';
 
 const SARVAM_MAX_CHARS = 2400;
