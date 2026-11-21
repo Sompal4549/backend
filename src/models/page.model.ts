@@ -34,6 +34,9 @@ export interface IPage extends Document {
   };
   robots?: string;
   faqs?: Array<{ question: string; answer: string }>;
+  isDeleted: boolean;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
 }
 
 const PageSchema: Schema = new Schema(
@@ -65,6 +68,9 @@ const PageSchema: Schema = new Schema(
         answer: { type: String, required: true },
       },
     ],
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: String, default: null },
   },
   {
     timestamps: true,

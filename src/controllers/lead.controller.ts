@@ -72,6 +72,9 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   const limitNum = Math.min(Math.max(parseInt((req.query.limit as string) || "25", 10) || 25, 1), 100);
 
   const filter: Record<string, unknown> = {};
+  if (req.query.includeDeleted !== 'true') {
+    filter.isDeleted = { $ne: true };
+  }
   if (leadCategory) filter.leadCategory = leadCategory;
   if (leadStatus) filter.leadStatus = leadStatus;
   if (priority) filter.priority = priority;
@@ -164,9 +167,19 @@ export const deleteLead = asyncHandler(async (req: Request, res: Response) => {
       `This lead has ${orders} order(s) and ${invoices} invoice(s), so it cannot be deleted. Mark it as Lost instead.`
     );
   }
-  const lead = await LeadModel.findByIdAndDelete(req.params.id);
+  const lead = await LeadModel.findByIdAndUpdate(
+    req.params.id,
+    {
+      $set: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: (req as any).user?.id || (req as any).user?._id?.toString() || 'Admin',
+      },
+    },
+    { new: true }
+  );
   if (!lead) {
     throw new AppError(404, "Lead not found");
   }
-  successResponse(res, null, "Lead deleted");
+  successResponse(res, null, "Lead moved to deleted list");
 });

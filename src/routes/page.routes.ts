@@ -1,7 +1,7 @@
 import { Request, Response, Router } from 'express';
 import { body } from 'express-validator';
 import { validateRequest } from '../middlewares/validate.middleware';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authMiddleware, AuthRequest } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
 import { asyncHandler } from '../utils/async-handler';
 import { AppError } from '../utils/app-error';
@@ -85,6 +85,7 @@ const resolveSlugCandidates = (rawSlug: string): string[] => {
 pageRouter.get('/:slug', asyncHandler(async (req: Request, res: Response) => {
   const candidates = resolveSlugCandidates(req.params.slug);
   const page = await Page.findOne({
+    isDeleted: { $ne: true },
     $or: [
       { slug: { $in: candidates } },
       { configKey: req.params.slug },
@@ -96,8 +97,10 @@ pageRouter.get('/:slug', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // Full page list (all seeded CMS pages) - accessible for both storefront and admin
-pageRouter.get('/', asyncHandler(async (_req: Request, res: Response) => {
-  const pages = await Page.find().sort({ pageName: 1 }).lean();
+pageRouter.get('/', asyncHandler(async (req: Request, res: Response) => {
+  const includeDeleted = req.query.includeDeleted === '1' || req.query.deleted === 'true';
+  const filter = includeDeleted ? {} : { isDeleted: { $ne: true } };
+  const pages = await Page.find(filter).sort({ pageName: 1 }).lean();
   successResponse(res, pages, "Pages retrieved");
 }));
 
@@ -496,6 +499,60 @@ pageRouter.post(
   async (_req: Request, res: Response) => {
     successResponse(res, null, "Redirect created");
   }
+);
+
+// Soft-delete a page
+pageRouter.delete(
+  '/:pageId',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const rawKey = req.params.pageId;
+    const isMongoId = isObjectIdString(rawKey);
+    const query = isMongoId
+      ? { _id: rawKey }
+      : {
+          $or: [
+            { configKey: rawKey },
+            { slug: rawKey },
+            { slug: rawKey.startsWith('/') ? rawKey : `/${rawKey}` },
+            { pageName: new RegExp(`^${rawKey.replace(/[-_]/g, ' ')}$`, 'i') },
+          ],
+        };
+
+    const page = await Page.findOneAndUpdate(
+      query,
+      { $set: { isDeleted: true, deletedAt: new Date(), deletedBy: (req.user as any)?.id || (req.user as any)?._id?.toString() || 'Admin' } },
+      { new: true }
+    );
+    if (!page) throw new AppError(404, 'Page not found');
+    successResponse(res, null, 'Page moved to deleted list');
+  })
+);
+
+// Restore a soft-deleted page
+pageRouter.post(
+  '/:pageId/restore',
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawKey = req.params.pageId;
+    const isMongoId = isObjectIdString(rawKey);
+    const query = isMongoId
+      ? { _id: rawKey }
+      : {
+          $or: [
+            { configKey: rawKey },
+            { slug: rawKey },
+            { slug: rawKey.startsWith('/') ? rawKey : `/${rawKey}` },
+            { pageName: new RegExp(`^${rawKey.replace(/[-_]/g, ' ')}$`, 'i') },
+          ],
+        };
+
+    const page = await Page.findOneAndUpdate(
+      query,
+      { $set: { isDeleted: false, deletedAt: null, deletedBy: null } },
+      { new: true }
+    );
+    if (!page) throw new AppError(404, 'Page not found');
+    successResponse(res, page, 'Page restored successfully');
+  })
 );
 
 export default pageRouter;

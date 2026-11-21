@@ -43,6 +43,9 @@ export interface ILead extends Document {
   leadCategory?: "hot" | "cold" | "";
   refreshToken?: string;
   orders?: Types.ObjectId[];
+  isDeleted?: boolean;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
 }
 
 const leadSchema = new Schema<ILead>(
@@ -117,6 +120,9 @@ const leadSchema = new Schema<ILead>(
     },
     refreshToken: { type: String, select: false },
     orders: [{ type: Schema.Types.ObjectId, ref: "Order" }],
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: String, default: null },
   },
   { timestamps: true }
 );

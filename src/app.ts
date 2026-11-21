@@ -63,6 +63,7 @@ import { systemServicesRouter } from './routes/system-services.routes';
 import { notificationRouter } from './routes/notification.routes';
 import { usersRouter } from './routes/users.routes';
 import { feedbackRouter } from './routes/feedback.routes';
+import { crmRouter } from './modules/crm/crm.routes';
 import { lazyInfraRouter } from './modules/infrastructure/infra.permissions';
 
 export const createApp = () => {
@@ -328,6 +329,7 @@ export const createApp = () => {
   mountRoute('/stalls', stallsRouter);
   mountRoute('/stall-rates', stallRatesRouter);
   mountRoute('/infrastructure', lazyInfraRouter(() => import('./modules/infrastructure/infra.routes')));
+  mountRoute('/crm', crmRouter);
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });

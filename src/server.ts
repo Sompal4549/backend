@@ -28,7 +28,7 @@ const startServer = async (): Promise<void> => {
   }
   const app = createApp();
 
-  const server = app.listen(config.port, () => {
+  const server = app.listen(config.port, '0.0.0.0', () => {
     console.log(`Server is running on http://localhost:${config.port}`);
   });
 

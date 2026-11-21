@@ -31,7 +31,7 @@ const accessSecret = getFirstString(['JWT_ACCESS_SECRET', 'JWT_SECRET'], DEFAULT
 
 // Domains the website and admin are served from; CORS_ORIGIN adds to these instead of replacing them
 const DEFAULT_CORS_ORIGINS = [
-  'http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174',
+  'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3010', 'http://localhost:5173', 'http://localhost:5174',
   'https://ensis-admin-omak.vercel.app', 'https://ensis-frontend-jtom.vercel.app',
   'https://web.ensis.in', 'https://admin.ensis.in', 'https://ensis.in', 'https://www.ensis.in',
 ];

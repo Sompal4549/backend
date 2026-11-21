@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { body, param } from 'express-validator';
-import { addCategory, editCategory, getCategories, removeCategory } from '../controllers/category.controller';
+import {
+  getCategories,
+  addCategory,
+  editCategory,
+  removeCategory,
+  restoreCategoryHandler,
+} from '../controllers/category.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
 import { validateRequest } from '../middlewares/validate.middleware';
@@ -38,4 +44,12 @@ categoryRouter.delete(
   [param('id').isMongoId().withMessage('Valid category id is required')],
   validateRequest,
   removeCategory
+);
+categoryRouter.post(
+  '/:id/restore',
+  authMiddleware,
+  adminMiddleware,
+  [param('id').isMongoId().withMessage('Valid category id is required')],
+  validateRequest,
+  restoreCategoryHandler
 );

@@ -6,6 +6,9 @@ export interface ICategory extends Document {
   slug: string; // URL-friendly identifier, unique
   image?: string;
   isActive: boolean;
+  isDeleted: boolean;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
 }
 
 const categorySchema = new Schema<ICategory>(
@@ -14,6 +17,9 @@ const categorySchema = new Schema<ICategory>(
     slug: { type: String, required: true, unique: true, trim: true },
     image: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: String, default: null },
   },
   { timestamps: true }
 );

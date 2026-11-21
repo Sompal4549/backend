@@ -26,14 +26,20 @@ const assertSlugFree = async (slug: string, exceptId?: string) => {
   if (clash) throw new AppError(409, `Another category already uses the address "${slug}"`);
 };
 
-/** Website: active categories only. Admin (includeInactive): all, with product counts. */
-export const listCategories = async (options: { includeInactive?: boolean } = {}) => {
-  const categories = await CategoryModel.find(options.includeInactive ? {} : { isActive: { $ne: false } })
+/** Website: active categories only (excluding soft-deleted). Admin (includeInactive): all, with product counts. */
+export const listCategories = async (options: { includeInactive?: boolean; includeDeleted?: boolean } = {}) => {
+  const includeInactive = options.includeInactive === true;
+  const includeDeleted = options.includeDeleted === true;
+  const filter: Record<string, unknown> = {};
+  if (!includeInactive) filter.isActive = { $ne: false };
+  if (!includeDeleted) filter.isDeleted = { $ne: true };
+  const categories = await CategoryModel.find(filter)
     .sort({ name: 1 })
     .lean();
   if (!options.includeInactive) return categories;
 
   const counts = await ProductModel.aggregate<{ _id: unknown; count: number }>([
+    { $match: { isDeleted: { $ne: true } } },
     { $group: { _id: '$category', count: { $sum: 1 } } },
   ]);
   const byCategory = new Map(counts.map((c) => [String(c._id), c.count]));
@@ -65,15 +71,28 @@ export const updateCategory = async (categoryId: string, payload: Record<string,
   return category;
 };
 
-export const deleteCategory = async (categoryId: string) => {
-  // Products require a category, so removing one still in use would orphan them
-  const inUse = await ProductModel.countDocuments({ category: categoryId });
+export const deleteCategory = async (categoryId: string, deletedBy?: string) => {
+  // Products require a category, so hiding one still in use would orphan them
+  const inUse = await ProductModel.countDocuments({ category: categoryId, isDeleted: { $ne: true } });
   if (inUse) {
     throw new AppError(409, `${inUse} product${inUse === 1 ? ' uses' : 's use'} this category. Move them to another category first, or hide the category instead.`);
   }
-  const category = await CategoryModel.findByIdAndDelete(categoryId);
-  if (!category) {
-    throw new AppError(404, 'Category not found');
-  }
+  // Soft delete — the category remains recoverable from the deleted list
+  const category = await CategoryModel.findByIdAndUpdate(
+    categoryId,
+    { $set: { isDeleted: true, deletedAt: new Date(), deletedBy: deletedBy || 'Admin', isActive: false } },
+    { new: true }
+  );
+  if (!category) throw new AppError(404, 'Category not found');
+  return category;
+};
+
+export const restoreCategory = async (categoryId: string) => {
+  const category = await CategoryModel.findByIdAndUpdate(
+    categoryId,
+    { $set: { isDeleted: false, deletedAt: null, deletedBy: null, isActive: true } },
+    { new: true }
+  );
+  if (!category) throw new AppError(404, 'Category not found');
   return category;
 };
