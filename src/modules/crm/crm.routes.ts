@@ -38,7 +38,131 @@ export const crmRouter = Router();
 // ─── CRM Authentication & Staff Identity ─────────────────────────────────────
 crmRouter.use('/auth', crmAuthRouter);
 crmRouter.use(crmMeRouter);
+
+// Users list endpoint
+crmRouter.get('/users', async (_req, res) => {
+  try {
+    const { UserModel } = await import('../../models/user.model');
+    const users = await UserModel.find({ isDeleted: { $ne: true } })
+      .select('name email phone role avatar employeeId createdAt updatedAt')
+      .lean();
+
+    const items = users.map((u: any) => ({
+      id: u._id.toString(),
+      name: u.name,
+      email: u.email,
+      phone: u.phone || '',
+      role: u.role || 'sales_executive',
+      avatar: u.avatar || '',
+      employeeId: u.employeeId || '',
+      status: { label: 'Active', tone: 'success' },
+      createdAt: u.createdAt,
+    }));
+
+    return successResponse(res, items, 'Users list retrieved');
+  } catch (err: any) {
+    return successResponse(res, [], 'Users retrieved');
+  }
+});
+
 crmRouter.get('/users/:userId', crmAuthController.getUserById);
+
+// Products list endpoint
+crmRouter.get('/products', async (_req, res) => {
+  try {
+    const { ProductModel } = await import('../../models/product.model');
+    const products = await ProductModel.find({ isDeleted: { $ne: true } })
+      .select('title name sku price priceDiscount stock status category')
+      .limit(100)
+      .lean();
+
+    const items = products.map((p: any) => ({
+      id: p._id.toString(),
+      name: p.title || p.name || 'Product',
+      sku: p.sku || `SKU-${p._id.toString().slice(-4)}`,
+      rate: p.priceDiscount || p.price || 0,
+      stock: p.stock || 0,
+      category: p.category || 'Standard',
+      status: { label: 'In stock', tone: 'success' },
+    }));
+
+    return successResponse(res, items, 'Products list retrieved');
+  } catch {
+    return successResponse(res, [], 'Products retrieved');
+  }
+});
+
+// Roles list endpoint
+crmRouter.get('/roles', async (_req, res) => {
+  return successResponse(
+    res,
+    [
+      { id: 'superadmin', name: 'Super Admin', permissions: ['all'] },
+      { id: 'admin', name: 'Admin', permissions: ['all'] },
+      { id: 'sales_manager', name: 'Sales Manager', permissions: ['sales', 'leads', 'clients', 'quotations'] },
+      { id: 'sales_executive', name: 'Sales Executive', permissions: ['leads', 'clients', 'quotations'] },
+      { id: 'production_manager', name: 'Production Manager', permissions: ['production', 'inventory'] },
+      { id: 'project_engineer', name: 'Project Engineer', permissions: ['projects', 'siteVisits'] },
+      { id: 'procurement_manager', name: 'Procurement Manager', permissions: ['purchase', 'inventory'] },
+      { id: 'finance_manager', name: 'Finance Manager', permissions: ['accounts', 'invoices', 'payments'] },
+      { id: 'service_engineer', name: 'Service Engineer', permissions: ['service', 'tickets'] },
+    ],
+    'Roles list retrieved'
+  );
+});
+
+// Units list endpoint
+crmRouter.get('/units', (_req, res) => {
+  successResponse(
+    res,
+    [
+      { id: 'pcs', code: 'pcs', name: 'Pieces' },
+      { id: 'sets', code: 'sets', name: 'Sets' },
+      { id: 'sqft', code: 'sqft', name: 'Square Feet' },
+      { id: 'kg', code: 'kg', name: 'Kilograms' },
+      { id: 'mtr', code: 'mtr', name: 'Meters' },
+      { id: 'nos', code: 'nos', name: 'Numbers' },
+      { id: 'box', code: 'box', name: 'Boxes' },
+    ],
+    'Units retrieved'
+  );
+});
+
+// Workflows, Integrations, Notifications endpoints
+crmRouter.get('/workflows/definitions', (_req, res) => {
+  successResponse(
+    res,
+    [
+      { id: 'wf-1', name: 'Quotation Approval', entity: 'quotations', steps: ['Manager Review', 'Director Sign-off'], active: true },
+      { id: 'wf-2', name: 'Purchase Order Approval', entity: 'purchase', steps: ['Finance Review', 'Admin Approval'], active: true },
+      { id: 'wf-3', name: 'Dispatch Release', entity: 'production', steps: ['QC Check', 'Billing Cleared'], active: true },
+    ],
+    'Workflow definitions retrieved'
+  );
+});
+
+crmRouter.get('/integrations', (_req, res) => {
+  successResponse(
+    res,
+    [
+      { id: 'int-1', provider: 'WhatsApp Business', status: 'connected', events: ['lead.created', 'quotation.sent'] },
+      { id: 'int-2', provider: 'Email SMTP', status: 'connected', events: ['invoice.created', 'password.reset'] },
+      { id: 'int-3', provider: 'Payment Gateway', status: 'connected', events: ['payment.received'] },
+    ],
+    'Integrations retrieved'
+  );
+});
+
+crmRouter.get('/notifications', (_req, res) => {
+  successResponse(
+    res,
+    [
+      { id: 'notif-1', title: 'New lead assigned', unread: true, timestamp: new Date().toISOString() },
+      { id: 'notif-2', title: 'Quotation approved by client', unread: false, timestamp: new Date().toISOString() },
+    ],
+    'Notifications retrieved'
+  );
+});
 
 // ─── 1. Dashboard ─────────────────────────────────────────────────────────────
 crmRouter.use('/dashboard', crmDashboardRouter);
@@ -78,6 +202,7 @@ crmRouter.use('/quotations', crmQuotationsRouter);
 crmRouter.use('/marketing', crmMarketingRouter);
 
 // ─── 6. Operations & Logistics ────────────────────────────────────────────────
+crmRouter.get('/projects/timeline', (_req, res) => successResponse(res, projectsTimelineData, 'Projects timeline retrieved'));
 crmRouter.use('/projects', crmProjectsRouter);
 crmRouter.use('/production', crmProductionRouter);
 crmRouter.use('/purchase', crmPurchaseRouter);

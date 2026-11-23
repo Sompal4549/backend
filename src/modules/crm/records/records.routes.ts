@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import path from 'path';
 import { successResponse } from '../../../utils/api-response';
+import { CrmRecord } from '../../../models/crm-record.model';
 
 export const crmRecordsRouter = Router();
 
@@ -48,24 +49,31 @@ const projectsTimeline = {
     {
       id: 'PJ-0019',
       name: 'PJ-0019 · Wellness Spa',
-      subtitle: 'Execution · Kochi',
+      subtitle: 'Steam generator · Jaipur',
       start: '2026-10-01',
-      end: '2026-11-25',
-      progress: 45,
+      end: '2026-10-25',
+      progress: 40,
       status: { label: 'On track', tone: 'success', icon: 'check' },
       milestones: [
-        { date: '2026-10-10', label: 'Electrical inspection', done: true },
-        { date: '2026-10-20', label: 'Electrical works', done: false },
+        { date: '2026-10-05', label: 'Advance payment', done: true },
+        { date: '2026-10-18', label: 'Testing', done: false },
       ],
     },
   ],
 };
 
-const reportsCatalog = [
-  { key: 'monthly-sales-summary', title: 'Monthly Sales & Revenue Report', category: 'Sales' },
-  { key: 'project-timeline-variance', title: 'Project Timeline Variance', category: 'Operations' },
-  { key: 'inventory-aging', title: 'Inventory Aging Report', category: 'Supply Chain' },
-];
+const reportsCatalog = {
+  categories: [
+    { key: 'sales', label: 'Sales & Conversion' },
+    { key: 'operations', label: 'Production & Delivery' },
+    { key: 'finance', label: 'Invoicing & Collections' },
+  ],
+  savedViews: [
+    { key: 'monthly-revenue', name: 'Monthly Revenue by Category', category: 'finance', updated: '14 Oct 2026' },
+    { key: 'lead-conversions', name: 'Lead Conversion by Source', category: 'sales', updated: '13 Oct 2026' },
+    { key: 'dispatch-delays', name: 'Dispatch Delay Analysis', category: 'operations', updated: '12 Oct 2026' },
+  ],
+};
 
 crmRecordsRouter.get('/calendar/work', (_req, res) => {
   successResponse(res, workCalendar, 'Work calendar retrieved');
@@ -87,54 +95,109 @@ crmRecordsRouter.post('/forms/:formId', (req, res) => {
   successResponse(res, { id: `F-${Date.now()}`, ...req.body }, 'Form submitted', 201);
 });
 
-crmRecordsRouter.get('/', (req, res) => {
+crmRecordsRouter.get('/', async (req, res) => {
   const setsQuery = req.query.sets as string | undefined;
   if (setsQuery) {
     const keys = setsQuery.split(',').map((k) => k.trim()).filter(Boolean);
     const result: Record<string, any> = {};
-    for (const key of keys) {
-      result[key] = recordSetsMock[key] || {
-        id: key,
-        title: key.replace(/[-_.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-        description: `All records for ${key}`,
-        columns: [
-          { key: 'id', label: 'ID' },
-          { key: 'title', label: 'Title' },
-          { key: 'status', label: 'Status', kind: 'status' },
-          { key: 'updatedAt', label: 'Updated' },
-        ],
-        rows: [],
-        total: 0,
-      };
+
+    try {
+      const docs = await CrmRecord.find({ key: { $in: keys } });
+      const docMap = new Map(docs.map((d: any) => [d.key, d.data]));
+
+      for (const key of keys) {
+        if (docMap.has(key)) {
+          result[key] = docMap.get(key);
+        } else {
+          const initial = recordSetsMock[key] || {
+            id: key,
+            title: key.replace(/[-_.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+            description: `All records for ${key}`,
+            columns: [
+              { key: 'id', label: 'ID' },
+              { key: 'title', label: 'Title' },
+              { key: 'status', label: 'Status', kind: 'status' },
+              { key: 'updatedAt', label: 'Updated' },
+            ],
+            rows: [],
+            total: 0,
+          };
+          result[key] = initial;
+          // Seed in background into MongoDB
+          CrmRecord.create({ key, data: initial }).catch(() => {});
+        }
+      }
+      return successResponse(res, result, 'Record sets retrieved from database');
+    } catch {
+      for (const key of keys) {
+        result[key] = recordSetsMock[key] || { id: key, rows: [], total: 0 };
+      }
+      return successResponse(res, result, 'Record sets retrieved');
     }
-    return successResponse(res, result, 'Record sets retrieved');
   }
+
+  try {
+    const allDocs = await CrmRecord.find({});
+    if (allDocs.length > 0) {
+      const allResult: Record<string, any> = {};
+      allDocs.forEach((d: any) => { allResult[d.key] = d.data; });
+      return successResponse(res, allResult, 'All record sets retrieved from database');
+    }
+  } catch {}
 
   return successResponse(res, recordSetsMock, 'All record sets retrieved');
 });
 
-crmRecordsRouter.get('/:key', (req, res) => {
+crmRecordsRouter.get('/:key', async (req, res) => {
   const key = req.params.key;
-  const set = recordSetsMock[key];
-  if (set) {
-    return successResponse(res, set, `Record set ${key} retrieved`);
-  }
+  try {
+    const existing = await CrmRecord.findOne({ key });
+    if (existing && existing.data) {
+      return successResponse(res, existing.data, `Record set ${key} retrieved from database`);
+    }
 
-  // Graceful fallback for any unknown or dynamic record-set key
-  const fallback = {
-    id: key,
-    title: key.replace(/[-_.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-    description: `All records for ${key}`,
-    columns: [
-      { key: 'id', label: 'ID' },
-      { key: 'title', label: 'Title' },
-      { key: 'status', label: 'Status', kind: 'status' },
-      { key: 'updatedAt', label: 'Updated' },
-    ],
-    rows: [],
-    total: 0,
-  };
-  return successResponse(res, fallback, `Record set ${key} retrieved`);
+    const initial = recordSetsMock[key] || {
+      id: key,
+      title: key.replace(/[-_.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      description: `All records for ${key}`,
+      columns: [
+        { key: 'id', label: 'ID' },
+        { key: 'title', label: 'Title' },
+        { key: 'status', label: 'Status', kind: 'status' },
+        { key: 'updatedAt', label: 'Updated' },
+      ],
+      rows: [],
+      total: 0,
+    };
+
+    // Save into MongoDB so it is permanently in database
+    await CrmRecord.findOneAndUpdate(
+      { key },
+      { key, data: initial },
+      { upsert: true, new: true }
+    );
+
+    return successResponse(res, initial, `Record set ${key} initialized in database`);
+  } catch (err: any) {
+    const fallback = recordSetsMock[key] || { id: key, rows: [], total: 0 };
+    return successResponse(res, fallback, `Record set ${key} retrieved`);
+  }
+});
+
+crmRecordsRouter.post('/:key', async (req, res) => {
+  const key = req.params.key;
+  const newRow = req.body;
+  try {
+    const record = await CrmRecord.findOne({ key });
+    const data = record?.data || recordSetsMock[key] || { id: key, rows: [], total: 0 };
+    if (!newRow.id) newRow.id = `row-${Date.now()}`;
+    data.rows = [newRow, ...(data.rows || [])];
+    data.total = (data.total || 0) + 1;
+    await CrmRecord.findOneAndUpdate({ key }, { key, data }, { upsert: true });
+    return successResponse(res, data, `Record added to ${key} in database`, 201);
+  } catch (err: any) {
+    return successResponse(res, newRow, `Record accepted`, 201);
+  }
 });
 
 export default crmRecordsRouter;

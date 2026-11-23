@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
+import { optionMatch, readQuery, textMatch } from '../crm-filters';
 
 export const crmServiceRouter = Router();
 
@@ -133,8 +134,47 @@ const mockServiceTicket = {
   parts: [],
 };
 
-crmServiceRouter.get('/overview', (_req, res) => {
-  successResponse(res, serviceOverview, 'Service overview retrieved');
+crmServiceRouter.get('/overview', (req, res) => {
+  const q = readQuery(req, 'q', 'client', 'engineer', 'priority', 'status');
+  const tickets = serviceOverview.tickets.filter(
+    (ticket) =>
+      textMatch(q, ticket.id, ticket.client, ticket.equipment, ticket.issue, ticket.assignedTo) &&
+      optionMatch(ticket.client, q.client) &&
+      optionMatch(ticket.assignedTo, q.engineer) &&
+      optionMatch(ticket.priority.label, q.priority) &&
+      optionMatch(ticket.status.label, q.status),
+  );
+  const visits = serviceOverview.visits.filter(
+    (visit) =>
+      textMatch(q, visit.client, visit.location, visit.type, visit.assignedTo) &&
+      optionMatch(visit.client, q.client) &&
+      optionMatch(visit.assignedTo, q.engineer),
+  );
+  const escalations = serviceOverview.escalations.filter(
+    (escalation) =>
+      textMatch(q, escalation.ticket, escalation.client, escalation.issue, escalation.assignedTo) &&
+      optionMatch(escalation.client, q.client) &&
+      optionMatch(escalation.assignedTo, q.engineer),
+  );
+  const maintenance = serviceOverview.maintenance.filter(
+    (row) => textMatch(q, row.equipmentId, row.client, row.equipment) && optionMatch(row.client, q.client),
+  );
+
+  const filtered = Object.keys(q).length > 0;
+  const kpis = filtered
+    ? {
+        ...serviceOverview.kpis,
+        open: tickets.length,
+        dueToday: tickets.filter((ticket) => ticket.responseDue.overdue).length,
+        escalated: tickets.filter((ticket) => ticket.status.label === 'Escalated').length,
+      }
+    : serviceOverview.kpis;
+
+  successResponse(
+    res,
+    { ...serviceOverview, kpis, tickets, visits, escalations, maintenance },
+    'Service overview retrieved',
+  );
 });
 
 crmServiceRouter.get('/tickets/new', (_req, res) => {
