@@ -230,14 +230,30 @@ const mockDailyReport = {
   ],
 };
 
-export const getWorkOverviewHandler = async (_req: any, res: any) => {
+export const getWorkOverviewHandler = async (req: any, res: any) => {
   try {
+    const period = (req.query?.period as string) || 'All Periods';
     const { CrmRecord } = await import('../../../models/crm-record.model');
     const tasksDoc = await CrmRecord.findOne({ key: 'tasks.companyTasks' });
     const storedTasks = tasksDoc?.data && Array.isArray(tasksDoc.data) ? tasksDoc.data : [];
 
     const existingDefault = fullMyWorkOverview.companyTasks;
     const allCompanyTasks = [...storedTasks, ...existingDefault.filter((t) => !storedTasks.some((st: any) => st.id === t.id))];
+
+    let filteredCompanyTasks = allCompanyTasks;
+    let kpis = { ...fullMyWorkOverview.kpis, today: allCompanyTasks.length };
+
+    if (period === 'Today') {
+      filteredCompanyTasks = allCompanyTasks.filter((t: any) =>
+        t.due?.day === 'Today' || t.status === 'In Progress' || t.status === 'Awaiting Review' || t.priority === 'High'
+      );
+      kpis = { today: filteredCompanyTasks.length, completed: 18, overdue: 1, blocked: 1, awaitingReview: 2 };
+    } else if (period === 'This Week') {
+      filteredCompanyTasks = allCompanyTasks.filter((t: any) => t.status !== 'Completed');
+      kpis = { today: filteredCompanyTasks.length, completed: 48, overdue: 5, blocked: 2, awaitingReview: 3 };
+    } else if (period === 'This Quarter') {
+      kpis = { today: allCompanyTasks.length, completed: 280, overdue: 15, blocked: 6, awaitingReview: 5 };
+    }
 
     const myPrioritiesDoc = await CrmRecord.findOne({ key: 'dashboard.myPriorities' });
     const myPriorities = myPrioritiesDoc?.data && Array.isArray(myPrioritiesDoc.data)
@@ -257,9 +273,10 @@ export const getWorkOverviewHandler = async (_req: any, res: any) => {
       res,
       {
         ...fullMyWorkOverview,
-        totalCompanyTasks: allCompanyTasks.length,
-        kpis: { ...fullMyWorkOverview.kpis, today: allCompanyTasks.length },
-        companyTasks: allCompanyTasks,
+        period,
+        totalCompanyTasks: filteredCompanyTasks.length,
+        kpis,
+        companyTasks: filteredCompanyTasks,
         myPriorities,
       },
       'Work overview retrieved'

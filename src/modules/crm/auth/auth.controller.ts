@@ -1,5 +1,9 @@
 import { Request, Response } from 'express';
+import speakeasy from 'speakeasy';
+import qrcode from 'qrcode';
+import jwt from 'jsonwebtoken';
 import { AppError } from '../../../utils/app-error';
+import { UserModel } from '../../../models/user.model';
 import { crmAuthService } from './auth.service';
 
 export const crmAuthController = {
@@ -10,12 +14,40 @@ export const crmAuthController = {
       const result = await crmAuthService.login(email, password, totpCode);
 
       if (result.requiresTwoFactor) {
+        let qrCode = '';
+        let manualKey = '';
+
+        try {
+          const decoded = result.tempToken ? (jwt.decode(result.tempToken) as { id?: string } | null) : null;
+          const user = decoded?.id
+            ? await UserModel.findById(decoded.id).select('+twoFactorSecret')
+            : await UserModel.findOne({ email: (email || '').toLowerCase().trim() }).select('+twoFactorSecret');
+
+          if (user) {
+            let secret = user.twoFactorSecret;
+            if (!secret) {
+              secret = speakeasy.generateSecret({ length: 20 }).base32;
+              user.twoFactorSecret = secret;
+              await user.save();
+            }
+            manualKey = secret;
+            const label = `Ensis CRM (${user.email})`;
+            const issuer = 'Ensis CRM';
+            const otpauthUrl = speakeasy.otpauthURL({ secret, label, issuer, encoding: 'base32' });
+            qrCode = await qrcode.toDataURL(otpauthUrl, { width: 220, margin: 1 });
+          }
+        } catch (e: any) {
+          console.warn('[CRM Auth] QR generation error:', e?.message);
+        }
+
         return res.status(200).json({
           ok: true,
           challengeId: result.tempToken,
           tempToken: result.tempToken,
-          maskedEmail: 'Authenticator App',
+          maskedEmail: result.admin?.email || email || 'Authenticator App',
           requiresTwoFactor: true,
+          qrCode,
+          manualKey,
         });
       }
 

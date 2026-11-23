@@ -8,10 +8,10 @@ async function seed() {
 
   const users = db.collection('users');
 
-  // Disable 2FA for somfrontenddeveloper so login is seamless
+  // Enable 2FA for CRM staff accounts
   await users.updateOne(
     { email: 'somfrontenddeveloper@gmail.com' },
-    { $set: { isTwoFactorEnabled: false } }
+    { $set: { isTwoFactorEnabled: true } }
   );
 
   const hash = await bcrypt.hash('Ensis@123', 10);
@@ -25,7 +25,7 @@ async function seed() {
         email: 'vijay@ensis.in',
         password: hash,
         role: 'superadmin',
-        isTwoFactorEnabled: false,
+        isTwoFactorEnabled: true,
         emailVerified: true,
       },
     },
@@ -41,7 +41,7 @@ async function seed() {
         email: 'simran@ensis.in',
         password: hash,
         role: 'admin',
-        isTwoFactorEnabled: false,
+        isTwoFactorEnabled: true,
         emailVerified: true,
       },
     },

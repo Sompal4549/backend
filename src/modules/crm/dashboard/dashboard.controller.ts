@@ -2,16 +2,145 @@ import { Response } from 'express';
 import { successResponse } from '../../../utils/api-response';
 import { asyncHandler } from '../../../utils/async-handler';
 
-export const getCompanyDashboard = asyncHandler(async (_req, res: Response) => {
-  const dashboard = {
-    kpis: {
-      salesMtd: { value: '₹18.4L', target: '₹25L', progress: 74 },
-      collectionsMtd: { value: '₹12.8L', change: '+12%' },
+export const getCompanyDashboard = asyncHandler(async (req, res: Response) => {
+  const period = (req.query.period as string) || 'All Periods';
+
+  let kpis = {
+    salesMtd: { value: '₹18.4L', target: '₹25L', progress: 74 },
+    collectionsMtd: { value: '₹12.8L', change: '+12%' },
+    receivables: { value: '₹6.8L', overdue: '₹1.2L' },
+    cashAndBank: { value: '₹9.4L', change: '+8%' },
+    expensesMtd: { value: '₹8.6L', budget: '₹9L', progress: 96 },
+    staff: { present: 42, total: 46, rate: 91, onLeave: 2, absent: 2 },
+  };
+
+  let workload = {
+    completionRate: 80,
+    completed: 96,
+    total: 120,
+    completedChange: '+8%',
+    overdue: 12,
+    overdueChange: '+2',
+    blocked: 4,
+    reportsReceived: 9,
+    reportsExpected: 11,
+    missingReports: ['Purchase', 'Production'],
+  };
+
+  let pipeline = {
+    segments: [
+      { label: 'Equipment', value: '₹14.2L', opportunities: 8 },
+      { label: 'Turnkey', value: '₹15.6L', opportunities: 6 },
+      { label: 'Consultancy', value: '₹2.8L', opportunities: 5 },
+      { label: 'Total Open', value: '₹32.6L', opportunities: 19 },
+    ],
+    quotationSent: 12,
+    inNegotiation: 7,
+  };
+
+  let execution = [
+    { key: 'projects', label: 'Projects at risk', count: 2 },
+    { key: 'qc', label: 'Jobs pending QC', count: 3 },
+    { key: 'dispatch', label: 'Dispatches due today', count: 3 },
+    { key: 'stock', label: 'Low stock items', count: 5 },
+    { key: 'service', label: 'Service tickets open', count: 4 },
+  ];
+
+  if (period === 'Today') {
+    kpis = {
+      salesMtd: { value: '₹2.4L', target: '₹2.0L', progress: 120 },
+      collectionsMtd: { value: '₹1.8L', change: '+24%' },
+      receivables: { value: '₹6.8L', overdue: '₹0.4L' },
+      cashAndBank: { value: '₹9.4L', change: '+2%' },
+      expensesMtd: { value: '₹0.6L', budget: '₹0.8L', progress: 75 },
+      staff: { present: 43, total: 46, rate: 93, onLeave: 2, absent: 1 },
+    };
+    workload = {
+      completionRate: 88,
+      completed: 18,
+      total: 20,
+      completedChange: '+12%',
+      overdue: 1,
+      overdueChange: '0',
+      blocked: 1,
+      reportsReceived: 9,
+      reportsExpected: 11,
+      missingReports: ['Purchase', 'Production'],
+    };
+    pipeline = {
+      segments: [
+        { label: 'Equipment', value: '₹3.5L', opportunities: 2 },
+        { label: 'Turnkey', value: '₹4.2L', opportunities: 1 },
+        { label: 'Consultancy', value: '₹0.8L', opportunities: 1 },
+        { label: 'Total Open', value: '₹8.5L', opportunities: 4 },
+      ],
+      quotationSent: 3,
+      inNegotiation: 2,
+    };
+    execution = [
+      { key: 'projects', label: 'Projects at risk', count: 1 },
+      { key: 'qc', label: 'Jobs pending QC', count: 1 },
+      { key: 'dispatch', label: 'Dispatches due today', count: 3 },
+      { key: 'stock', label: 'Low stock items', count: 5 },
+      { key: 'service', label: 'Service tickets open', count: 2 },
+    ];
+  } else if (period === 'This Week') {
+    kpis = {
+      salesMtd: { value: '₹8.6L', target: '₹10L', progress: 86 },
+      collectionsMtd: { value: '₹5.4L', change: '+15%' },
+      receivables: { value: '₹6.8L', overdue: '₹0.8L' },
+      cashAndBank: { value: '₹9.4L', change: '+5%' },
+      expensesMtd: { value: '₹3.2L', budget: '₹3.8L', progress: 84 },
+      staff: { present: 42, total: 46, rate: 91, onLeave: 3, absent: 1 },
+    };
+    workload = {
+      completionRate: 84,
+      completed: 48,
+      total: 58,
+      completedChange: '+6%',
+      overdue: 5,
+      overdueChange: '+1',
+      blocked: 2,
+      reportsReceived: 9,
+      reportsExpected: 11,
+      missingReports: ['Purchase'],
+    };
+    pipeline = {
+      segments: [
+        { label: 'Equipment', value: '₹7.8L', opportunities: 4 },
+        { label: 'Turnkey', value: '₹8.2L', opportunities: 3 },
+        { label: 'Consultancy', value: '₹1.5L', opportunities: 2 },
+        { label: 'Total Open', value: '₹17.5L', opportunities: 9 },
+      ],
+      quotationSent: 8,
+      inNegotiation: 5,
+    };
+  } else if (period === 'This Quarter') {
+    kpis = {
+      salesMtd: { value: '₹54.2L', target: '₹70L', progress: 77 },
+      collectionsMtd: { value: '₹41.5L', change: '+18%' },
       receivables: { value: '₹6.8L', overdue: '₹1.2L' },
-      cashAndBank: { value: '₹9.4L', change: '+8%' },
-      expensesMtd: { value: '₹8.6L', budget: '₹9L', progress: 96 },
+      cashAndBank: { value: '₹9.4L', change: '+12%' },
+      expensesMtd: { value: '₹24.8L', budget: '₹26L', progress: 95 },
       staff: { present: 42, total: 46, rate: 91, onLeave: 2, absent: 2 },
-    },
+    };
+    workload = {
+      completionRate: 82,
+      completed: 280,
+      total: 340,
+      completedChange: '+10%',
+      overdue: 15,
+      overdueChange: '+3',
+      blocked: 6,
+      reportsReceived: 9,
+      reportsExpected: 11,
+      missingReports: ['Purchase', 'Production'],
+    };
+  }
+
+  const dashboard: any = {
+    period,
+    kpis,
     departments: [
       {
         key: 'sales',
@@ -104,23 +233,8 @@ export const getCompanyDashboard = asyncHandler(async (_req, res: Response) => {
         status: { label: 'On track', tone: 'success', icon: 'check' },
       },
     ],
-    pipeline: {
-      segments: [
-        { label: 'Equipment', value: '₹14.2L', opportunities: 8 },
-        { label: 'Turnkey', value: '₹15.6L', opportunities: 6 },
-        { label: 'Consultancy', value: '₹2.8L', opportunities: 5 },
-        { label: 'Total Open', value: '₹32.6L', opportunities: 19 },
-      ],
-      quotationSent: 12,
-      inNegotiation: 7,
-    },
-    execution: [
-      { key: 'projects', label: 'Projects at risk', count: 2 },
-      { key: 'qc', label: 'Jobs pending QC', count: 3 },
-      { key: 'dispatch', label: 'Dispatches due today', count: 3 },
-      { key: 'stock', label: 'Low stock items', count: 5 },
-      { key: 'service', label: 'Service tickets open', count: 4 },
-    ],
+    pipeline,
+    execution,
     alerts: [
       {
         id: 'alert-1',
@@ -144,18 +258,7 @@ export const getCompanyDashboard = asyncHandler(async (_req, res: Response) => {
         action: 'Review',
       },
     ],
-    workload: {
-      completionRate: 80,
-      completed: 96,
-      total: 120,
-      completedChange: '+8%',
-      overdue: 12,
-      overdueChange: '+2',
-      blocked: 4,
-      reportsReceived: 9,
-      reportsExpected: 11,
-      missingReports: ['Purchase', 'Production'],
-    },
+    workload,
     myPriorities: [
       { id: 'p1', task: 'Review resort proposal', department: 'Sales', time: '11:30 AM', priority: 'High' },
       { id: 'p2', task: 'Approve purchase request', department: 'Purchase', time: '02:00 PM', priority: 'High' },
@@ -172,7 +275,18 @@ export const getCompanyDashboard = asyncHandler(async (_req, res: Response) => {
     const { CrmRecord } = await import('../../../models/crm-record.model');
     const prioritiesDoc = await CrmRecord.findOne({ key: 'dashboard.myPriorities' });
     if (prioritiesDoc && Array.isArray(prioritiesDoc.data) && prioritiesDoc.data.length > 0) {
-      dashboard.myPriorities = prioritiesDoc.data;
+      if (period === 'Today') {
+        dashboard.myPriorities = prioritiesDoc.data.filter((p: any) =>
+          (p.time && p.time.toLowerCase().includes('today')) ||
+          (p.time && !p.time.includes('(')) ||
+          p.priority === 'High' || p.priority === 'Urgent'
+        );
+        if (dashboard.myPriorities.length === 0) {
+          dashboard.myPriorities = prioritiesDoc.data.slice(0, 3);
+        }
+      } else {
+        dashboard.myPriorities = prioritiesDoc.data;
+      }
     }
 
     const activitiesDoc = await CrmRecord.findOne({ key: 'dashboard.activities' });
@@ -183,5 +297,5 @@ export const getCompanyDashboard = asyncHandler(async (_req, res: Response) => {
     console.warn('[Dashboard] Warning reading from MongoDB:', err?.message);
   }
 
-  successResponse(res, dashboard, 'Dashboard retrieved');
+  successResponse(res, dashboard, `Dashboard retrieved for ${period}`);
 });
