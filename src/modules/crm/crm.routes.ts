@@ -754,12 +754,19 @@ crmRouter.get('/lookups', async (_req, res) => {
       .limit(10)
       .lean();
 
-    const salesOwners = users.map(u => ({
-      value: (u.name || '').toLowerCase().replace(/\s+/g, '-'),
-      label: `${u.name || ''} · ${u.role || 'Staff'}`.trim(),
-    }));
+    const seenOwners = new Set<string>();
+    const salesOwners: Array<{ value: string; label: string }> = [];
+    for (const u of users) {
+      const val = (u.name || '').toLowerCase().replace(/\s+/g, '-');
+      if (!val || seenOwners.has(val)) continue;
+      seenOwners.add(val);
+      salesOwners.push({
+        value: val,
+        label: `${u.name || ''} · ${u.role || 'Staff'}`.trim(),
+      });
+    }
 
-    const relationshipOwners = users.map(u => `${u.name || ''}`.trim()).filter(Boolean);
+    const relationshipOwners = Array.from(new Set(users.map(u => `${u.name || ''}`.trim()).filter(Boolean)));
 
     const recentLeads = leads.map(l => ({
       value: `LD-${l._id.toString().slice(-4).toUpperCase()}`,
