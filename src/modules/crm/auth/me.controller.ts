@@ -6,16 +6,17 @@ import { changePasswordService } from '../../../services/admin-auth.service';
 import { AuthRequest } from '../../../middlewares/auth.middleware';
 
 function formatAccountProfile(user: UserDocument) {
-  const parts = user.name.trim().split(/\s+/);
+  const name = (user.name || 'Vijay Sharma').trim();
+  const parts = name.split(/\s+/);
   const initials = parts.length > 1
     ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
     : parts[0].slice(0, 2).toUpperCase();
 
   return {
-    name: user.name,
+    name,
     initials,
     photoUrl: user.avatar,
-    email: user.email,
+    email: user.email || 'user@ensis.in',
     mobile: user.phone || '',
     designation: user.role === ROLE.SUPERADMIN ? 'Super Admin' : user.role === ROLE.ADMIN ? 'Admin' : 'Staff',
     department: 'CRM',
@@ -80,8 +81,10 @@ export const crmMeController = {
     if (user) {
       if (req.body.name) user.name = req.body.name;
       if (req.body.mobile) user.phone = req.body.mobile;
+      if (req.body.photoUrl !== undefined) user.avatar = req.body.photoUrl;
+      else if (req.body.avatar !== undefined) user.avatar = req.body.avatar;
       await user.save();
-      return res.status(200).json({ id: user._id.toString() });
+      return res.status(200).json({ id: user._id.toString(), avatar: user.avatar });
     }
     res.status(200).json({ id: 'me' });
   }),

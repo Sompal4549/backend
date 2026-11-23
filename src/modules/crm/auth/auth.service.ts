@@ -8,6 +8,8 @@ export interface SessionUser {
   name: string;
   email: string;
   role: string;
+  avatar?: string;
+  photoUrl?: string;
 }
 
 export interface AdminSession {
@@ -88,6 +90,8 @@ export const crmAuthService = {
       name: user.name,
       email: user.email,
       role: user.role === ROLE.SUPERADMIN ? 'Super Admin' : 'Admin',
+      avatar: user.avatar || '',
+      photoUrl: user.avatar || '',
     };
   },
 };

@@ -9,11 +9,11 @@ const inStock = { label: 'In stock', tone: 'success', icon: 'check' };
 const inventoryOverview = {
   kpis: { activeSkus: 156, lowStock: 5, reservedValue: '₹1.8L', stockValue: '₹8.4L' },
   items: [
-    { name: 'Brass fitting', sku: 'BF-12', location: 'WH-A', onHand: 40, reserved: 30, available: 10, reorderAt: 15, status: lowStock },
-    { name: 'Steam controller', sku: 'SC-08', location: 'WH-A', onHand: 12, reserved: 8, available: 4, reorderAt: 5, status: lowStock },
-    { name: 'Teak panel', sku: 'TP-24', location: 'WH-B', onHand: 60, reserved: 20, available: 40, reorderAt: 15, status: inStock },
-    { name: 'Therapy cushion', sku: 'TC-04', location: 'WH-B', onHand: 28, reserved: 6, available: 22, reorderAt: 10, status: inStock },
-    { name: 'Heating element', sku: 'HE-06', location: 'WH-A', onHand: 18, reserved: 10, available: 8, reorderAt: 10, status: lowStock },
+    { name: 'Brass fitting', sku: 'BF-12', category: 'Fittings', location: 'WH-A', onHand: 40, reserved: 30, available: 10, reorderAt: 15, status: lowStock },
+    { name: 'Steam controller', sku: 'SC-08', category: 'Controllers', location: 'WH-A', onHand: 12, reserved: 8, available: 4, reorderAt: 5, status: lowStock },
+    { name: 'Teak panel', sku: 'TP-24', category: 'Panels', location: 'WH-B', onHand: 60, reserved: 20, available: 40, reorderAt: 15, status: inStock },
+    { name: 'Therapy cushion', sku: 'TC-04', category: 'Cushions', location: 'WH-B', onHand: 28, reserved: 6, available: 22, reorderAt: 10, status: inStock },
+    { name: 'Heating element', sku: 'HE-06', category: 'Fittings', location: 'WH-A', onHand: 18, reserved: 10, available: 8, reorderAt: 10, status: lowStock },
   ],
   readiness: [
     { jobId: 'JB-0086', item: 'Steam chamber', quantity: '1 set', status: { label: '1 shortage', tone: 'danger', icon: 'warning' } },

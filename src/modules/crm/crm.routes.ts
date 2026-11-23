@@ -153,17 +153,6 @@ crmRouter.get('/integrations', (_req, res) => {
   );
 });
 
-crmRouter.get('/notifications', (_req, res) => {
-  successResponse(
-    res,
-    [
-      { id: 'notif-1', title: 'New lead assigned', unread: true, timestamp: new Date().toISOString() },
-      { id: 'notif-2', title: 'Quotation approved by client', unread: false, timestamp: new Date().toISOString() },
-    ],
-    'Notifications retrieved'
-  );
-});
-
 // ─── 1. Dashboard ─────────────────────────────────────────────────────────────
 crmRouter.use('/dashboard', crmDashboardRouter);
 crmRouter.get('/dashboard/company', getCompanyDashboard);

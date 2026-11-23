@@ -134,21 +134,17 @@ const productionOverview = {
 
 crmProductionRouter.get('/overview', (req, res) => {
   const q = readQuery(req, 'q', 'owner', 'stage', 'due', 'period');
+  // The Due Date control narrows the jobs table; the header period is the fallback.
+  const range = q.due && !/^all\b/i.test(q.due) ? q.due : q.period;
   const jobs = productionOverview.jobs.filter(
     (job) =>
       textMatch(q, job.id, job.salesOrder, job.client, job.product) &&
       optionMatch(job.owner, q.owner) &&
       optionMatch(job.stage.label, q.stage) &&
-      (q.due && !/^all\b/i.test(q.due) ? inPeriod(job.targetDispatch, q.due) : inPeriod(job.targetDispatch, q.period)),
+      inPeriod(job.targetDispatch, range),
   );
-  const visible = new Set(jobs.map((job) => job.id));
-  const jobDetails =
-    jobs.length === productionOverview.jobs.length || visible.has(productionOverview.jobDetails.id)
-      ? productionOverview.jobDetails
-      : { ...productionOverview.jobDetails, ...jobs[0] };
-  const dispatchPlan = productionOverview.dispatchPlan.filter((plan) => !q.due || /^all\b/i.test(q.due) || true);
 
-  successResponse(res, { ...productionOverview, jobs, jobDetails, dispatchPlan }, 'Production overview retrieved');
+  successResponse(res, { ...productionOverview, jobs }, 'Production overview retrieved');
 });
 
 crmProductionRouter.get('/jobs/new', (_req, res) => {
