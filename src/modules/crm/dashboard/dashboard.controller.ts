@@ -168,5 +168,20 @@ export const getCompanyDashboard = asyncHandler(async (_req, res: Response) => {
     ],
   };
 
+  try {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const prioritiesDoc = await CrmRecord.findOne({ key: 'dashboard.myPriorities' });
+    if (prioritiesDoc && Array.isArray(prioritiesDoc.data) && prioritiesDoc.data.length > 0) {
+      dashboard.myPriorities = prioritiesDoc.data;
+    }
+
+    const activitiesDoc = await CrmRecord.findOne({ key: 'dashboard.activities' });
+    if (activitiesDoc && Array.isArray(activitiesDoc.data) && activitiesDoc.data.length > 0) {
+      dashboard.activities = activitiesDoc.data;
+    }
+  } catch (err: any) {
+    console.warn('[Dashboard] Warning reading from MongoDB:', err?.message);
+  }
+
   successResponse(res, dashboard, 'Dashboard retrieved');
 });

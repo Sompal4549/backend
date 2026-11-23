@@ -207,12 +207,117 @@ crmRouter.use('/workflows', crmWorkflowsRouter);
 
 // ─── DIRECT HANDLERS FOR TOP-LEVEL FRONTEND SERVICE ENDPOINTS ───────────────────
 // Config-driven modal form submissions:
-crmRouter.post('/forms/:formId', (req, res) => {
+crmRouter.post('/forms/:formId', async (req, res) => {
   const formId = req.params.formId;
   const prefix = formId.replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'FRM';
-  successResponse(
+  const id = `${prefix}-${Date.now().toString().slice(-4)}`;
+  const body = req.body || {};
+
+  try {
+    const { CrmRecord } = await import('../../models/crm-record.model');
+
+    // If form is assignTask, persist to dashboard.myPriorities AND tasks.companyTasks
+    if (formId === 'assignTask') {
+      const priorityTask = {
+        id,
+        task: body.title || 'Untitled Task',
+        department: body.department || 'Management',
+        time: (body.dueTime || '11:00 AM') + (body.dueDate ? ` (${body.dueDate})` : ''),
+        priority: body.priority || 'Normal',
+        owner: body.owner || 'Vijay Sharma',
+      };
+
+      const companyTask = {
+        id,
+        title: body.title || 'Untitled Task',
+        record: body.linkedRecord
+          ? { kind: 'task', label: 'Record', ref: body.linkedRecord }
+          : { kind: 'task', label: 'Task', ref: id },
+        owner: { name: body.owner || 'Vijay Sharma', role: 'Assignee' },
+        department: body.department || 'Management',
+        due: {
+          day: body.dueDate || 'Today',
+          time: body.dueTime || '11:00 AM',
+          overdue: false,
+        },
+        priority: body.priority || 'Normal',
+        status: 'To Do',
+        action: 'Open',
+        instructions: body.instructions || '',
+        reviewer: body.reviewer || 'Vijay Sharma',
+        createdAt: new Date().toISOString(),
+      };
+
+      // Prepend to dashboard.myPriorities
+      const existingPrioritiesDoc = await CrmRecord.findOne({ key: 'dashboard.myPriorities' });
+      const currentPriorities = existingPrioritiesDoc?.data || [
+        { id: 'p1', task: 'Review resort proposal', department: 'Sales', time: '11:30 AM', priority: 'High' },
+        { id: 'p2', task: 'Approve purchase request', department: 'Purchase', time: '02:00 PM', priority: 'High' },
+        { id: 'p3', task: 'Review project risks', department: 'Projects', time: '03:00 PM', priority: 'Normal' },
+      ];
+      await CrmRecord.findOneAndUpdate(
+        { key: 'dashboard.myPriorities' },
+        { key: 'dashboard.myPriorities', data: [priorityTask, ...currentPriorities] },
+        { upsert: true, new: true }
+      );
+
+      // Prepend to tasks.companyTasks
+      const existingTasksDoc = await CrmRecord.findOne({ key: 'tasks.companyTasks' });
+      const currentTasks = existingTasksDoc?.data || [];
+      await CrmRecord.findOneAndUpdate(
+        { key: 'tasks.companyTasks' },
+        { key: 'tasks.companyTasks', data: [companyTask, ...currentTasks] },
+        { upsert: true, new: true }
+      );
+
+      // Also log activity
+      const existingActivitiesDoc = await CrmRecord.findOne({ key: 'dashboard.activities' });
+      const currentActivities = existingActivitiesDoc?.data || [
+        { id: 'act-1', at: '10:30 AM', by: 'Simran Kaur', text: 'Quotation sent to Aarogya Ayurveda (₹4.5L)', module: 'Sales' },
+        { id: 'act-2', at: '11:15 AM', by: 'Rajesh Kumar', text: 'QC passed for Panchkarma Table job card', module: 'Production' },
+        { id: 'act-3', at: '12:00 PM', by: 'Pooja Iyer', text: 'NEFT payment received ₹1,00,000', module: 'Accounts' },
+      ];
+      const newActivity = {
+        id: `act-${Date.now().toString().slice(-4)}`,
+        at: 'Just now',
+        by: body.owner || 'Vijay Sharma',
+        text: `Task assigned: ${body.title || 'Untitled Task'}`,
+        module: body.department || 'Management',
+      };
+      await CrmRecord.findOneAndUpdate(
+        { key: 'dashboard.activities' },
+        { key: 'dashboard.activities', data: [newActivity, ...currentActivities] },
+        { upsert: true, new: true }
+      );
+    } else if (formId === 'dailyReport') {
+      const existingActivitiesDoc = await CrmRecord.findOne({ key: 'dashboard.activities' });
+      const currentActivities = existingActivitiesDoc?.data || [];
+      const newActivity = {
+        id: `act-${Date.now().toString().slice(-4)}`,
+        at: 'Just now',
+        by: body.submittedBy || 'Vijay Sharma',
+        text: `Daily report submitted: ${body.summary || body.title || 'Work log'}`,
+        module: body.department || 'Management',
+      };
+      await CrmRecord.findOneAndUpdate(
+        { key: 'dashboard.activities' },
+        { key: 'dashboard.activities', data: [newActivity, ...currentActivities] },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Also record general form submission history
+    await CrmRecord.create({
+      key: `form_submission.${formId}.${id}`,
+      data: { id, formId, ...body },
+    });
+  } catch (err: any) {
+    console.warn(`[CRM Forms] Warning saving form ${formId}:`, err?.message);
+  }
+
+  return successResponse(
     res,
-    { id: `${prefix}-${Date.now().toString().slice(-4)}`, formId, data: req.body },
+    { id, formId, data: body },
     `Form ${formId} submitted successfully`,
     201
   );

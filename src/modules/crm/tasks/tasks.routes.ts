@@ -230,8 +230,43 @@ const mockDailyReport = {
   ],
 };
 
-export const getWorkOverviewHandler = (_req: any, res: any) => {
-  successResponse(res, fullMyWorkOverview, 'Work overview retrieved');
+export const getWorkOverviewHandler = async (_req: any, res: any) => {
+  try {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const tasksDoc = await CrmRecord.findOne({ key: 'tasks.companyTasks' });
+    const storedTasks = tasksDoc?.data && Array.isArray(tasksDoc.data) ? tasksDoc.data : [];
+
+    const existingDefault = fullMyWorkOverview.companyTasks;
+    const allCompanyTasks = [...storedTasks, ...existingDefault.filter((t) => !storedTasks.some((st: any) => st.id === t.id))];
+
+    const myPrioritiesDoc = await CrmRecord.findOne({ key: 'dashboard.myPriorities' });
+    const myPriorities = myPrioritiesDoc?.data && Array.isArray(myPrioritiesDoc.data)
+      ? myPrioritiesDoc.data.map((p: any) => ({
+          id: p.id,
+          title: p.task || p.title,
+          record: { kind: 'task', label: p.department || 'Task' },
+          department: p.department || 'General',
+          due: { day: 'Today', time: p.time || '11:00 AM', overdue: false },
+          priority: p.priority || 'Normal',
+          status: 'To Do',
+          action: 'Open',
+        }))
+      : fullMyWorkOverview.myPriorities;
+
+    return successResponse(
+      res,
+      {
+        ...fullMyWorkOverview,
+        totalCompanyTasks: allCompanyTasks.length,
+        kpis: { ...fullMyWorkOverview.kpis, today: allCompanyTasks.length },
+        companyTasks: allCompanyTasks,
+        myPriorities,
+      },
+      'Work overview retrieved'
+    );
+  } catch {
+    return successResponse(res, fullMyWorkOverview, 'Work overview retrieved');
+  }
 };
 
 crmTasksRouter.get('/overview', getWorkOverviewHandler);
@@ -245,8 +280,19 @@ crmTasksRouter.post('/daily-reports', (_req, res) => {
   successResponse(res, { ok: true, message: 'Daily report submitted' }, 'Daily report submitted', 201);
 });
 
-crmTasksRouter.get('/:id', (req, res) => {
-  successResponse(res, { ...mockTask, id: req.params.id }, 'Task retrieved');
+crmTasksRouter.get('/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const tasksDoc = await CrmRecord.findOne({ key: 'tasks.companyTasks' });
+    if (tasksDoc?.data && Array.isArray(tasksDoc.data)) {
+      const found = tasksDoc.data.find((t: any) => t.id === id);
+      if (found) {
+        return successResponse(res, { ...mockTask, ...found }, 'Task retrieved from database');
+      }
+    }
+  } catch {}
+  return successResponse(res, { ...mockTask, id }, 'Task retrieved');
 });
 
 crmTasksRouter.post('/:id/updates', (req, res) => {
@@ -261,16 +307,100 @@ crmTasksRouter.post('/:id/comments', (req, res) => {
   successResponse(res, { id: req.params.id, comment: req.body }, 'Comment added', 201);
 });
 
-crmTasksRouter.put('/:id', (req, res) => {
-  successResponse(res, { id: req.params.id, ...req.body }, 'Task updated');
+crmTasksRouter.put('/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const tasksDoc = await CrmRecord.findOne({ key: 'tasks.companyTasks' });
+    if (tasksDoc?.data && Array.isArray(tasksDoc.data)) {
+      tasksDoc.data = tasksDoc.data.map((t: any) => t.id === id ? { ...t, ...req.body } : t);
+      await CrmRecord.findOneAndUpdate({ key: 'tasks.companyTasks' }, { data: tasksDoc.data });
+    }
+  } catch {}
+  return successResponse(res, { id, ...req.body }, 'Task updated');
+});
+
+crmTasksRouter.patch('/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const tasksDoc = await CrmRecord.findOne({ key: 'tasks.companyTasks' });
+    if (tasksDoc?.data && Array.isArray(tasksDoc.data)) {
+      tasksDoc.data = tasksDoc.data.map((t: any) => t.id === id ? { ...t, ...req.body } : t);
+      await CrmRecord.findOneAndUpdate({ key: 'tasks.companyTasks' }, { data: tasksDoc.data });
+    }
+  } catch {}
+  return successResponse(res, { id, ...req.body }, 'Task updated');
+});
+
+crmTasksRouter.delete('/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const tasksDoc = await CrmRecord.findOne({ key: 'tasks.companyTasks' });
+    if (tasksDoc?.data && Array.isArray(tasksDoc.data)) {
+      tasksDoc.data = tasksDoc.data.filter((t: any) => t.id !== id);
+      await CrmRecord.findOneAndUpdate({ key: 'tasks.companyTasks' }, { data: tasksDoc.data });
+    }
+    const prioDoc = await CrmRecord.findOne({ key: 'dashboard.myPriorities' });
+    if (prioDoc?.data && Array.isArray(prioDoc.data)) {
+      prioDoc.data = prioDoc.data.filter((p: any) => p.id !== id);
+      await CrmRecord.findOneAndUpdate({ key: 'dashboard.myPriorities' }, { data: prioDoc.data });
+    }
+  } catch {}
+  return successResponse(res, { id }, 'Task deleted');
 });
 
 crmTasksRouter.post('/:id/reschedule', (req, res) => {
   successResponse(res, { id: req.params.id, ...req.body }, 'Task rescheduled');
 });
 
-crmTasksRouter.post('/', (_req, res) => {
-  successResponse(res, { id: `TSK-${Math.floor(Math.random() * 800 + 100)}` }, 'Task created', 201);
+crmTasksRouter.post('/', async (req, res) => {
+  const id = `TSK-${Date.now().toString().slice(-4)}`;
+  const body = req.body || {};
+  const newTask = {
+    id,
+    title: body.title || 'New Task',
+    task: body.title || 'New Task',
+    department: body.department || 'Management',
+    owner: { name: body.owner || 'Vijay Sharma', role: 'Assignee' },
+    due: { day: body.dueDate || 'Today', time: body.dueTime || '11:00 AM', overdue: false },
+    priority: body.priority || 'Normal',
+    status: 'To Do',
+    action: 'Open',
+    instructions: body.instructions || '',
+    reviewer: body.reviewer || 'Vijay Sharma',
+    createdAt: new Date().toISOString(),
+  };
+
+  try {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const existingDoc = await CrmRecord.findOne({ key: 'tasks.companyTasks' });
+    const current = existingDoc?.data && Array.isArray(existingDoc.data) ? existingDoc.data : [];
+    await CrmRecord.findOneAndUpdate(
+      { key: 'tasks.companyTasks' },
+      { key: 'tasks.companyTasks', data: [newTask, ...current] },
+      { upsert: true, new: true }
+    );
+
+    // Also update dashboard.myPriorities
+    const priorityItem = {
+      id,
+      task: body.title || 'New Task',
+      department: body.department || 'Management',
+      time: (body.dueTime || '11:00 AM') + (body.dueDate ? ` (${body.dueDate})` : ''),
+      priority: body.priority || 'Normal',
+    };
+    const prioDoc = await CrmRecord.findOne({ key: 'dashboard.myPriorities' });
+    const currentPrio = prioDoc?.data && Array.isArray(prioDoc.data) ? prioDoc.data : [];
+    await CrmRecord.findOneAndUpdate(
+      { key: 'dashboard.myPriorities' },
+      { key: 'dashboard.myPriorities', data: [priorityItem, ...currentPrio] },
+      { upsert: true, new: true }
+    );
+  } catch {}
+
+  return successResponse(res, newTask, 'Task created', 201);
 });
 
 export default crmTasksRouter;
