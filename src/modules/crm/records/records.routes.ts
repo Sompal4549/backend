@@ -87,6 +87,32 @@ crmRecordsRouter.post('/forms/:formId', (req, res) => {
   successResponse(res, { id: `F-${Date.now()}`, ...req.body }, 'Form submitted', 201);
 });
 
+crmRecordsRouter.get('/', (req, res) => {
+  const setsQuery = req.query.sets as string | undefined;
+  if (setsQuery) {
+    const keys = setsQuery.split(',').map((k) => k.trim()).filter(Boolean);
+    const result: Record<string, any> = {};
+    for (const key of keys) {
+      result[key] = recordSetsMock[key] || {
+        id: key,
+        title: key.replace(/[-_.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+        description: `All records for ${key}`,
+        columns: [
+          { key: 'id', label: 'ID' },
+          { key: 'title', label: 'Title' },
+          { key: 'status', label: 'Status', kind: 'status' },
+          { key: 'updatedAt', label: 'Updated' },
+        ],
+        rows: [],
+        total: 0,
+      };
+    }
+    return successResponse(res, result, 'Record sets retrieved');
+  }
+
+  return successResponse(res, recordSetsMock, 'All record sets retrieved');
+});
+
 crmRecordsRouter.get('/:key', (req, res) => {
   const key = req.params.key;
   const set = recordSetsMock[key];
