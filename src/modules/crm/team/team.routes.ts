@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
+import { containsOption, inPeriod, optionMatch, readQuery, textMatch } from '../crm-filters';
 
 export const crmTeamRouter = Router();
 
@@ -178,8 +179,22 @@ const teamOverview = {
   ],
 };
 
-crmTeamRouter.get('/overview', (_req, res) => {
-  successResponse(res, teamOverview, 'Team overview retrieved');
+crmTeamRouter.get('/overview', (req, res) => {
+  const q = readQuery(req, 'q', 'department', 'role', 'attendance', 'period');
+  const members = teamOverview.members.filter(
+    (member) =>
+      textMatch(q, member.name, member.role, member.department, member.reportsTo) &&
+      optionMatch(member.department, q.department) &&
+      containsOption(member.role, q.role) &&
+      optionMatch(member.attendance.label, q.attendance),
+  );
+  const officeRequests = teamOverview.officeRequests.filter(
+    (request) =>
+      textMatch(q, request.id, request.type, request.description, request.raisedBy) &&
+      inPeriod(request.due, q.period),
+  );
+
+  successResponse(res, { ...teamOverview, members, officeRequests }, 'Team overview retrieved');
 });
 
 crmTeamRouter.get('/members/:id', (req, res) => {

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
+import { inPeriod, optionMatch, readQuery, textMatch } from '../crm-filters';
 
 export const crmProjectsRouter = Router();
 
@@ -54,7 +55,7 @@ const mockProject = {
   ],
 };
 
-crmProjectsRouter.get('/overview', (_req, res) => {
+crmProjectsRouter.get('/overview', (req, res) => {
   const atRisk = { label: 'At risk', tone: 'danger', icon: 'warning' };
   const onTrack = { label: 'On track', tone: 'success', icon: 'check' };
   const pending = { label: 'Pending', tone: 'warning', icon: 'clock' };
@@ -62,10 +63,10 @@ crmProjectsRouter.get('/overview', (_req, res) => {
   const projectsOverview = {
     kpis: { active: 12, activeChange: '+2', atRisk: 2, atRiskChange: '+1', siteVisitsDue: 3, awaitingHandover: 1 },
     projects: [
-      { id: 'PJ-0018', name: 'Serene Resort', client: 'Serene Resort', city: 'Goa', manager: 'Sandeep Kumar', stage: { label: 'Installation', tone: 'info' }, progress: 68, nextMilestone: { date: '17 Dec 2026', label: 'Site readiness' }, status: atRisk },
-      { id: 'PJ-0019', name: 'Wellness Spa', client: 'Wellness Spa', city: 'Kochi', manager: 'Sandeep Kumar', stage: { label: 'Execution', tone: 'success' }, progress: 45, nextMilestone: { date: '20 Dec 2026', label: 'Electrical works' }, status: onTrack },
-      { id: 'PJ-0020', name: 'Retreat Spaces', client: 'Retreat Spaces', city: 'Mumbai', manager: 'Neha Singh', stage: { label: 'Design approval', tone: 'warning' }, progress: 30, nextMilestone: { date: '18 Dec 2026', label: 'Layout approval' }, status: onTrack },
-      { id: 'PJ-0021', name: 'Healing Centre', client: 'Healing Centre', city: 'Delhi', manager: 'Neha Singh', stage: { label: 'Consultancy', tone: 'violet' }, progress: 80, nextMilestone: { date: '16 Dec 2026', label: 'Final report' }, status: { label: 'Review pending', tone: 'warning', icon: 'clock' } },
+      { id: 'PJ-0018', name: 'Serene Resort', client: 'Serene Resort', city: 'Goa', type: 'Turnkey', manager: 'Sandeep Kumar', stage: { label: 'Installation', tone: 'info' }, progress: 68, nextMilestone: { date: '17 Dec 2026', label: 'Site readiness' }, status: atRisk },
+      { id: 'PJ-0019', name: 'Wellness Spa', client: 'Wellness Spa', city: 'Kochi', type: 'Equipment', manager: 'Sandeep Kumar', stage: { label: 'Execution', tone: 'success' }, progress: 45, nextMilestone: { date: '20 Dec 2026', label: 'Electrical works' }, status: onTrack },
+      { id: 'PJ-0020', name: 'Retreat Spaces', client: 'Retreat Spaces', city: 'Mumbai', type: 'Turnkey', manager: 'Neha Singh', stage: { label: 'Design approval', tone: 'warning' }, progress: 30, nextMilestone: { date: '18 Dec 2026', label: 'Layout approval' }, status: onTrack },
+      { id: 'PJ-0021', name: 'Healing Centre', client: 'Healing Centre', city: 'Delhi', type: 'Consultancy', manager: 'Neha Singh', stage: { label: 'Consultancy', tone: 'violet' }, progress: 80, nextMilestone: { date: '16 Dec 2026', label: 'Final report' }, status: { label: 'Review pending', tone: 'warning', icon: 'clock' } },
     ],
     milestones: [
       { projectId: 'PJ-0018', milestone: 'Site readiness', owner: 'Sandeep Kumar', due: '17 Dec', status: atRisk },
@@ -114,7 +115,31 @@ crmProjectsRouter.get('/overview', (_req, res) => {
       },
     ],
   };
-  successResponse(res, projectsOverview, 'Projects overview retrieved');
+  const q = readQuery(req, 'q', 'type', 'manager', 'stage', 'period');
+  const projects = projectsOverview.projects.filter(
+    (project) =>
+      textMatch(q, project.id, project.name, project.client, project.city) &&
+      optionMatch(project.type, q.type) &&
+      optionMatch(project.manager, q.manager) &&
+      optionMatch(project.stage.label, q.stage) &&
+      inPeriod(project.nextMilestone.date, q.period),
+  );
+  const visible = new Set(projects.map((project) => project.id));
+  const milestones = projectsOverview.milestones.filter(
+    (milestone) => visible.has(milestone.projectId) && inPeriod(milestone.due, q.period),
+  );
+  const risks = projectsOverview.risks.filter(
+    (risk) => visible.has(risk.projectId) && inPeriod(risk.targetDate, q.period),
+  );
+  const siteActions = projectsOverview.siteActions.filter(
+    (action) => visible.has(action.projectId) && inPeriod(action.date, q.period),
+  );
+
+  successResponse(
+    res,
+    { ...projectsOverview, projects, milestones, risks, siteActions },
+    'Projects overview retrieved',
+  );
 });
 
 crmProjectsRouter.get('/new', (_req, res) => {

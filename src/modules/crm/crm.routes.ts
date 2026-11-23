@@ -212,6 +212,7 @@ crmRouter.use('/tasks', crmTasksRouter);
 // ─── 7. Configuration & Platform Utilities ────────────────────────────────────
 crmRouter.use('/settings', crmSettingsRouter);
 crmRouter.use('/topbar', crmTopbarRouter);
+crmRouter.use(crmTopbarRouter);
 crmRouter.use('/records', crmRecordsRouter);
 crmRouter.use('/workflows', crmWorkflowsRouter);
 

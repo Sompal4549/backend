@@ -1,9 +1,10 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { successResponse } from '../../../utils/api-response';
+import { inPeriod, inRange, isOverdue, optionMatch, readQuery, textMatch, textMatchKey } from '../crm-filters';
 
 export const crmAccountsRouter = Router();
 
-crmAccountsRouter.get('/overview', (_req, res) => {
+crmAccountsRouter.get('/overview', (req, res) => {
   const accountsOverview = {
     kpis: {
       collectionsMtd: '₹12.8L',
@@ -92,8 +93,35 @@ crmAccountsRouter.get('/overview', (_req, res) => {
       },
     ],
   };
-  successResponse(res, accountsOverview, 'Accounts overview retrieved');
+  successResponse(res, filterAccountsOverview(accountsOverview, req), 'Accounts overview retrieved');
 });
+
+/** Applies the receivables (`q`, `status`, `due`) and transactions (`txq`, `type`, `period`) filters. */
+type AccountsOverviewShape = {
+  receivables: Array<{ invoice: string; client: string; dueDate: string; status: { label: string } }>;
+  transactions: Array<{ date: string; type: string; voucher: string; party: string; description: string; mode: string }>;
+};
+
+function filterAccountsOverview<T extends AccountsOverviewShape>(overview: T, req: Request): T {
+  const q = readQuery(req, 'q', 'status', 'due', 'txq', 'type', 'period');
+
+  const receivables = overview.receivables.filter((row) => {
+    if (!textMatch(q, row.invoice, row.client)) return false;
+    if (!optionMatch(row.status.label, q.status)) return false;
+    if (q.due === 'Overdue') return isOverdue(row.dueDate) && row.status.label !== 'Paid';
+    if (q.due && !/^all\b/i.test(q.due)) return inPeriod(row.dueDate, q.due);
+    return true;
+  });
+
+  const transactions = overview.transactions.filter(
+    (row) =>
+      textMatchKey(q, 'txq', row.voucher, row.party, row.description, row.type, row.mode) &&
+      optionMatch(row.type, q.type) &&
+      inPeriod(row.date, q.period),
+  );
+
+  return { ...overview, receivables, transactions };
+}
 
 crmAccountsRouter.get('/lookups', (_req, res) => {
   const lookups = {
@@ -194,37 +222,38 @@ crmAccountsRouter.get('/expenses/new', (_req, res) => {
   successResponse(res, expense, 'Expense draft created');
 });
 
+/** Statement ledger for `?client=&from=&to=` — entries outside the period are dropped. */
+function buildStatement(req: Request) {
+  const q = readQuery(req, 'client', 'from', 'to');
+  const client = q.client || 'Aarogya Ayurveda';
+  const from = q.from || '2026-10-01';
+  const to = q.to || new Date().toISOString().slice(0, 10);
+  const allEntries = [
+    { at: '14 Oct 2026', type: 'Invoice', ref: 'INV-0142', description: 'Equipment Supply', debit: 240000, credit: 0 },
+    { at: '14 Oct 2026 10:05 AM', type: 'Receipt', ref: 'RC-0093', description: 'Advance Received', debit: 0, credit: 120000 },
+    { at: '17 Nov 2026 11:00 AM', type: 'Invoice', ref: 'INV-0144', description: 'Therapy Tables', debit: 224200, credit: 0 },
+    { at: '17 Nov 2026 12:00 PM', type: 'Receipt', ref: 'RC-0095', description: 'Part Payment', debit: 0, credit: 112100 },
+  ];
+  const entries = allEntries.filter((entry) => inRange(entry.at, from, to));
+  const current = entries.reduce((sum, entry) => sum + entry.debit - entry.credit, 0);
+  const historical = allEntries
+    .filter((entry) => !inRange(entry.at, from, to))
+    .reduce((sum, entry) => sum + entry.debit - entry.credit, 0);
+
+  return {
+    client,
+    from,
+    to,
+    openingBalance: 0,
+    entries,
+    dueBreakdown: { historical, current },
+  };
+}
+
 crmAccountsRouter.get('/statements', (req, res) => {
-  const client = (req.query.client as string) || 'Aarogya Ayurveda';
-  const statement = {
-    client,
-    from: '2026-10-01',
-    to: new Date().toISOString().slice(0, 10),
-    openingBalance: 0,
-    entries: [
-      { at: '14 Oct 2026', type: 'Invoice', ref: 'INV-0142', description: 'Equipment Supply', debit: 240000, credit: 0 },
-      { at: '14 Oct 2026 10:05 AM', type: 'Receipt', ref: 'RC-0093', description: 'Advance Received', debit: 0, credit: 120000 },
-      { at: '17 Nov 2026 11:00 AM', type: 'Invoice', ref: 'INV-0144', description: 'Therapy Tables', debit: 224200, credit: 0 },
-      { at: '17 Nov 2026 12:00 PM', type: 'Receipt', ref: 'RC-0095', description: 'Part Payment', debit: 0, credit: 112100 },
-    ],
-    dueBreakdown: { historical: 85000, current: 112100 },
-  };
-  successResponse(res, statement, 'Client statement retrieved');
+  successResponse(res, buildStatement(req), 'Client statement retrieved');
 });
+
 crmAccountsRouter.get('/statement', (req, res) => {
-  const client = (req.query.client as string) || 'Aarogya Ayurveda';
-  const statement = {
-    client,
-    from: '2026-10-01',
-    to: new Date().toISOString().slice(0, 10),
-    openingBalance: 0,
-    entries: [
-      { at: '14 Oct 2026', type: 'Invoice', ref: 'INV-0142', description: 'Equipment Supply', debit: 240000, credit: 0 },
-      { at: '14 Oct 2026 10:05 AM', type: 'Receipt', ref: 'RC-0093', description: 'Advance Received', debit: 0, credit: 120000 },
-      { at: '17 Nov 2026 11:00 AM', type: 'Invoice', ref: 'INV-0144', description: 'Therapy Tables', debit: 224200, credit: 0 },
-      { at: '17 Nov 2026 12:00 PM', type: 'Receipt', ref: 'RC-0095', description: 'Part Payment', debit: 0, credit: 112100 },
-    ],
-    dueBreakdown: { historical: 85000, current: 112100 },
-  };
-  successResponse(res, statement, 'Client statement retrieved');
+  successResponse(res, buildStatement(req), 'Client statement retrieved');
 });

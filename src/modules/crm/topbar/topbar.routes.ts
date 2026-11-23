@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
+import { CrmRecord } from '../../../models/crm-record.model';
 
 export const crmTopbarRouter = Router();
 
@@ -48,12 +49,31 @@ const mockNotifications = [
   { id: 'nt-3', title: 'Payment Received', body: 'NEFT credit of ₹1,00,000 recorded against INV-0144.', time: '3 hours ago', read: true },
 ];
 
-crmTopbarRouter.get('/approvals', (_req, res) => {
+crmTopbarRouter.get('/approvals', async (_req, res) => {
+  try {
+    const doc = await CrmRecord.findOne({ key: 'topbar.approvals' });
+    if (doc && doc.data) {
+      return successResponse(res, doc.data, 'Approvals retrieved from database');
+    }
+    await CrmRecord.create({ key: 'topbar.approvals', data: mockApprovals }).catch(() => {});
+  } catch {}
   successResponse(res, mockApprovals, 'Approvals retrieved');
 });
 
-crmTopbarRouter.post('/approvals/:id/decision', (req, res) => {
-  successResponse(res, { id: req.params.id, status: req.body.decision || 'APPROVED' }, 'Decision recorded');
+crmTopbarRouter.post('/approvals/:id/decision', async (req, res) => {
+  const { id } = req.params;
+  const { decision, notes } = req.body;
+  try {
+    const doc = await CrmRecord.findOne({ key: 'topbar.approvals' });
+    if (doc && doc.data && Array.isArray(doc.data.requests)) {
+      doc.data.requests = doc.data.requests.map((r: any) =>
+        r.id === id ? { ...r, status: decision === 'approve' ? 'approved' : 'rejected', notes } : r
+      );
+      doc.markModified('data');
+      await doc.save();
+    }
+  } catch {}
+  successResponse(res, { id, status: decision || 'approved', notes }, 'Decision recorded');
 });
 
 crmTopbarRouter.get('/follow-ups', (_req, res) => {

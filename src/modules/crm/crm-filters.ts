@@ -22,9 +22,14 @@ export function readQuery(req: Request, ...keys: string[]): CrmQuery {
   return out;
 }
 
-/** Case-insensitive substring match. No `q` (or no fields) means "match everything". */
+/** Case-insensitive substring match on `q`. No `q` (or no fields) means "match everything". */
 export function textMatch(query: CrmQuery, ...fields: Array<string | null | undefined>): boolean {
-  const needle = query.q?.toLowerCase();
+  return textMatchKey(query, 'q', ...fields);
+}
+
+/** Same as `textMatch`, but reads the needle from another param (e.g. `txq`). */
+export function textMatchKey(query: CrmQuery, key: string, ...fields: Array<string | null | undefined>): boolean {
+  const needle = query[key]?.toLowerCase();
   if (!needle) return true;
   return fields.some((field) => (field ?? '').toLowerCase().includes(needle));
 }
@@ -36,6 +41,12 @@ export function textMatch(query: CrmQuery, ...fields: Array<string | null | unde
 export function optionMatch(actual: string | null | undefined, filter: string | undefined): boolean {
   if (!filter || /^all\b/i.test(filter)) return true;
   return (actual ?? '').trim().toLowerCase() === filter.trim().toLowerCase();
+}
+
+/** Same as `optionMatch`, but the option may be a substring ("Manager" → "Sales Manager"). */
+export function containsOption(actual: string | null | undefined, filter: string | undefined): boolean {
+  if (!filter || /^all\b/i.test(filter)) return true;
+  return (actual ?? '').trim().toLowerCase().includes(filter.trim().toLowerCase());
 }
 
 /** `filter` is one of `options`, or empty/absent (treated as no filter). */
@@ -57,8 +68,7 @@ function parseIsoDate(text: string): Date | null {
 
 function parseDate(text: string | null | undefined): Date | null {
   if (!text) return null;
-  const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  return parseIsoDate(text);
 }
 
 /** Inclusive date-range for the period select (ISO `YYYY-MM-DD` boundaries). */
@@ -106,6 +116,13 @@ export function periodRange(period: string | undefined, now = new Date()): { fro
       const from = new Date(today.getFullYear(), q * 3, 1);
       const to = new Date(today.getFullYear(), q * 3 + 3, 0);
       return { from: iso(from), to: iso(to) };
+    }
+    case 'Last 7 days':
+    case 'Last 30 days': {
+      const days = period === 'Last 7 days' ? 7 : 30;
+      const from = new Date(today);
+      from.setDate(from.getDate() - (days - 1));
+      return { from: iso(from), to: iso(today) };
     }
     default: {
       const from = new Date(today.getFullYear(), 0, 1);
@@ -161,4 +178,11 @@ export function inRange(
 /** Keep only the rows a query asks for. `match` returns true to keep a row. */
 export function filterRows<T>(rows: T[], match: (row: T) => boolean): T[] {
   return rows.filter(match);
+}
+
+/** True when a due date is strictly before today. Unreadable dates are never overdue. */
+export function isOverdue(text: string | null | undefined, now = new Date()): boolean {
+  const date = parseDate(text);
+  if (!date) return false;
+  return startOfDay(date).getTime() < startOfDay(now).getTime();
 }
