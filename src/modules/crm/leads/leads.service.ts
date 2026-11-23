@@ -179,6 +179,65 @@ export const leadsService = {
     return { id };
   },
 
+  async batchImport(data: Record<string, unknown>): Promise<{ importId: string; total: number; imported: number; skipped: number; errors: number }> {
+    const rows = Array.isArray(data.rows) ? (data.rows as any[]) : [];
+    const duplicateMode = (data.duplicateMode as string) || 'skip';
+    let imported = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const row of rows) {
+      const name = String(row?.name || '').trim();
+      if (row?.check === 'Error' || !name) {
+        errors++;
+        continue;
+      }
+      if (row?.check === 'Duplicate') {
+        if (duplicateMode === 'update') {
+          const existing = await LeadModel.findOne({
+            $or: [{ phone: row.contact }, { email: row.email }],
+            isDeleted: { $ne: true },
+          }).lean();
+          if (existing) {
+            await LeadModel.updateOne(
+              { _id: (existing as any)._id },
+              { $set: { companyName: row.organisation || (existing as any).companyName, interestedProduct: row.interest || (existing as any).interestedProduct } },
+            );
+            imported++;
+            continue;
+          }
+        }
+        skipped++;
+        continue;
+      }
+      const nameParts = name.split(' ');
+      const lead = new LeadModel({
+        firstName: nameParts[0] || 'New',
+        lastName: nameParts.slice(1).join(' ') || 'Lead',
+        companyName: row.organisation || 'Individual',
+        email: row.email || '',
+        phone: row.contact || '9810000000',
+        city: 'Delhi NCR',
+        country: 'India',
+        leadStatus: 'New',
+        leadSource: 'Excel Import',
+        interestedProduct: row.interest || 'Ayurvedic Products',
+        leadNotes: '',
+        leadDate: new Date().toISOString().slice(0, 10),
+      });
+      await lead.save();
+      imported++;
+    }
+
+    return {
+      importId: `IMP-2026-${String(Date.now()).slice(-6)}`,
+      total: rows.length,
+      imported,
+      skipped,
+      errors,
+    };
+  },
+
   async getImports(): Promise<LeadImportRecord[]> {
     return [
       {

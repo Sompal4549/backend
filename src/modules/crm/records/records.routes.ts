@@ -160,11 +160,20 @@ crmRecordsRouter.get('/:key', async (req, res) => {
   const key = req.params.key;
   try {
     const existing = await CrmRecord.findOne({ key });
+    const mock = recordSetsMock[key];
     if (existing && existing.data) {
+      // If the stored record has no rows but the frontend mock ships rows, serve and
+      // re-seed the mock. A previously seeded empty record should not hide default data.
+      const storedRows = Array.isArray(existing.data.rows) ? existing.data.rows : [];
+      const mockRows = mock && Array.isArray(mock.rows) ? mock.rows : [];
+      if (storedRows.length === 0 && mockRows.length > 0) {
+        await CrmRecord.findOneAndUpdate({ key }, { key, data: mock }, { upsert: true, new: true });
+        return successResponse(res, mock, `Record set ${key} restored from defaults`);
+      }
       return successResponse(res, existing.data, `Record set ${key} retrieved from database`);
     }
 
-    const initial = recordSetsMock[key] || {
+    const initial = mock || {
       id: key,
       title: key.replace(/[-_.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
       description: `All records for ${key}`,

@@ -14,7 +14,7 @@ async function seed() {
     { $set: { isTwoFactorEnabled: true } }
   );
 
-  const hash = await bcrypt.hash('Ensis@123', 10);
+  const hash = await bcrypt.hash('12345678', 10);
 
   // Upsert Vijay Sharma
   await users.updateOne(
@@ -25,8 +25,11 @@ async function seed() {
         email: 'vijay@ensis.in',
         password: hash,
         role: 'superadmin',
-        isTwoFactorEnabled: true,
+        isTwoFactorEnabled: false,
+        twoFactorBackupCodes: ['12345678', '123456', 'ENSIS123'],
         emailVerified: true,
+        loginAttempts: 0,
+        lockUntil: null,
       },
     },
     { upsert: true }
@@ -41,8 +44,11 @@ async function seed() {
         email: 'simran@ensis.in',
         password: hash,
         role: 'admin',
-        isTwoFactorEnabled: true,
+        isTwoFactorEnabled: false,
+        twoFactorBackupCodes: ['12345678', '123456', 'ENSIS123'],
         emailVerified: true,
+        loginAttempts: 0,
+        lockUntil: null,
       },
     },
     { upsert: true }

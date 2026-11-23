@@ -48,6 +48,11 @@ export const reassignLead = asyncHandler(async (req, res: Response) => {
   successResponse(res, { id: req.params.id, owner }, 'Lead reassigned');
 });
 
+export const batchImport = asyncHandler(async (req, res: Response) => {
+  const result = await leadsService.batchImport(req.body);
+  successResponse(res, result, 'Lead import completed', 201);
+});
+
 export const getImports = asyncHandler(async (_req, res: Response) => {
   const imports = await leadsService.getImports();
   successResponse(res, imports, 'Lead imports retrieved');
