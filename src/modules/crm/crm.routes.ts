@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import path from 'path';
 import { successResponse } from '../../utils/api-response';
+import { validateFormData } from './forms/form-validation';
 
 import { crmAuthRouter } from './auth/auth.routes';
 import { crmMeRouter } from './auth/me.routes';
@@ -213,6 +215,19 @@ crmRouter.post('/forms/:formId', async (req, res) => {
   const id = `${prefix}-${Date.now().toString().slice(-4)}`;
   const body = req.body || {};
 
+  // Server-side validation against form definitions
+  const validation = validateFormData(formId, body);
+  if (!validation.valid) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: validation.message,
+      fieldErrors: validation.fieldErrors,
+      errors: Object.values(validation.fieldErrors),
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   try {
     const { CrmRecord } = await import('../../models/crm-record.model');
 
@@ -304,6 +319,71 @@ crmRouter.post('/forms/:formId', async (req, res) => {
         { key: 'dashboard.activities', data: [newActivity, ...currentActivities] },
         { upsert: true, new: true }
       );
+    } else if (formId === 'addEvent') {
+      const eventItem = {
+        id: `ev-${Date.now().toString().slice(-4)}`,
+        title: body.title || 'Untitled Event',
+        date: body.date || body.startDate || new Date().toISOString().slice(0, 10),
+        start: body.startTime || body.start || '10:00',
+        end: body.endTime || body.end || '11:00',
+        kind: body.type || body.kind || 'meeting',
+        owner: body.owner || body.assignee || 'Vijay Sharma',
+        department: body.department || 'Management',
+        reference: body.linkedRecord || body.reference || id,
+      };
+
+      const existingCalDoc = await CrmRecord.findOne({ key: 'calendar.work' });
+      const currentEvents = existingCalDoc?.data && Array.isArray(existingCalDoc.data) ? existingCalDoc.data : [];
+      await CrmRecord.findOneAndUpdate(
+        { key: 'calendar.work' },
+        { key: 'calendar.work', data: [eventItem, ...currentEvents] },
+        { upsert: true, new: true }
+      );
+    } else if (formId === 'createTicket') {
+      const ticketId = `SR-${Date.now().toString().slice(-4)}`;
+      const newTicket = {
+        id: ticketId,
+        client: body.client || 'Client',
+        equipment: body.equipment || 'Equipment',
+        issue: body.issue || 'Issue reported',
+        assignedTo: body.engineer || 'Udit Sharma',
+        priority: {
+          label: body.priority || 'Normal',
+          tone: body.priority === 'High' ? 'danger' : 'neutral',
+        },
+        responseDue: {
+          label: body.responseDue ? `Due ${body.responseDue}` : 'Today 5:00 PM',
+          overdue: false,
+        },
+        status: { label: 'Open', tone: 'neutral' },
+        action: 'View',
+      };
+      const existingServiceDoc = await CrmRecord.findOne({ key: 'service.overview' });
+      if (existingServiceDoc?.data) {
+        const overview = existingServiceDoc.data;
+        if (!Array.isArray(overview.tickets)) overview.tickets = [];
+        overview.tickets.unshift(newTicket);
+        if (overview.kpis) overview.kpis.open = (overview.kpis.open || 0) + 1;
+        await CrmRecord.findOneAndUpdate(
+          { key: 'service.overview' },
+          { data: overview }
+        );
+      }
+    } else if (formId === 'logCommunication') {
+      const existingActivitiesDoc = await CrmRecord.findOne({ key: 'dashboard.activities' });
+      const currentActivities = existingActivitiesDoc?.data || [];
+      const newActivity = {
+        id: `act-${Date.now().toString().slice(-4)}`,
+        at: 'Just now',
+        by: body.owner || 'Vijay Sharma',
+        text: `Logged ${body.channel || 'communication'} with ${body.contact || 'contact'}: ${body.outcome || 'Logged'}`,
+        module: 'Sales',
+      };
+      await CrmRecord.findOneAndUpdate(
+        { key: 'dashboard.activities' },
+        { key: 'dashboard.activities', data: [newActivity, ...currentActivities] },
+        { upsert: true, new: true }
+      );
     }
 
     // Also record general form submission history
@@ -329,6 +409,71 @@ crmRouter.post('/tasks/:id/reschedule', (req, res) => {
 });
 crmRouter.post('/follow-ups/:id/reschedule', (req, res) => {
   successResponse(res, { id: req.params.id, ...req.body }, 'Follow-up rescheduled successfully');
+});
+
+// Daily Reports (top-level endpoints):
+crmRouter.get('/daily-reports/today', async (_req, res) => {
+  try {
+    const { CrmRecord } = await import('../../models/crm-record.model');
+    const doc = await CrmRecord.findOne({ key: 'tasks.dailyReport' });
+    if (doc?.data) {
+      return successResponse(res, doc.data, 'Today daily report');
+    }
+  } catch {}
+  const { mockDailyReport } = await import('./tasks/tasks.routes');
+  return successResponse(res, mockDailyReport, 'Today daily report');
+});
+
+crmRouter.post('/daily-reports', async (req, res) => {
+  try {
+    const { CrmRecord } = await import('../../models/crm-record.model');
+    await CrmRecord.findOneAndUpdate(
+      { key: 'tasks.dailyReport' },
+      { key: 'tasks.dailyReport', data: req.body },
+      { upsert: true, new: true }
+    );
+  } catch (err: any) {
+    console.warn('[CRM] Error saving daily report:', err?.message);
+  }
+  return successResponse(res, { ok: true, message: 'Daily report saved successfully' }, 'Daily report saved', 201);
+});
+
+// Delete Task (top-level):
+crmRouter.delete('/tasks/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const { CrmRecord } = await import('../../models/crm-record.model');
+    const deletedDoc = await CrmRecord.findOne({ key: 'tasks.deletedIds' });
+    const currentDeleted: string[] = deletedDoc?.data && Array.isArray(deletedDoc.data) ? deletedDoc.data : [];
+    if (!currentDeleted.includes(id)) {
+      await CrmRecord.findOneAndUpdate(
+        { key: 'tasks.deletedIds' },
+        { key: 'tasks.deletedIds', data: [...currentDeleted, id] },
+        { upsert: true, new: true }
+      );
+    }
+
+    const tasksDoc = await CrmRecord.findOne({ key: 'tasks.companyTasks' });
+    if (tasksDoc?.data && Array.isArray(tasksDoc.data)) {
+      tasksDoc.data = tasksDoc.data.filter((t: any) => t.id !== id);
+      await CrmRecord.findOneAndUpdate({ key: 'tasks.companyTasks' }, { data: tasksDoc.data });
+    }
+
+    const prioDoc = await CrmRecord.findOne({ key: 'dashboard.myPriorities' });
+    if (prioDoc?.data && Array.isArray(prioDoc.data)) {
+      prioDoc.data = prioDoc.data.filter((p: any) => p.id !== id);
+      await CrmRecord.findOneAndUpdate({ key: 'dashboard.myPriorities' }, { data: prioDoc.data });
+    }
+
+    const drDoc = await CrmRecord.findOne({ key: 'tasks.dailyReport' });
+    if (drDoc?.data?.lines && Array.isArray(drDoc.data.lines)) {
+      drDoc.data.lines = drDoc.data.lines.filter((l: any) => l.id !== id && l.taskId !== id);
+      await CrmRecord.findOneAndUpdate({ key: 'tasks.dailyReport' }, { data: drDoc.data });
+    }
+  } catch (err: any) {
+    console.warn('[CRM] Error deleting task:', err?.message);
+  }
+  return successResponse(res, { id }, 'Task deleted');
 });
 
 // Work / Tasks (NO 307 REDIRECTS - Direct 200 OK responses):
@@ -537,7 +682,18 @@ const reportsCatalogData = [
 crmRouter.get('/calendar/work', (_req, res) => successResponse(res, workCalendarData, 'Work calendar retrieved'));
 crmRouter.get('/calendar/service', (_req, res) => successResponse(res, serviceCalendarData, 'Service calendar retrieved'));
 crmRouter.get('/projects/timeline', (_req, res) => successResponse(res, projectsTimelineData, 'Projects timeline retrieved'));
-crmRouter.get('/reports/catalog', (_req, res) => successResponse(res, reportsCatalogData, 'Reports catalog retrieved'));
+crmRouter.get('/reports/catalog', async (_req, res) => {
+  try {
+    const catalogPath = path.resolve(__dirname, '../../../../ensis_crm/src/mocks/reports-catalog');
+    const mod = require(catalogPath);
+    if (mod?.reportsCatalogMock) {
+      return successResponse(res, mod.reportsCatalogMock, 'Reports catalog retrieved');
+    }
+  } catch (err: any) {
+    console.warn('[CRM Reports] Error loading catalog:', err?.message);
+  }
+  return successResponse(res, reportsCatalogData, 'Reports catalog retrieved');
+});
 
 // Sales orders:
 const mockSalesOrder = {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getLeadsOverview, getLead, createLead, getImports, previewImport, updateLead } from './leads.controller';
+import { getLeadsOverview, getLead, createLead, getImports, previewImport, updateLead, reassignLead } from './leads.controller';
 import { authMiddleware } from '../../../middlewares/auth.middleware';
 import { adminMiddleware } from '../../../middlewares/admin.middleware';
 
@@ -12,3 +12,4 @@ crmLeadsRouter.post('/imports/preview', previewImport);
 crmLeadsRouter.get('/:id', getLead);
 crmLeadsRouter.post('/', createLead);
 crmLeadsRouter.put('/:id', updateLead);
+crmLeadsRouter.put('/:id/reassign', reassignLead);

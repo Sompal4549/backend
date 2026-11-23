@@ -15,6 +15,18 @@ export const getClient = asyncHandler(async (req: AuthRequest, res: Response) =>
 });
 
 export const createClient = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const body = req.body || {};
+  const name = String(body.name || body.company || body.companyName || '').trim();
+  if (!name) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: 'Client name or company is required.',
+      fieldErrors: { name: 'Client name or company is required.' },
+      errors: ['Client name or company is required.'],
+      timestamp: new Date().toISOString(),
+    });
+  }
   const client = await clientsService.create(req.body);
   successResponse(res, client, 'Client created', 201);
 });

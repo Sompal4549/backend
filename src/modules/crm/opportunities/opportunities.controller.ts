@@ -15,6 +15,22 @@ export const getOpportunity = asyncHandler(async (req: AuthRequest, res: Respons
 });
 
 export const createOpportunity = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const body = req.body || {};
+  const title = String(body.title || body.name || '').trim();
+  const client = String(body.client || body.clientName || '').trim();
+  const errors: Record<string, string> = {};
+  if (!title) errors.title = 'Opportunity title is required.';
+  if (!client) errors.client = 'Client is required.';
+  if (Object.keys(errors).length > 0) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: Object.values(errors)[0],
+      fieldErrors: errors,
+      errors: Object.values(errors),
+      timestamp: new Date().toISOString(),
+    });
+  }
   const opp = await opportunitiesService.create(req.body);
   successResponse(res, opp, 'Opportunity created', 201);
 });
@@ -30,6 +46,22 @@ export const updateStage = asyncHandler(async (req: AuthRequest, res: Response) 
 });
 
 export const logActivity = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const body = req.body || {};
+  const channel = String(body.channel || body.type || '').trim();
+  const notes = String(body.notes || body.summary || body.description || body.text || '').trim();
+  const errors: Record<string, string> = {};
+  if (!channel) errors.channel = 'Activity channel / type is required.';
+  if (!notes) errors.notes = 'Activity notes / summary is required.';
+  if (Object.keys(errors).length > 0) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: Object.values(errors)[0],
+      fieldErrors: errors,
+      errors: Object.values(errors),
+      timestamp: new Date().toISOString(),
+    });
+  }
   const activity = await opportunitiesService.addActivity(req.params.id, req.body);
   successResponse(res, activity, 'Activity logged', 201);
 });

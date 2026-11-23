@@ -75,8 +75,16 @@ const reportsCatalog = {
   ],
 };
 
-crmRecordsRouter.get('/calendar/work', (_req, res) => {
-  successResponse(res, workCalendar, 'Work calendar retrieved');
+crmRecordsRouter.get('/calendar/work', async (_req, res) => {
+  try {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const calDoc = await CrmRecord.findOne({ key: 'calendar.work' });
+    const stored = calDoc?.data && Array.isArray(calDoc.data) ? calDoc.data : [];
+    const all = [...stored, ...workCalendar.filter((ev) => !stored.some((s: any) => s.id === ev.id))];
+    return successResponse(res, all, 'Work calendar retrieved');
+  } catch {
+    return successResponse(res, workCalendar, 'Work calendar retrieved');
+  }
 });
 
 crmRecordsRouter.get('/calendar/service', (_req, res) => {

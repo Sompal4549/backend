@@ -115,6 +115,44 @@ export const getCompanyDashboard = asyncHandler(async (req, res: Response) => {
       quotationSent: 8,
       inNegotiation: 5,
     };
+  } else if (period === 'This Month') {
+    kpis = {
+      salesMtd: { value: '₹18.4L', target: '₹25L', progress: 74 },
+      collectionsMtd: { value: '₹12.8L', change: '+12%' },
+      receivables: { value: '₹6.8L', overdue: '₹1.2L' },
+      cashAndBank: { value: '₹9.4L', change: '+8%' },
+      expensesMtd: { value: '₹8.6L', budget: '₹9L', progress: 96 },
+      staff: { present: 42, total: 46, rate: 91, onLeave: 2, absent: 2 },
+    };
+    workload = {
+      completionRate: 80,
+      completed: 96,
+      total: 120,
+      completedChange: '+8%',
+      overdue: 12,
+      overdueChange: '+2',
+      blocked: 4,
+      reportsReceived: 9,
+      reportsExpected: 11,
+      missingReports: ['Purchase', 'Production'],
+    };
+    pipeline = {
+      segments: [
+        { label: 'Equipment', value: '₹14.2L', opportunities: 8 },
+        { label: 'Turnkey', value: '₹15.6L', opportunities: 6 },
+        { label: 'Consultancy', value: '₹2.8L', opportunities: 5 },
+        { label: 'Total Open', value: '₹32.6L', opportunities: 19 },
+      ],
+      quotationSent: 12,
+      inNegotiation: 7,
+    };
+    execution = [
+      { key: 'projects', label: 'Projects at risk', count: 2 },
+      { key: 'qc', label: 'Jobs pending QC', count: 3 },
+      { key: 'dispatch', label: 'Dispatches due today', count: 3 },
+      { key: 'stock', label: 'Low stock items', count: 5 },
+      { key: 'service', label: 'Service tickets open', count: 4 },
+    ];
   } else if (period === 'This Quarter') {
     kpis = {
       salesMtd: { value: '₹54.2L', target: '₹70L', progress: 77 },
@@ -136,6 +174,23 @@ export const getCompanyDashboard = asyncHandler(async (req, res: Response) => {
       reportsExpected: 11,
       missingReports: ['Purchase', 'Production'],
     };
+    pipeline = {
+      segments: [
+        { label: 'Equipment', value: '₹42.8L', opportunities: 24 },
+        { label: 'Turnkey', value: '₹48.6L', opportunities: 18 },
+        { label: 'Consultancy', value: '₹9.2L', opportunities: 14 },
+        { label: 'Total Open', value: '₹100.6L', opportunities: 56 },
+      ],
+      quotationSent: 38,
+      inNegotiation: 22,
+    };
+    execution = [
+      { key: 'projects', label: 'Projects at risk', count: 3 },
+      { key: 'qc', label: 'Jobs pending QC', count: 6 },
+      { key: 'dispatch', label: 'Dispatches this quarter', count: 18 },
+      { key: 'stock', label: 'Low stock items', count: 5 },
+      { key: 'service', label: 'Service tickets closed', count: 28 },
+    ];
   }
 
   const dashboard: any = {

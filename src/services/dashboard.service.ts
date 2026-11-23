@@ -156,10 +156,17 @@ export const buildLiveDashboardOverview = async () => {
     createdAt: enquiry.createdAt instanceof Date ? enquiry.createdAt.toISOString() : String(enquiry.createdAt ?? now),
   }));
 
-  const topLocations = cityBreakdown.map((entry) => ({
-    city: entry.city || 'Unknown',
-    count: entry.count,
-  }));
+  const locationCounts = new Map<string, number>();
+  for (const entry of cityBreakdown) {
+    const rawCity = entry.city ? entry.city.trim() : '';
+    const city = rawCity || 'Unknown';
+    locationCounts.set(city, (locationCounts.get(city) || 0) + entry.count);
+  }
+
+  const topLocations = Array.from(locationCounts.entries())
+    .map(([city, count]) => ({ city, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 
   return {
     generatedAt: now.toISOString(),

@@ -14,6 +14,22 @@ export const getLead = asyncHandler(async (req, res: Response) => {
 });
 
 export const createLead = asyncHandler(async (req, res: Response) => {
+  const body = req.body || {};
+  const name = String(body.name || body.fullName || body.firstName || '').trim();
+  const phone = String(body.phone || body.mobile || '').trim();
+  const errors: Record<string, string> = {};
+  if (!name) errors.name = 'Contact name is required.';
+  if (!phone) errors.mobile = 'Mobile number is required.';
+  if (Object.keys(errors).length > 0) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: Object.values(errors)[0],
+      fieldErrors: errors,
+      errors: Object.values(errors),
+      timestamp: new Date().toISOString(),
+    });
+  }
   const lead = await leadsService.createLead(req.body);
   successResponse(res, lead, 'Lead created', 201);
 });
@@ -21,6 +37,15 @@ export const createLead = asyncHandler(async (req, res: Response) => {
 export const updateLead = asyncHandler(async (req, res: Response) => {
   await leadsService.updateLead(req.params.id, req.body);
   successResponse(res, { id: req.params.id }, 'Lead updated');
+});
+
+export const reassignLead = asyncHandler(async (req, res: Response) => {
+  const { owner, reason } = req.body;
+  if (!owner || !reason) {
+    return successResponse(res, { success: false, message: 'Owner and reason are required.' }, 'Invalid request', 400);
+  }
+  await leadsService.updateLead(req.params.id, { assignedTo: owner, reassignReason: reason });
+  successResponse(res, { id: req.params.id, owner }, 'Lead reassigned');
 });
 
 export const getImports = asyncHandler(async (_req, res: Response) => {
