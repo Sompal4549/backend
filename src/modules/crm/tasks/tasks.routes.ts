@@ -358,17 +358,33 @@ crmTasksRouter.post('/:id/reschedule', (req, res) => {
 crmTasksRouter.post('/', async (req, res) => {
   const id = `TSK-${Date.now().toString().slice(-4)}`;
   const body = req.body || {};
+  const assigneeName = body.assignee || (typeof body.owner === 'object' ? body.owner?.name : body.owner) || 'Vijay Sharma';
+
+  let day = 'Today';
+  let time = '11:00 AM';
+  if (body.dueDate) day = body.dueDate;
+  if (body.dueTime) time = body.dueTime;
+  if (body.due && typeof body.due === 'string') {
+    if (body.due.includes('T')) {
+      const parts = body.due.split('T');
+      day = parts[0];
+      time = parts[1];
+    } else {
+      day = body.due;
+    }
+  }
+
   const newTask = {
     id,
     title: body.title || 'New Task',
     task: body.title || 'New Task',
     department: body.department || 'Management',
-    owner: { name: body.owner || 'Vijay Sharma', role: 'Assignee' },
-    due: { day: body.dueDate || 'Today', time: body.dueTime || '11:00 AM', overdue: false },
+    owner: { name: assigneeName, role: 'Assignee' },
+    due: { day, time, overdue: false },
     priority: body.priority || 'Normal',
-    status: 'To Do',
+    status: body.status || 'To Do',
     action: 'Open',
-    instructions: body.instructions || '',
+    instructions: body.description || body.instructions || '',
     reviewer: body.reviewer || 'Vijay Sharma',
     createdAt: new Date().toISOString(),
   };
@@ -388,14 +404,31 @@ crmTasksRouter.post('/', async (req, res) => {
       id,
       task: body.title || 'New Task',
       department: body.department || 'Management',
-      time: (body.dueTime || '11:00 AM') + (body.dueDate ? ` (${body.dueDate})` : ''),
+      time: `${time} (${day})`,
       priority: body.priority || 'Normal',
+      owner: assigneeName,
     };
     const prioDoc = await CrmRecord.findOne({ key: 'dashboard.myPriorities' });
     const currentPrio = prioDoc?.data && Array.isArray(prioDoc.data) ? prioDoc.data : [];
     await CrmRecord.findOneAndUpdate(
       { key: 'dashboard.myPriorities' },
       { key: 'dashboard.myPriorities', data: [priorityItem, ...currentPrio] },
+      { upsert: true, new: true }
+    );
+
+    // Log activity
+    const existingActivitiesDoc = await CrmRecord.findOne({ key: 'dashboard.activities' });
+    const currentActivities = existingActivitiesDoc?.data || [];
+    const newActivity = {
+      id: `act-${Date.now().toString().slice(-4)}`,
+      at: 'Just now',
+      by: assigneeName,
+      text: `Task assigned: ${body.title || 'New Task'}`,
+      module: body.department || 'Management',
+    };
+    await CrmRecord.findOneAndUpdate(
+      { key: 'dashboard.activities' },
+      { key: 'dashboard.activities', data: [newActivity, ...currentActivities] },
       { upsert: true, new: true }
     );
   } catch {}
