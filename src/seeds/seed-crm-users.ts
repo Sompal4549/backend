@@ -8,13 +8,26 @@ async function seed() {
 
   const users = db.collection('users');
 
-  // Enable 2FA for CRM staff accounts
+  const hash = await bcrypt.hash('12345678', 10);
+
+  // Upsert Sompal
   await users.updateOne(
     { email: 'somfrontenddeveloper@gmail.com' },
-    { $set: { isTwoFactorEnabled: true } }
+    {
+      $set: {
+        name: 'Sompal',
+        email: 'somfrontenddeveloper@gmail.com',
+        password: hash,
+        role: 'superadmin',
+        isTwoFactorEnabled: false,
+        twoFactorBackupCodes: ['12345678', '123456', 'ENSIS123'],
+        emailVerified: true,
+        loginAttempts: 0,
+        lockUntil: null,
+      },
+    },
+    { upsert: true }
   );
-
-  const hash = await bcrypt.hash('12345678', 10);
 
   // Upsert Vijay Sharma
   await users.updateOne(
