@@ -23,6 +23,8 @@ export interface ILead extends Document {
   leadStatus?: "New" | "Contacted" | "Qualified" | "Negotiation" | "Converted" | "Lost";
   priority?: "High" | "Medium" | "Low";
   assignedTo?: Types.ObjectId | null;
+  ownerName?: string;
+  ownerTeam?: string;
   eventAttribution?: string;
   leadDate?: string;
   followUpDate?: string;
@@ -78,12 +80,12 @@ const leadSchema = new Schema<ILead>(
     },
     leadSource: {
       type: String,
-      enum: ["Instagram", "Facebook", "Website", "WhatsApp", "Google", "LinkedIn", "Referral", "Cold Call", "Event", "Other"],
+      enum: ["Instagram", "Facebook", "Website", "WhatsApp", "Google", "LinkedIn", "Referral", "Cold Call", "Event", "Meta Ads", "Excel Import", "Social Media", "Other"],
       default: "Website",
     },
     leadStatus: {
       type: String,
-      enum: ["New", "Contacted", "Qualified", "Negotiation", "Converted", "Lost"],
+      enum: ["New", "Contacted", "Qualified", "Quotation Sent", "Negotiation", "Converted", "Lost"],
       default: "New",
     },
     priority: {
@@ -92,6 +94,8 @@ const leadSchema = new Schema<ILead>(
       default: "High",
     },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    ownerName: { type: String, default: "Simran Kaur" },
+    ownerTeam: { type: String, default: "Sales" },
     eventAttribution: { type: String, default: "Website" },
     leadDate: { type: String, default: () => new Date().toISOString().slice(0, 10) },
     followUpDate: { type: String, default: () => new Date().toISOString().slice(0, 10) },

@@ -46,7 +46,10 @@ export const leadsService = {
       city: doc.city || 'Delhi NCR',
       interest: doc.interestedProduct || 'Wellness Consultation',
       source: mapSource(doc.leadSource),
-      owner: { name: 'Simran Kaur', team: 'Sales' },
+      owner: {
+        name: doc.ownerName || (doc.assignedTo && typeof doc.assignedTo === 'object' ? doc.assignedTo.name : '') || 'Simran Kaur',
+        team: doc.ownerTeam || 'Sales',
+      },
       stage: mapStage(doc.leadStatus),
       nextFollowUp: {
         label: doc.followUpDate ? `${doc.followUpDate} ${doc.followUpTime || ''}`.trim() : 'Tomorrow, 11:00 AM',
@@ -154,6 +157,16 @@ export const leadsService = {
 
   async createLead(data: Record<string, unknown>): Promise<{ id: string }> {
     const fullName = (data.fullName || data.name || '') as string;
+    const typeMap: Record<string, string> = { Call: 'Phone', WhatsApp: 'WhatsApp', Email: 'Email', Meeting: 'Meeting' };
+    const ownerMap: Record<string, string> = {
+      simran: 'Simran Kaur',
+      'amit-mehta': 'Amit Mehta',
+      ritu: 'Ritu Sharma',
+    };
+    const rawOwner = String(data.ownerName || data.owner || '').trim();
+    const resolvedOwner = ownerMap[rawOwner.toLowerCase()] || rawOwner || 'Simran Kaur';
+    const resolvedTeam = String(data.salesTeam || data.team || 'Sales');
+
     const lead = new LeadModel({
       firstName: fullName.split(' ')[0] || (data.firstName as string) || 'New',
       lastName: fullName.split(' ').slice(1).join(' ') || (data.lastName as string) || 'Lead',
@@ -165,9 +178,12 @@ export const leadsService = {
       leadStatus: data.stage || data.leadStatus || 'New',
       leadSource: data.source || data.leadSource || 'Website',
       interestedProduct: data.interest || data.interestedProduct || 'Ayurvedic Products',
+      ownerName: resolvedOwner,
+      ownerTeam: resolvedTeam,
       leadNotes: data.notes || data.leadNotes || '',
       followUpDate: data.followUpDate || undefined,
       followUpTime: data.followUpTime || undefined,
+      followUpMethod: data.followUpType ? (typeMap[String(data.followUpType)] || data.followUpType) : undefined,
       leadDate: new Date().toISOString().slice(0, 10),
     });
     await lead.save();
@@ -175,8 +191,50 @@ export const leadsService = {
   },
 
   async updateLead(id: string, data: Record<string, unknown>): Promise<{ id: string }> {
-    await LeadModel.findByIdAndUpdate(id, { $set: data }).catch(() => null);
+    const updateData: Record<string, unknown> = { ...data };
+    if (data.fullName || data.name) {
+      const fullName = String(data.fullName || data.name || '').trim();
+      updateData.firstName = fullName.split(' ')[0] || '';
+      updateData.lastName = fullName.split(' ').slice(1).join(' ') || '';
+    }
+    if (data.organisation || data.companyName) {
+      updateData.companyName = data.organisation || data.companyName;
+    }
+    if (data.mobile || data.phone) {
+      updateData.phone = data.mobile || data.phone;
+    }
+    if (data.stage || data.leadStatus) {
+      updateData.leadStatus = data.stage || data.leadStatus;
+    }
+    if (data.interest || data.interestedProduct) {
+      updateData.interestedProduct = data.interest || data.interestedProduct;
+    }
+    if (data.source || data.leadSource) {
+      updateData.leadSource = data.source || data.leadSource;
+    }
+    if (data.owner || data.ownerName) {
+      const ownerMap: Record<string, string> = {
+        simran: 'Simran Kaur',
+        'amit-mehta': 'Amit Mehta',
+        ritu: 'Ritu Sharma',
+      };
+      const rawOwner = String(data.ownerName || data.owner || '').trim();
+      updateData.ownerName = ownerMap[rawOwner.toLowerCase()] || rawOwner;
+    }
+    if (data.salesTeam || data.team) {
+      updateData.ownerTeam = String(data.salesTeam || data.team);
+    }
+    if (data.followUpType) {
+      const typeMap: Record<string, string> = { Call: 'Phone', WhatsApp: 'WhatsApp', Email: 'Email', Meeting: 'Meeting' };
+      updateData.followUpMethod = typeMap[String(data.followUpType)] || data.followUpType;
+    }
+    await LeadModel.findByIdAndUpdate(id, { $set: updateData }).catch(() => null);
     return { id };
+  },
+
+  async deleteLead(id: string): Promise<boolean> {
+    await LeadModel.findByIdAndUpdate(id, { $set: { isDeleted: true, deletedAt: new Date() } });
+    return true;
   },
 
   async batchImport(data: Record<string, unknown>): Promise<{ importId: string; total: number; imported: number; skipped: number; errors: number }> {

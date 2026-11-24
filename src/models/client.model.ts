@@ -9,8 +9,17 @@ export interface IClient extends Document {
   city: string;
   owner: string;
   outstanding: string;
-  nextFollowUp: { date: string; time: string; overdue?: boolean };
-  linkedLeadId?: Types.ObjectId;
+  nextFollowUp?: { date?: string; time?: string; overdue?: boolean };
+  linkedLeadId?: Types.ObjectId | null;
+  gstin?: string;
+  panNumber?: string;
+  isGstRegistered?: boolean;
+  billingAddress?: string;
+  deliverySameAsBilling?: boolean;
+  consigneeName?: string;
+  consigneeContact?: string;
+  consigneeAddress?: string;
+  consigneeGstin?: string;
   isDeleted: boolean;
   deletedAt?: Date | null;
   deletedBy?: string | null;
@@ -28,6 +37,15 @@ const clientSchema = new Schema<IClient>(
     outstanding: { type: String, default: '0' },
     nextFollowUp: { date: String, time: String, overdue: Boolean },
     linkedLeadId: { type: Schema.Types.ObjectId, ref: 'Lead', default: null },
+    gstin: { type: String, default: '' },
+    panNumber: { type: String, default: '' },
+    isGstRegistered: { type: Boolean, default: true },
+    billingAddress: { type: String, default: '' },
+    deliverySameAsBilling: { type: Boolean, default: true },
+    consigneeName: { type: String, default: '' },
+    consigneeContact: { type: String, default: '' },
+    consigneeAddress: { type: String, default: '' },
+    consigneeGstin: { type: String, default: '' },
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date, default: null },
     deletedBy: { type: String, default: null },

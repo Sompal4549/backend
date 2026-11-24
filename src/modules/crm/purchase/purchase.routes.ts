@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
+import { generateDocumentNumber } from '../../../utils/document-series.util';
 
 export const crmPurchaseRouter = Router();
 
 const mockPurchaseRequest = {
-  id: 'PR-2026-0030',
+  id: generateDocumentNumber('purchase request', 30),
   requestDate: '2026-11-16',
   requiredDate: '2026-11-20',
   priority: 'High',
@@ -22,7 +23,7 @@ const mockPurchaseRequest = {
 };
 
 const mockPurchaseOrder = {
-  id: 'PO-2026-0070',
+  id: generateDocumentNumber('purchase order', 70),
   poDate: '2026-11-17',
   dueDate: '2026-11-20',
   approvalStatus: 'Draft',
@@ -220,10 +221,52 @@ crmPurchaseRouter.get('/inventory/snapshot', (_req, res) => {
     warehouse: 'WH-A Ghaziabad',
     updatedAt: new Date().toISOString(),
     totalValuation: '₹48,60,000.00',
+    warehouses: ['WH-A', 'WH-B', 'Showroom'],
+    racks: ['A1', 'A2', 'A3', 'B1', 'B2'],
+    jobs: [
+      { id: 'JB0090', salesOrder: 'SO0090' },
+      { id: 'JB0086', salesOrder: 'SO0086' },
+      { id: 'JB0087', salesOrder: 'SO0084' },
+    ],
     items: [
-      { sku: 'BRS-TBL-01', name: 'Brass Casting Plate', inStock: 42, reorderLevel: 10, unit: 'pcs', rate: 1200 },
-      { sku: 'TK-WOD-02', name: 'Seasoned Teak Planks', inStock: 120, reorderLevel: 25, unit: 'sqft', rate: 350 },
-      { sku: 'SC-08', name: 'Steam Controller', inStock: 4, reorderLevel: 5, unit: 'Nos.', rate: 8000 },
+      {
+        sku: 'SC-08',
+        name: 'Steam controller',
+        unit: 'Nos.',
+        unitCost: 8000,
+        locations: [
+          {
+            warehouse: 'WH-A',
+            rack: 'A2',
+            onHand: 17,
+            reserved: 13,
+            reservations: [
+              { ref: 'Other jobs', qty: 8 },
+              { ref: 'JB0090', qty: 5 },
+            ],
+          },
+          { warehouse: 'WH-B', rack: 'B1', onHand: 0, reserved: 0, reservations: [] },
+        ],
+      },
+      {
+        sku: 'TP-24',
+        name: 'Teak panel',
+        unit: 'Nos.',
+        unitCost: 2400,
+        locations: [
+          { warehouse: 'WH-A', rack: 'A1', onHand: 40, reserved: 8, reservations: [{ ref: 'JB0090', qty: 8 }] },
+          { warehouse: 'WH-B', rack: 'B2', onHand: 12, reserved: 0, reservations: [] },
+        ],
+      },
+      {
+        sku: 'BRS-TBL-01',
+        name: 'Brass Casting Plate',
+        unit: 'pcs',
+        unitCost: 1200,
+        locations: [
+          { warehouse: 'WH-A', rack: 'A1', onHand: 42, reserved: 10, reservations: [{ ref: 'JB0086', qty: 10 }] },
+        ],
+      },
     ],
   };
   successResponse(res, snapshot, 'Stock snapshot retrieved');

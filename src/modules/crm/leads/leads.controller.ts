@@ -39,6 +39,11 @@ export const updateLead = asyncHandler(async (req, res: Response) => {
   successResponse(res, { id: req.params.id }, 'Lead updated');
 });
 
+export const deleteLead = asyncHandler(async (req, res: Response) => {
+  await leadsService.deleteLead(req.params.id);
+  successResponse(res, { id: req.params.id }, 'Lead deleted');
+});
+
 export const reassignLead = asyncHandler(async (req, res: Response) => {
   const { owner, reason } = req.body;
   if (!owner || !reason) {

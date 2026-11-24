@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
+import { generateDocumentNumber } from '../../../utils/document-series.util';
 
 export const crmQuotationsRouter = Router();
 
@@ -85,7 +86,7 @@ crmQuotationsRouter.get('/overview', (_req, res) => {
 });
 
 crmQuotationsRouter.get('/new', (_req, res) => {
-  successResponse(res, { ...mockQuotation, id: `QT-2026-${Math.floor(Math.random() * 800 + 100)}` }, 'New quotation draft');
+  successResponse(res, { ...mockQuotation, id: generateDocumentNumber('estimate', Math.floor(Math.random() * 800 + 100)) }, 'New quotation draft');
 });
 
 crmQuotationsRouter.get('/:id', (req, res) => {
@@ -93,7 +94,7 @@ crmQuotationsRouter.get('/:id', (req, res) => {
 });
 
 crmQuotationsRouter.post('/', (_req, res) => {
-  successResponse(res, { id: 'QT-2026-0131' }, 'Quotation created', 201);
+  successResponse(res, { id: generateDocumentNumber('estimate', 131) }, 'Quotation created', 201);
 });
 
 crmQuotationsRouter.put('/:id', (req, res) => {
@@ -114,7 +115,7 @@ crmQuotationsRouter.get('/sales-orders/:id', (req, res) => {
 });
 
 crmQuotationsRouter.post('/sales-orders', (_req, res) => {
-  successResponse(res, { id: 'SO-2026-0091' }, 'Sales order created', 201);
+  successResponse(res, { id: generateDocumentNumber('sales order', 91) }, 'Sales order created', 201);
 });
 
 crmQuotationsRouter.put('/sales-orders/:id', (req, res) => {

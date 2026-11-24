@@ -104,8 +104,9 @@ export const getNextInvoiceNumber = async (type: string): Promise<string> => {
     credit_note: 'CN',
     debit_note: 'DN',
     delivery_challan: 'DC',
+    invoice: 'IN',
   };
-  const prefix = typePrefix[type] || 'INV';
+  const prefix = typePrefix[type] || 'IN';
 
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -113,23 +114,22 @@ export const getNextInvoiceNumber = async (type: string): Promise<string> => {
   const fyStart = month >= 4 ? year : year - 1;
   const fyEnd = fyStart + 1;
   const fyShort = `${String(fyStart).slice(-2)}-${String(fyEnd).slice(-2)}`;
-  const fyLabel = `FY${fyShort}`;
 
   const lastInvoice = await InvoiceModel.findOne({
-    invoiceNumber: { $regex: `^DHIPL/${fyLabel}/${prefix}/` },
+    invoiceNumber: { $regex: `^ENS[/|]${prefix}[/|]${fyShort}[/|]` },
   })
     .sort({ createdAt: -1 })
     .select('invoiceNumber');
 
   let nextNum = 1;
   if (lastInvoice?.invoiceNumber) {
-    const match = lastInvoice.invoiceNumber.match(/\/(\d+)$/);
+    const match = lastInvoice.invoiceNumber.match(/[|/](\d+)$/);
     if (match) {
       nextNum = parseInt(match[1], 10) + 1;
     }
   }
 
-  return `DHIPL/${fyLabel}/${prefix}/${String(nextNum).padStart(3, '0')}`;
+  return `ENS|${prefix}|${fyShort}|${String(nextNum).padStart(4, '0')}`;
 };
 
 export const getInvoiceStatsByLead = async (leadId: string) => {

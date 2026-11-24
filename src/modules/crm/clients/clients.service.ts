@@ -145,6 +145,15 @@ export const clientsService = {
       city: data.city || data.city || 'Delhi NCR',
       owner: ownerName,
       outstanding: data.outstanding || '0',
+      gstin: data.gstin || '',
+      panNumber: data.panNumber || '',
+      isGstRegistered: data.isGstRegistered ?? Boolean(data.gstin),
+      billingAddress: data.billingAddress || '',
+      deliverySameAsBilling: data.deliverySameAsBilling ?? true,
+      consigneeName: data.consigneeName || '',
+      consigneeContact: data.consigneeContact || '',
+      consigneeAddress: data.consigneeAddress || '',
+      consigneeGstin: data.consigneeGstin || '',
     });
     await client.save();
     return { id: client._id.toString() };

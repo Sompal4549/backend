@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
+import { inPeriod, readQuery } from '../crm-filters';
 
 export const crmInventoryRouter = Router();
 
@@ -72,8 +73,13 @@ const inventoryOverview = {
   ],
 };
 
-crmInventoryRouter.get('/overview', (_req, res) => {
-  successResponse(res, inventoryOverview, 'Inventory overview retrieved');
+crmInventoryRouter.get('/overview', (req, res) => {
+  const q = readQuery(req, 'period');
+  // The header period narrows the dated rows: stock movements and incoming receipts.
+  const movements = inventoryOverview.movements.filter((movement) => inPeriod(movement.date, q.period));
+  const receipts = inventoryOverview.receipts.filter((receipt) => inPeriod(receipt.expected, q.period));
+
+  successResponse(res, { ...inventoryOverview, movements, receipts }, 'Inventory overview retrieved');
 });
 
 crmInventoryRouter.get('/snapshot', (_req, res) => {

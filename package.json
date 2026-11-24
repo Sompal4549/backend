@@ -22,6 +22,7 @@
     "seed:admin": "tsx src/seeds/admin.seed.ts",
     "seed:sompa": "tsx src/seeds/seed-sompa.ts",
     "seed:crm-users": "tsx src/seeds/seed-crm-users.ts",
+    "seed:leads": "tsx src/seeds/seed-leads.ts",
     "check:env": "node scripts/server/check-env.mjs",
     "seed:pages": "tsx src/seeds/pages.seed.ts",
     "seed:pages:cms": "tsx src/seeds/pages-cms.seed.ts",

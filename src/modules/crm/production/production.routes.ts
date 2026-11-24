@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
 import { inPeriod, optionMatch, readQuery, textMatch } from '../crm-filters';
+import { generateDocumentNumber } from '../../../utils/document-series.util';
 
 export const crmProductionRouter = Router();
 
@@ -11,7 +12,7 @@ const items = [
 ];
 
 const mockJob = {
-  id: 'JB-2026-0090',
+  id: generateDocumentNumber('job order', 90),
   salesOrder: 'SO0090',
   client: 'Aarogya Ayurveda',
   source: 'QT0130Rev2',
