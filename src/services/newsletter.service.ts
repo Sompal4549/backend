@@ -103,3 +103,48 @@ export const notifySubscribers = async (blogTitle: string, blogSlug: string) => 
   await Promise.all(emailPromises);
   console.log(`Notification sent to ${subscribers.length} subscribers.`);
 };
+
+export const createSubscriber = async (data: Record<string, unknown>) => {
+  const email: string = String(data.email || '').trim().toLowerCase();
+  const name: string = String(data.name || '').trim();
+  const phone: string = String(data.phone || '').trim();
+  const source: string = String(data.source || '').trim();
+  const language: string = String(data.language || '').trim();
+  const status: string = String(data.status || 'Active');
+  const interests: string[] = Array.isArray(data.interests) ? data.interests : (data.interests ? [String(data.interests)] : []);
+  const frequency: string = String(data.frequency || 'all');
+  const notes: string = String(data.notes || '').trim();
+  const consent: boolean = data.consent === true || data.consent === 'true';
+
+  const existing = await SubscriberModel.findOne({ email });
+  if (existing) {
+    existing.name = name || existing.name;
+    existing.phone = phone !== '' ? phone : existing.phone;
+    existing.source = source !== '' ? source : existing.source;
+    existing.language = language !== '' ? language : existing.language;
+    existing.status = status as 'Active' | 'Inactive' | 'Unsubscribed';
+    existing.interests = interests;
+    existing.frequency = frequency;
+    existing.notes = notes;
+    existing.consent = consent;
+    await existing.save();
+    return existing;
+  }
+
+  const subscriber = await SubscriberModel.create({
+    email,
+    name,
+    phone,
+    type: 'blog',
+    source,
+    language,
+    status: status as 'Active' | 'Inactive' | 'Unsubscribed',
+    interests,
+    frequency,
+    notes,
+    consent,
+    isActive: true,
+  });
+
+  return subscriber;
+};

@@ -14,6 +14,7 @@ export interface IClient extends Document {
   gstin?: string;
   panNumber?: string;
   isGstRegistered?: boolean;
+  gstAddress?: string;
   billingAddress?: string;
   deliverySameAsBilling?: boolean;
   consigneeName?: string;
@@ -40,6 +41,7 @@ const clientSchema = new Schema<IClient>(
     gstin: { type: String, default: '' },
     panNumber: { type: String, default: '' },
     isGstRegistered: { type: Boolean, default: true },
+    gstAddress: { type: String, default: '' },
     billingAddress: { type: String, default: '' },
     deliverySameAsBilling: { type: Boolean, default: true },
     consigneeName: { type: String, default: '' },

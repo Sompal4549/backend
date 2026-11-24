@@ -17,17 +17,36 @@ export const getClient = asyncHandler(async (req: AuthRequest, res: Response) =>
 export const createClient = asyncHandler(async (req: AuthRequest, res: Response) => {
   const body = req.body || {};
   const name = String(body.name || body.company || body.companyName || '').trim();
-  if (!name) {
+  const contact = String(body.contact || body.primaryContact || body.contactPerson || name || 'Primary Contact').trim();
+  const phone = String(body.phone || body.mobile || '').trim();
+  const email = String(body.email || body.officialEmail || '').trim().toLowerCase();
+  const type = String(body.type || body.clientType || 'Ayurveda Clinic').trim();
+  const city = String(body.city || 'Delhi NCR').trim();
+
+  const errors: Record<string, string> = {};
+  if (!name) errors.name = 'Client name is required.';
+  if (!phone && !email) errors.phone = 'Enter at least one contact method (phone or email).';
+  if (email && (!email.includes('@') || !email.includes('.'))) errors.email = 'Email address is not valid.';
+
+  if (Object.keys(errors).length > 0) {
     return res.status(400).json({
       success: false,
       statusCode: 400,
-      message: 'Client name or company is required.',
-      fieldErrors: { name: 'Client name or company is required.' },
-      errors: ['Client name or company is required.'],
+      message: Object.values(errors)[0],
+      fieldErrors: errors,
+      errors: Object.values(errors),
       timestamp: new Date().toISOString(),
     });
   }
-  const client = await clientsService.create(req.body);
+  const client = await clientsService.create({
+    ...body,
+    name,
+    contact,
+    phone,
+    email,
+    type,
+    city,
+  });
   successResponse(res, client, 'Client created', 201);
 });
 

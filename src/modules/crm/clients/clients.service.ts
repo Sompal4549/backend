@@ -148,6 +148,7 @@ export const clientsService = {
       gstin: data.gstin || '',
       panNumber: data.panNumber || '',
       isGstRegistered: data.isGstRegistered ?? Boolean(data.gstin),
+      gstAddress: data.gstAddress || '',
       billingAddress: data.billingAddress || '',
       deliverySameAsBilling: data.deliverySameAsBilling ?? true,
       consigneeName: data.consigneeName || '',

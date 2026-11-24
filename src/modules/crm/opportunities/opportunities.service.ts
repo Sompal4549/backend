@@ -104,6 +104,17 @@ export const opportunitiesService = {
   },
 
   async getById(id: string): Promise<OpportunityDetails> {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const existingActivitiesDoc = await CrmRecord.findOne({ key: `opportunity.${id}.activities` }).lean().catch(() => null);
+    const customActivities = (existingActivitiesDoc as any)?.data || [];
+
+    const defaultActivities = [
+      { id: 'ACT-1', title: 'Quotation revision 2 presented', by: 'Simran Kaur', at: 'Yesterday, 02:30 PM', detail: 'Updated delivery schedule.', tone: 'neutral' as const },
+      { id: 'ACT-2', title: 'Site civil inspection completed', by: 'Sandeep Kumar', at: '15 Nov 2026', detail: 'Drawings handed to client contractor.', tone: 'neutral' as const },
+    ];
+
+    const allActivities = [...customActivities, ...defaultActivities];
+
     return {
       id,
       title: 'Turnkey Ayurvedic Center Setup',
@@ -125,10 +136,7 @@ export const opportunitiesService = {
         value: '₹18,50,000',
         status: { label: 'Approved by Client', tone: 'success' },
       },
-      activity: [
-        { id: 'ACT-1', title: 'Quotation revision 2 presented', by: 'Simran Kaur', at: 'Yesterday, 02:30 PM', detail: 'Updated delivery schedule.', tone: 'neutral' },
-        { id: 'ACT-2', title: 'Site civil inspection completed', by: 'Sandeep Kumar', at: '15 Nov 2026', detail: 'Drawings handed to client contractor.', tone: 'neutral' },
-      ],
+      activity: allActivities,
     };
   },
 
@@ -144,12 +152,74 @@ export const opportunitiesService = {
     return { id };
   },
 
-  async logActivity(_id: string, _data: Record<string, unknown>): Promise<{ id: string }> {
-    return { id: 'ACT-' + Math.floor(1000 + Math.random() * 9000) };
+  async logActivity(id: string, data: Record<string, unknown>): Promise<{ id: string }> {
+    return this.addActivity(id, data);
   },
 
-  async addActivity(_id: string, _data: Record<string, unknown>): Promise<{ id: string }> {
-    return { id: 'ACT-' + Math.floor(1000 + Math.random() * 9000) };
+  async addActivity(id: string, data: Record<string, unknown>): Promise<{ id: string }> {
+    const { CrmRecord } = await import('../../../models/crm-record.model');
+    const actId = 'ACT-' + Math.floor(1000 + Math.random() * 9000);
+    const actTitle = String(data.type || data.channel || 'Activity') + (data.outcome ? ` · ${data.outcome}` : '');
+    const by = String(data.handledBy || data.by || data.owner || 'Vijay Sharma');
+    const detail = String(data.notes || data.summary || data.text || '');
+
+    const newActivity = {
+      id: actId,
+      title: actTitle,
+      by,
+      at: 'Just now',
+      detail,
+      tone: 'neutral' as const,
+    };
+
+    // Save in opportunity's activity stream
+    const existingDoc = await CrmRecord.findOne({ key: `opportunity.${id}.activities` }).lean().catch(() => null);
+    const currentActs = Array.isArray((existingDoc as any)?.data) ? (existingDoc as any).data : [];
+    await CrmRecord.findOneAndUpdate(
+      { key: `opportunity.${id}.activities` },
+      { key: `opportunity.${id}.activities`, data: [newActivity, ...currentActs] },
+      { upsert: true, new: true }
+    );
+
+    // Also push to dashboard activities
+    const dashDoc = await CrmRecord.findOne({ key: 'dashboard.activities' }).lean().catch(() => null);
+    const currentDash = Array.isArray((dashDoc as any)?.data) ? (dashDoc as any).data : [];
+    const dashActivity = {
+      id: `act-${Date.now().toString().slice(-4)}`,
+      at: 'Just now',
+      by,
+      text: `${actTitle}: ${detail.slice(0, 80)}`,
+      module: 'Sales',
+    };
+    await CrmRecord.findOneAndUpdate(
+      { key: 'dashboard.activities' },
+      { key: 'dashboard.activities', data: [dashActivity, ...currentDash] },
+      { upsert: true, new: true }
+    );
+
+    // If follow-up was scheduled, add to calendar.work
+    if (data.scheduleNext && (data.nextDate || data.nextAction)) {
+      const eventItem = {
+        id: `ev-${Date.now().toString().slice(-4)}`,
+        title: String(data.nextAction || 'Follow-up Call'),
+        date: String(data.nextDate || new Date().toISOString().slice(0, 10)),
+        start: String(data.nextTime || '11:00'),
+        end: '11:30',
+        kind: String(data.nextType || 'call').toLowerCase(),
+        owner: String(data.nextAssignee || by),
+        department: 'Sales',
+        reference: id,
+      };
+      const calDoc = await CrmRecord.findOne({ key: 'calendar.work' }).lean().catch(() => null);
+      const currentCal = Array.isArray((calDoc as any)?.data) ? (calDoc as any).data : [];
+      await CrmRecord.findOneAndUpdate(
+        { key: 'calendar.work' },
+        { key: 'calendar.work', data: [eventItem, ...currentCal] },
+        { upsert: true, new: true }
+      );
+    }
+
+    return { id: actId };
   },
 
   async softDelete(_id: string, _deletedBy?: string): Promise<void> {

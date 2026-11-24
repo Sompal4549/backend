@@ -153,6 +153,7 @@ const ADMIN_NOTE_FIELDS: [string, string][] = [
   ['heardAbout', 'Heard about us'],
   ['preferredResponseTime', 'Preferred response time'],
   ['enquiryDate', 'Enquiry date'],
+  ['relatedToServices', 'Related to our services'],
 ];
 
 // Admin panel "New enquiry" form (ensis-admin/app/(dashboard)/enquiries/new). Only known fields are written.

@@ -4,6 +4,7 @@ import {
   getEnquiryPipeline,
   updateEnquiryStatus,
   exportEnquiries,
+  createEnquiryAdmin,
 } from '../controllers/enquiry.controller';
 import multer from 'multer';
 import { body, param } from 'express-validator';
@@ -32,6 +33,7 @@ enquiryRouter.post(
 // Admin-protected endpoints for enquiry management
 enquiryRouter.use(authMiddleware, adminMiddleware);
 
+enquiryRouter.post('/admin', createEnquiryAdmin);
 enquiryRouter.get('/', getEnquiryPipeline);
 enquiryRouter.patch('/:id/status', [
   param('id').isMongoId().withMessage('Valid enquiry ID is required'),

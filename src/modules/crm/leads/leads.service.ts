@@ -10,11 +10,12 @@ import type {
 } from '../../../types/crm';
 
 const VALID_SOURCES: LeadSource[] = [
-  'Website', 'LinkedIn', 'Meta Ads', 'Referral', 'Excel Import', 'WhatsApp', 'Social Media',
+  'Instagram', 'Facebook', 'Website', 'WhatsApp', 'Google', 'LinkedIn', 'Referral',
+  'Cold Call', 'Event', 'Meta Ads', 'Excel Import', 'Social Media', 'Other',
 ];
 
 const VALID_STAGES: LeadStage[] = [
-  'New', 'Contacted', 'Qualified', 'Quotation Sent', 'Negotiation',
+  'New', 'Contacted', 'Qualified', 'Quotation Sent', 'Negotiation', 'Converted', 'Lost',
 ];
 
 function mapSource(raw?: string): LeadSource {
@@ -141,8 +142,11 @@ export const leadsService = {
         owner: 'Simran Kaur',
       },
       requirement: [
-        { label: 'Main Equipment', value: doc?.interestedProduct || 'Panchkarma Bed + Steam Chamber' },
-        { label: 'Delivery Target', value: '15 Business Days' },
+        { label: 'Interest', value: doc?.interestedProduct || 'Panchkarma Clinic Setup' },
+        { label: 'Area', value: doc?.area || '1,800 sqft' },
+        { label: 'Budget', value: doc?.budget || doc?.expectedBudget || '₹15 – 20 L' },
+        { label: 'Expected Start', value: doc?.expectedStart || 'Dec 2026' },
+        { label: 'Requirement Brief', value: doc?.requirementBrief || doc?.leadNotes || 'Six-room clinic requiring equipment, interiors and installation.' },
       ],
       opportunity: {
         id: 'OP-2026-081',
@@ -156,7 +160,9 @@ export const leadsService = {
   },
 
   async createLead(data: Record<string, unknown>): Promise<{ id: string }> {
-    const fullName = (data.fullName || data.name || '') as string;
+    const fullName = String(data.fullName || data.name || '').trim();
+    const firstName = String(data.firstName || (fullName ? fullName.split(' ')[0] : '') || '').trim();
+    const lastName = String(data.lastName || (fullName ? fullName.split(' ').slice(1).join(' ') : '') || '').trim();
     const typeMap: Record<string, string> = { Call: 'Phone', WhatsApp: 'WhatsApp', Email: 'Email', Meeting: 'Meeting' };
     const ownerMap: Record<string, string> = {
       simran: 'Simran Kaur',
@@ -168,8 +174,8 @@ export const leadsService = {
     const resolvedTeam = String(data.salesTeam || data.team || 'Sales');
 
     const lead = new LeadModel({
-      firstName: fullName.split(' ')[0] || (data.firstName as string) || 'New',
-      lastName: fullName.split(' ').slice(1).join(' ') || (data.lastName as string) || 'Lead',
+      firstName: firstName || 'New',
+      lastName,
       companyName: data.organisation || data.companyName || 'Individual',
       email: data.email || 'lead@example.com',
       phone: data.phone || data.mobile || '9810000000',
@@ -178,6 +184,10 @@ export const leadsService = {
       leadStatus: data.stage || data.leadStatus || 'New',
       leadSource: data.source || data.leadSource || 'Website',
       interestedProduct: data.interest || data.interestedProduct || 'Ayurvedic Products',
+      area: String(data.area || ''),
+      budget: String(data.budget || data.expectedBudget || ''),
+      expectedStart: String(data.expectedStart || ''),
+      requirementBrief: String(data.requirementBrief || data.notes || ''),
       ownerName: resolvedOwner,
       ownerTeam: resolvedTeam,
       leadNotes: data.notes || data.leadNotes || '',
@@ -192,10 +202,12 @@ export const leadsService = {
 
   async updateLead(id: string, data: Record<string, unknown>): Promise<{ id: string }> {
     const updateData: Record<string, unknown> = { ...data };
-    if (data.fullName || data.name) {
+    if (data.fullName || data.name || data.firstName || data.lastName) {
       const fullName = String(data.fullName || data.name || '').trim();
-      updateData.firstName = fullName.split(' ')[0] || '';
-      updateData.lastName = fullName.split(' ').slice(1).join(' ') || '';
+      const firstName = String(data.firstName || (fullName ? fullName.split(' ')[0] : '') || '').trim();
+      const lastName = String(data.lastName || (fullName ? fullName.split(' ').slice(1).join(' ') : '') || '').trim();
+      updateData.firstName = firstName || '';
+      updateData.lastName = lastName || '';
     }
     if (data.organisation || data.companyName) {
       updateData.companyName = data.organisation || data.companyName;
@@ -209,6 +221,10 @@ export const leadsService = {
     if (data.interest || data.interestedProduct) {
       updateData.interestedProduct = data.interest || data.interestedProduct;
     }
+    if (data.area !== undefined) updateData.area = String(data.area);
+    if (data.budget !== undefined) updateData.budget = String(data.budget);
+    if (data.expectedStart !== undefined) updateData.expectedStart = String(data.expectedStart);
+    if (data.requirementBrief !== undefined) updateData.requirementBrief = String(data.requirementBrief);
     if (data.source || data.leadSource) {
       updateData.leadSource = data.source || data.leadSource;
     }

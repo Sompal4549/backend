@@ -33,6 +33,10 @@ export interface ILead extends Document {
   followUpSource?: string;
   interestedProduct?: string;
   expectedBudget?: string;
+  area?: string;
+  budget?: string;
+  expectedStart?: string;
+  requirementBrief?: string;
   estimatedDealValue?: string;
   expectedClosingDate?: string;
   addressLine?: string;
@@ -108,6 +112,10 @@ const leadSchema = new Schema<ILead>(
     followUpSource: { type: String, default: "" },
     interestedProduct: { type: String, default: "" },
     expectedBudget: { type: String, default: "" },
+    area: { type: String, default: "" },
+    budget: { type: String, default: "" },
+    expectedStart: { type: String, default: "" },
+    requirementBrief: { type: String, default: "" },
     estimatedDealValue: { type: String, default: "" },
     expectedClosingDate: { type: String, default: "" },
     addressLine: { type: String, default: "" },
