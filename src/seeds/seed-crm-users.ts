@@ -44,10 +44,12 @@ async function seed() {
           password: hash,
           role: acc.role,
           isTwoFactorEnabled: true,
-          twoFactorBackupCodes: ['12345678', '123456', 'ENSIS123'],
           emailVerified: true,
           loginAttempts: 0,
           lockUntil: null,
+        },
+        $unset: {
+          twoFactorBackupCodes: '',
         },
       },
       { upsert: true }
