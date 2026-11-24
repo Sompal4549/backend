@@ -40,6 +40,7 @@ usersRouter.get(
       avatarUrl: u.avatar || undefined,
       roleName: u.role || 'Admin',
       status: u.lockUntil && new Date(u.lockUntil) > new Date() ? 'LOCKED' : 'ACTIVE',
+      crmAccess: u.crmAccess !== undefined ? Boolean(u.crmAccess) : (u.role === 'superadmin'),
       isEmailVerified: Boolean(u.emailVerified),
       hasPassword: Boolean(u.password),
       createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : String(u.createdAt || ''),
@@ -53,7 +54,7 @@ usersRouter.get(
 usersRouter.post(
   '/admin/staff',
   asyncHandler(async (req: Request, res: Response) => {
-    const { name, email, phone, employeeId, roleId } = req.body;
+    const { name, email, phone, employeeId, roleId, crmAccess } = req.body;
     if (!name || !email) {
       throw new AppError(400, 'Name and email are required');
     }
@@ -72,6 +73,7 @@ usersRouter.post(
       phone: phone || '',
       employeeId: finalEmployeeId,
       role: roleId || 'admin',
+      crmAccess: Boolean(crmAccess),
       password: temporaryPassword,
       emailVerified: true,
       phoneVerified: true,
@@ -86,6 +88,7 @@ usersRouter.post(
       avatarUrl: user.avatar,
       roleName: user.role,
       status: 'ACTIVE',
+      crmAccess: user.crmAccess !== undefined ? Boolean(user.crmAccess) : (user.role === 'superadmin'),
       isEmailVerified: true,
       hasPassword: true,
       createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
@@ -107,7 +110,7 @@ usersRouter.post(
 usersRouter.patch(
   '/admin/staff/:id',
   asyncHandler(async (req: Request, res: Response) => {
-    const { name, email, phone, employeeId, roleId } = req.body;
+    const { name, email, phone, employeeId, roleId, crmAccess } = req.body;
     const update: Record<string, unknown> = {};
     if (name) update.name = name;
     if (email) update.email = email.toLowerCase().trim();
@@ -119,6 +122,9 @@ usersRouter.patch(
     if (roleId) {
       assertStaffAssignableRole(roleId);
       update.role = roleId;
+    }
+    if (crmAccess !== undefined) {
+      update.crmAccess = Boolean(crmAccess);
     }
 
     const user = await UserModel.findByIdAndUpdate(req.params.id, update, { new: true });
@@ -135,10 +141,31 @@ usersRouter.patch(
         avatarUrl: user.avatar,
         roleName: user.role,
         status: user.isLocked() ? 'LOCKED' : 'ACTIVE',
+        crmAccess: user.crmAccess !== undefined ? Boolean(user.crmAccess) : (user.role === 'superadmin'),
         isEmailVerified: Boolean(user.emailVerified),
         createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
       },
       'Staff member updated'
+    );
+  })
+);
+
+// PATCH /api/v1/users/admin/staff/:id/crm-access
+usersRouter.patch(
+  '/admin/staff/:id/crm-access',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { crmAccess } = req.body;
+    const user = await UserModel.findById(req.params.id);
+    if (!user) throw new AppError(404, 'Staff member not found');
+    user.crmAccess = Boolean(crmAccess);
+    await user.save();
+    successResponse(
+      res,
+      {
+        _id: String(user._id),
+        crmAccess: Boolean(user.crmAccess),
+      },
+      'CRM access updated successfully'
     );
   })
 );

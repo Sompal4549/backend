@@ -20,6 +20,8 @@ export interface IUser {
   loginAttempts?: number;
   lockUntil?: Date;
   employeeId?: string;
+  crmAccess?: boolean;
+  permissions?: string[];
   createdAt?: Date;
   updatedAt?: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -47,6 +49,8 @@ const userSchema = new Schema<IUser>(
     loginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
     employeeId: { type: String, trim: true, sparse: true },
+    crmAccess: { type: Boolean, default: false },
+    permissions: [{ type: String }],
   },
   { timestamps: true }
 );

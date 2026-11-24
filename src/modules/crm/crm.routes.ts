@@ -2,6 +2,7 @@ import { Router } from 'express';
 import path from 'path';
 import { successResponse } from '../../utils/api-response';
 import { validateFormData } from './forms/form-validation';
+import { CrmRecord } from '../../models/crm-record.model';
 
 import { crmAuthRouter } from './auth/auth.routes';
 import { crmMeRouter } from './auth/me.routes';
@@ -45,8 +46,9 @@ crmRouter.use(crmMeRouter);
 crmRouter.get('/users', async (_req, res) => {
   try {
     const { UserModel } = await import('../../models/user.model');
-    const users = await UserModel.find({ isDeleted: { $ne: true } })
-      .select('name email phone role avatar employeeId createdAt updatedAt')
+    const users = await UserModel.find()
+      .select('name email phone role avatar employeeId crmAccess permissions createdAt updatedAt')
+      .sort({ createdAt: -1 })
       .lean();
 
     const items = users.map((u: any) => ({
@@ -54,9 +56,10 @@ crmRouter.get('/users', async (_req, res) => {
       name: u.name,
       email: u.email,
       phone: u.phone || '',
-      role: u.role || 'sales_executive',
+      role: u.role || 'admin',
       avatar: u.avatar || '',
       employeeId: u.employeeId || '',
+      crmAccess: u.role === 'superadmin' ? true : Boolean(u.crmAccess || (u.permissions && u.permissions.includes('crm'))),
       status: { label: 'Active', tone: 'success' },
       createdAt: u.createdAt,
     }));
@@ -320,20 +323,26 @@ crmRouter.post('/forms/:formId', async (req, res) => {
         { upsert: true, new: true }
       );
     } else if (formId === 'addEvent') {
+      const rawKind = String(body.type || body.kind || 'meeting').toLowerCase();
+      const validKinds = ['meeting', 'call', 'task', 'visit', 'review', 'service', 'deadline'];
+      const kind = validKinds.includes(rawKind) ? rawKind : 'meeting';
+
       const eventItem = {
         id: `ev-${Date.now().toString().slice(-4)}`,
         title: body.title || 'Untitled Event',
         date: body.date || body.startDate || new Date().toISOString().slice(0, 10),
         start: body.startTime || body.start || '10:00',
         end: body.endTime || body.end || '11:00',
-        kind: body.type || body.kind || 'meeting',
+        kind,
         owner: body.owner || body.assignee || 'Vijay Sharma',
         department: body.department || 'Management',
         reference: body.linkedRecord || body.reference || id,
       };
 
       const existingCalDoc = await CrmRecord.findOne({ key: 'calendar.work' });
-      const currentEvents = existingCalDoc?.data && Array.isArray(existingCalDoc.data) ? existingCalDoc.data : [];
+      const currentEvents = existingCalDoc?.data && Array.isArray(existingCalDoc.data)
+        ? existingCalDoc.data
+        : (Array.isArray(workCalendarData) ? workCalendarData : []);
       await CrmRecord.findOneAndUpdate(
         { key: 'calendar.work' },
         { key: 'calendar.work', data: [eventItem, ...currentEvents] },
@@ -679,7 +688,17 @@ const reportsCatalogData = [
   { key: 'inventory-aging', title: 'Inventory Aging Report', category: 'Supply Chain' },
 ];
 
-crmRouter.get('/calendar/work', (_req, res) => successResponse(res, workCalendarData, 'Work calendar retrieved'));
+crmRouter.get('/calendar/work', async (_req, res) => {
+  try {
+    const existing = await CrmRecord.findOne({ key: 'calendar.work' });
+    if (existing && Array.isArray(existing.data) && existing.data.length > 0) {
+      return successResponse(res, existing.data, 'Work calendar retrieved from database');
+    }
+  } catch (err: any) {
+    console.warn('[CRM Calendar] Error querying work calendar from DB:', err?.message);
+  }
+  return successResponse(res, workCalendarData, 'Work calendar retrieved');
+});
 crmRouter.get('/calendar/service', (_req, res) => successResponse(res, serviceCalendarData, 'Service calendar retrieved'));
 crmRouter.get('/projects/timeline', (_req, res) => successResponse(res, projectsTimelineData, 'Projects timeline retrieved'));
 crmRouter.get('/reports/catalog', async (_req, res) => {
@@ -746,9 +765,34 @@ const mockSalesOrder = {
   siteVisitRequired: false,
 };
 
-crmRouter.get('/sales-orders/:id', (req, res) => successResponse(res, { ...mockSalesOrder, id: req.params.id }, 'Sales order retrieved'));
-crmRouter.post('/sales-orders', (_req, res) => successResponse(res, { id: 'SO-2026-0091' }, 'Sales order created', 201));
-crmRouter.put('/sales-orders/:id', (req, res) => successResponse(res, { id: req.params.id }, 'Sales order updated'));
+crmRouter.get('/sales-orders/:id', async (req, res) => {
+  const { SalesOrderModel } = await import('../../models/sales-order.model');
+  const order = await SalesOrderModel.findOne({ id: req.params.id, isDeleted: false }).lean();
+  if (order) return successResponse(res, order, 'Sales order retrieved');
+  return successResponse(res, { ...mockSalesOrder, id: req.params.id }, 'Sales order retrieved');
+});
+crmRouter.post('/sales-orders', async (req, res) => {
+  const { SalesOrderModel } = await import('../../models/sales-order.model');
+  const body = req.body || {};
+  const count = await SalesOrderModel.countDocuments();
+  const id = body.id || `SO-2026-${String(90 + count + 1).padStart(4, '0')}`;
+  const order = await SalesOrderModel.create({
+    ...body,
+    id,
+    orderDate: body.orderDate || new Date().toISOString().split('T')[0],
+    client: body.client || 'Client',
+    owner: body.owner || 'Rajesh Kumar',
+    status: body.status || 'In Production',
+  });
+  return successResponse(res, { id: order.id }, 'Sales order created', 201);
+});
+crmRouter.put('/sales-orders/:id', async (req, res) => {
+  const { SalesOrderModel } = await import('../../models/sales-order.model');
+  const id = req.params.id;
+  const body = req.body || {};
+  await SalesOrderModel.findOneAndUpdate({ id }, { $set: body });
+  return successResponse(res, { id }, 'Sales order updated');
+});
 
 // Marketing aliases:
 const campaignDraft = {
@@ -902,12 +946,19 @@ crmRouter.get('/lookups', async (_req, res) => {
     const { UserModel } = await import('../../models/user.model');
     const { LeadModel } = await import('../../models/lead.model');
 
-    const users = await UserModel.find({})
+    const users = await UserModel.find({
+      isDeleted: { $ne: true },
+      $or: [
+        { role: 'superadmin' },
+        { crmAccess: true },
+        { permissions: 'crm' },
+      ],
+    })
       .select('name role email')
       .lean();
     const leads = await LeadModel.find({ isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
-      .limit(10)
+      .limit(100)
       .lean();
 
     const seenOwners = new Set<string>();
@@ -924,10 +975,15 @@ crmRouter.get('/lookups', async (_req, res) => {
 
     const relationshipOwners = Array.from(new Set(users.map(u => `${u.name || ''}`.trim()).filter(Boolean)));
 
-    const recentLeads = leads.map(l => ({
-      value: `LD-${l._id.toString().slice(-4).toUpperCase()}`,
-      label: `LD-${l._id.toString().slice(-4).toUpperCase()}`,
-    }));
+    const recentLeads = leads.map(l => {
+      const code = `LD-${l._id.toString().slice(-4).toUpperCase()}`;
+      const name = `${l.firstName || ''} ${l.lastName || ''}`.trim();
+      const comp = l.companyName ? ` (${l.companyName})` : '';
+      return {
+        value: code,
+        label: name ? `${code} · ${name}${comp}` : code,
+      };
+    });
 
     const leadPicker = leads.map(l => ({
       value: `LD-${l._id.toString().slice(-4).toUpperCase()}`,

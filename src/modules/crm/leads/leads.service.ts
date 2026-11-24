@@ -34,7 +34,7 @@ export const leadsService = {
   async getOverview(): Promise<LeadsOverview> {
     const rawLeads = await LeadModel.find({ isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(100)
       .lean();
 
     const totalLeads = await LeadModel.countDocuments({ isDeleted: { $ne: true } });

@@ -6,11 +6,14 @@ export interface IClient extends Document {
   phone: string;
   email: string;
   type: string;
+  pincode?: string;
   city: string;
+  state?: string;
   owner: string;
   outstanding: string;
   nextFollowUp?: { date?: string; time?: string; overdue?: boolean };
   linkedLeadId?: Types.ObjectId | null;
+  linkedLead?: string;
   gstin?: string;
   panNumber?: string;
   isGstRegistered?: boolean;
@@ -33,11 +36,14 @@ const clientSchema = new Schema<IClient>(
     phone: { type: String, required: true },
     email: { type: String, required: true, lowercase: true, trim: true },
     type: { type: String, required: true, trim: true },
+    pincode: { type: String, default: '', trim: true },
     city: { type: String, required: true, trim: true },
+    state: { type: String, default: '', trim: true },
     owner: { type: String, default: '' },
     outstanding: { type: String, default: '0' },
     nextFollowUp: { date: String, time: String, overdue: Boolean },
     linkedLeadId: { type: Schema.Types.ObjectId, ref: 'Lead', default: null },
+    linkedLead: { type: String, default: '', trim: true },
     gstin: { type: String, default: '' },
     panNumber: { type: String, default: '' },
     isGstRegistered: { type: Boolean, default: true },

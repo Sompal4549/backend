@@ -1,25 +1,27 @@
 import { Router } from 'express';
 import { UserModel } from '../../../models/user.model';
+import { ProductModel } from '../../../models/product.model';
 import { successResponse } from '../../../utils/api-response';
 
 export const crmSettingsRouter = Router();
 
 crmSettingsRouter.get('/users', async (_req, res) => {
   try {
-    const dbUsers = await UserModel.find({}).sort({ createdAt: -1 }).lean();
+    const dbUsers = await UserModel.find().sort({ createdAt: -1 }).lean();
     if (dbUsers && dbUsers.length > 0) {
-      const formattedUsers = dbUsers.map((u) => ({
+      const formattedUsers = dbUsers.map((u: any) => ({
         id: u._id.toString(),
         name: u.name || 'User',
         email: u.email,
         mobile: u.phone || '',
         department: u.role === 'superadmin' ? 'Management' : 'Sales & Operations',
-        designation: u.role === 'superadmin' ? 'Super Administrator' : 'Executive',
-        role: u.role === 'superadmin' ? 'Super Admin' : 'Staff',
+        designation: u.role === 'superadmin' ? 'Super Administrator' : (u.role === 'admin' ? 'Administrator' : 'Executive'),
+        role: u.role === 'superadmin' ? 'Super Admin' : (u.role === 'admin' ? 'Admin' : 'Staff'),
         scope: 'Company-wide',
         branch: 'HQ - Delhi NCR',
         reportingManager: 'Executive Management',
-        status: 'Active',
+        status: u.lockUntil && new Date(u.lockUntil) > new Date() ? 'Disabled' : 'Active',
+        crmAccess: u.crmAccess !== undefined ? Boolean(u.crmAccess) : (u.role === 'superadmin'),
         lastLogin: u.updatedAt ? new Date(u.updatedAt).toLocaleDateString('en-IN') : 'Recently',
         locked: false,
       }));
@@ -29,9 +31,9 @@ crmSettingsRouter.get('/users', async (_req, res) => {
         {
           kpis: {
             total: formattedUsers.length,
-            active: formattedUsers.length,
+            active: formattedUsers.filter((u) => u.status === 'Active').length,
             invited: 0,
-            disabled: 0,
+            disabled: formattedUsers.filter((u) => u.status !== 'Active').length,
           },
           users: formattedUsers,
           accessChanges: [
@@ -176,8 +178,36 @@ crmSettingsRouter.get('/company', (_req, res) => {
   successResponse(res, company, 'Company profile retrieved');
 });
 
-crmSettingsRouter.get('/catalogue', (_req, res) => {
-  successResponse(res, [], 'Catalogue retrieved');
+crmSettingsRouter.get('/catalogue', async (_req, res) => {
+  try {
+    const products = await ProductModel.find({ isDeleted: { $ne: true } })
+      .populate('category', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
+    if (products && products.length > 0) {
+      const catalogue = products.map((p: any) => ({
+        id: p._id.toString(),
+        type: 'product',
+        code: p.code || '',
+        name: p.title,
+        description: p.shortDescription || p.description || '',
+        category: (p.category as any)?.name || 'Equipment',
+        unit: 'Nos.',
+        price: String(p.discountPrice || p.price || 0),
+        taxProfile: `GST ${p.gstRate || 18}%`,
+        hsn: p.hsnCode || '',
+        warrantyValue: '12',
+        warrantyUnit: 'Months',
+        stockManaged: true,
+        warehouse: 'Main WH',
+        active: p.isActive !== false,
+      }));
+      return successResponse(res, catalogue, 'Catalogue retrieved from database');
+    }
+  } catch (err: any) {
+    console.warn('[CRM Settings] Error fetching catalogue products:', err?.message);
+  }
+  return successResponse(res, [], 'Catalogue retrieved');
 });
 
 crmSettingsRouter.get('/master-config', (_req, res) => {
@@ -188,8 +218,43 @@ crmSettingsRouter.get('/audit-log', (_req, res) => {
   successResponse(res, [], 'Audit log retrieved');
 });
 
-crmSettingsRouter.put('/:section', (req, res) => {
-  successResponse(res, { id: req.params.section, section: req.params.section, ...req.body }, 'Settings updated');
+crmSettingsRouter.patch('/users/:id/crm-access', async (req, res) => {
+  try {
+    const { crmAccess } = req.body;
+    const user = await UserModel.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    user.crmAccess = Boolean(crmAccess);
+    await user.save();
+    return successResponse(
+      res,
+      { id: user._id.toString(), crmAccess: Boolean(user.crmAccess) },
+      'CRM access updated'
+    );
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Failed to update CRM access' });
+  }
+});
+
+crmSettingsRouter.put('/:section', async (req, res) => {
+  const section = req.params.section;
+  const body = req.body || {};
+
+  if (section === 'users' && (body.id || body._id)) {
+    try {
+      const userId = body.id || body._id;
+      const updateData: Record<string, unknown> = {};
+      if (body.name) updateData.name = body.name;
+      if (body.email) updateData.email = body.email.toLowerCase().trim();
+      if (body.mobile !== undefined) updateData.phone = body.mobile;
+      if (body.phone !== undefined) updateData.phone = body.phone;
+      if (body.crmAccess !== undefined) updateData.crmAccess = Boolean(body.crmAccess);
+      await UserModel.findByIdAndUpdate(userId, { $set: updateData });
+    } catch (err: any) {
+      console.warn('[CRM Settings] User update failed:', err?.message);
+    }
+  }
+
+  successResponse(res, { id: section, section, ...body }, 'Settings updated');
 });
 
 export default crmSettingsRouter;
