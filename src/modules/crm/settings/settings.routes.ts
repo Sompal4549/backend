@@ -157,9 +157,21 @@ crmSettingsRouter.get('/integrations', (_req, res) => {
 
 crmSettingsRouter.get('/company', (_req, res) => {
   const company = {
-    legalName: 'Design House India Pvt Ltd / ENSIS',
-    brandName: 'ENSIS Wellness',
-    email: 'info@ensis.in',
+    brandName: 'ENSIS',
+    legalName: 'Design House India Pvt Ltd',
+    description: 'Wellness furniture & healthcare solutions',
+    website: 'ensis.in',
+    currency: 'INR – Indian Rupee (₹)',
+    timezone: 'Asia/Kolkata (IST)',
+    gstin: '07AAAAA0000A1Z5',
+    registeredAddress: 'Plot 14, Industrial Area, Delhi NCR',
+    businessEmail: 'info@ensis.in',
+    phone: '+91 98100 00000',
+    branches: [
+      { id: 'b1', name: 'Ghaziabad HQ', address: 'Plot 14, Industrial Area', contact: 'info@ensis.in', manager: 'Vijay Sharma', status: 'Active' },
+      { id: 'b2', name: 'Delhi', address: 'Connaught Place, New Delhi', contact: 'delhi@ensis.in', manager: 'Simran Kaur', status: 'Active' },
+      { id: 'b3', name: 'Mumbai', address: 'Andheri East, Mumbai', contact: 'mumbai@ensis.in', manager: 'Rajesh Kumar', status: 'Active' },
+    ],
   };
   successResponse(res, company, 'Company profile retrieved');
 });
