@@ -61,25 +61,17 @@ crmReportsRouter.get('/catalog', (_req, res) => {
 crmReportsRouter.get('/:key', (req, res) => {
   const key = req.params.key;
   const page = reportPagesMock[key];
-  if (page) {
+  if (page && page.layout) {
     const from = (req.query.from as string) || page.from;
     const to = (req.query.to as string) || page.to;
     const asOf = (req.query.asOf as string) || page.asOf;
     return successResponse(res, { ...page, from, to, asOf }, `Report ${key} retrieved`);
   }
 
-  const fallback = {
-    key,
-    title: `${key.toUpperCase()} Report`,
-    period: 'Current Month',
-    kpis: [
-      { label: 'Total Value', value: '₹24,50,000' },
-      { label: 'Count', value: '42' },
-      { label: 'Growth', value: '+14%' },
-    ],
-    rows: [],
-  };
-  return successResponse(res, fallback, 'Report details retrieved');
+  return res.status(404).json({
+    success: false,
+    message: `Report ${key} not found or requires client layout rendering`,
+  });
 });
 
 export default crmReportsRouter;
