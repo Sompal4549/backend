@@ -7,6 +7,7 @@ export const ROLE = {
 export const CRM_ROLE = {
   SUPER_ADMIN: 'Super Admin',
   SALES_MANAGER: 'Sales Manager',
+  SALES_EXECUTIVE: 'Sales Executive',
   PROJECT_MANAGER: 'Project Manager',
   PRODUCTION_MANAGER: 'Production Manager',
   PRODUCTION_EXECUTIVE: 'Production Executive',
@@ -19,6 +20,7 @@ export const CRM_ROLE = {
 export const CRM_ROLE_VALUES = [
   'Super Admin',
   'Sales Manager',
+  'Sales Executive',
   'Project Manager',
   'Production Manager',
   'Production Executive',
