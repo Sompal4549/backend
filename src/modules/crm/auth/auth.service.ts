@@ -7,9 +7,13 @@ export interface SessionUser {
   name: string;
   email: string;
   role: string;
+  crmRole?: string;
+  adminRole?: string;
   avatar?: string;
   photoUrl?: string;
   crmAccess?: boolean;
+  adminAccess?: boolean;
+  productAccess?: 'crm' | 'admin' | 'both';
 }
 
 export interface AdminSession {
@@ -104,14 +108,26 @@ export const crmAuthService = {
       return null;
     }
 
+    const crmRole =
+      (user as any).crmRole ||
+      (isSuperAdmin ? 'Super Admin' : (user as any).role === 'admin' ? 'Admin Executive' : 'Staff');
+
+    const adminRole = (user as any).adminRole || user.role || 'admin';
+    const hasAdminAccess =
+      (user as any).adminAccess !== undefined ? Boolean((user as any).adminAccess) : isSuperAdmin || user.role === 'admin';
+
     return {
       id: user._id.toString(),
       name: user.name,
       email: user.email,
-      role: user.role === ROLE.SUPERADMIN ? 'Super Admin' : 'Admin',
+      role: crmRole,
+      crmRole,
+      adminRole,
       avatar: user.avatar || '',
       photoUrl: user.avatar || '',
       crmAccess: hasCrmAccess,
+      adminAccess: hasAdminAccess,
+      productAccess: (user as any).productAccess || (hasCrmAccess && hasAdminAccess ? 'both' : hasCrmAccess ? 'crm' : 'admin'),
     };
   },
 };

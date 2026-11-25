@@ -41,6 +41,7 @@ usersRouter.get(
       roleName: u.role || 'Admin',
       status: u.lockUntil && new Date(u.lockUntil) > new Date() ? 'LOCKED' : 'ACTIVE',
       crmAccess: u.crmAccess !== undefined ? Boolean(u.crmAccess) : (u.role === 'superadmin'),
+      productAccess: u.productAccess || 'crm',
       isEmailVerified: Boolean(u.emailVerified),
       hasPassword: Boolean(u.password),
       createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : String(u.createdAt || ''),
@@ -54,7 +55,7 @@ usersRouter.get(
 usersRouter.post(
   '/admin/staff',
   asyncHandler(async (req: Request, res: Response) => {
-    const { name, email, phone, employeeId, roleId, crmAccess } = req.body;
+    const { name, email, phone, employeeId, roleId, crmRole, adminRole, crmAccess, adminAccess, productAccess } = req.body;
     if (!name || !email) {
       throw new AppError(400, 'Name and email are required');
     }
@@ -67,13 +68,20 @@ usersRouter.post(
 
     const temporaryPassword = crypto.randomBytes(6).toString('hex') + 'A1!';
     const finalEmployeeId = (employeeId || '').trim() || (await generateEmployeeId());
+    const finalAdminRole = adminRole || roleId || 'admin';
+    const finalCrmRole = crmRole || (finalAdminRole === 'superadmin' ? 'Super Admin' : 'Admin Executive');
+
     const user = await UserModel.create({
       name,
       email: email.toLowerCase().trim(),
       phone: phone || '',
       employeeId: finalEmployeeId,
-      role: roleId || 'admin',
-      crmAccess: Boolean(crmAccess),
+      role: finalAdminRole,
+      adminRole: finalAdminRole,
+      crmRole: finalCrmRole,
+      adminAccess: adminAccess !== undefined ? Boolean(adminAccess) : true,
+      crmAccess: crmAccess !== undefined ? Boolean(crmAccess) : false,
+      productAccess: productAccess || (crmAccess && adminAccess ? 'both' : crmAccess ? 'crm' : 'admin'),
       password: temporaryPassword,
       emailVerified: true,
       phoneVerified: true,
@@ -87,8 +95,12 @@ usersRouter.post(
       employeeId: user.employeeId || '',
       avatarUrl: user.avatar,
       roleName: user.role,
+      crmRole: user.crmRole,
+      adminRole: user.adminRole,
       status: 'ACTIVE',
       crmAccess: user.crmAccess !== undefined ? Boolean(user.crmAccess) : (user.role === 'superadmin'),
+      adminAccess: user.adminAccess !== undefined ? Boolean(user.adminAccess) : true,
+      productAccess: user.productAccess || 'crm',
       isEmailVerified: true,
       hasPassword: true,
       createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
@@ -110,7 +122,7 @@ usersRouter.post(
 usersRouter.patch(
   '/admin/staff/:id',
   asyncHandler(async (req: Request, res: Response) => {
-    const { name, email, phone, employeeId, roleId, crmAccess } = req.body;
+    const { name, email, phone, employeeId, roleId, crmRole, adminRole, crmAccess, adminAccess, productAccess } = req.body;
     const update: Record<string, unknown> = {};
     if (name) update.name = name;
     if (email) update.email = email.toLowerCase().trim();
@@ -123,8 +135,20 @@ usersRouter.patch(
       assertStaffAssignableRole(roleId);
       update.role = roleId;
     }
+    if (adminRole) {
+      update.adminRole = adminRole;
+    }
+    if (crmRole) {
+      update.crmRole = crmRole;
+    }
     if (crmAccess !== undefined) {
       update.crmAccess = Boolean(crmAccess);
+    }
+    if (adminAccess !== undefined) {
+      update.adminAccess = Boolean(adminAccess);
+    }
+    if (productAccess !== undefined) {
+      update.productAccess = productAccess;
     }
 
     const user = await UserModel.findByIdAndUpdate(req.params.id, update, { new: true });
@@ -140,12 +164,57 @@ usersRouter.patch(
         employeeId: user.employeeId || '',
         avatarUrl: user.avatar,
         roleName: user.role,
-        status: user.isLocked() ? 'LOCKED' : 'ACTIVE',
+        crmRole: user.crmRole,
+        adminRole: user.adminRole,
+        status: user.lockUntil && new Date(user.lockUntil) > new Date() ? 'LOCKED' : 'ACTIVE',
         crmAccess: user.crmAccess !== undefined ? Boolean(user.crmAccess) : (user.role === 'superadmin'),
+        adminAccess: user.adminAccess !== undefined ? Boolean(user.adminAccess) : true,
+        productAccess: user.productAccess || 'crm',
         isEmailVerified: Boolean(user.emailVerified),
+        hasPassword: Boolean(user.password),
         createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
       },
-      'Staff member updated'
+      'Staff member updated successfully'
+    );
+  })
+);
+
+// PATCH /api/v1/users/admin/staff/:id/crm-access
+usersRouter.patch(
+  '/admin/staff/:id/crm-access',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { crmAccess } = req.body;
+    const user = await UserModel.findById(req.params.id);
+    if (!user) throw new AppError(404, 'Staff member not found');
+    user.crmAccess = Boolean(crmAccess);
+    await user.save();
+    successResponse(
+      res,
+      {
+        _id: String(user._id),
+        crmAccess: Boolean(user.crmAccess),
+      },
+      'CRM access updated successfully'
+    );
+  })
+);
+
+// PATCH /api/v1/users/admin/staff/:id/product-access
+usersRouter.patch(
+  '/admin/staff/:id/product-access',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { productAccess } = req.body;
+    const user = await UserModel.findById(req.params.id);
+    if (!user) throw new AppError(404, 'Staff member not found');
+    user.productAccess = productAccess;
+    await user.save();
+    successResponse(
+      res,
+      {
+        _id: String(user._id),
+        productAccess: user.productAccess,
+      },
+      'Product access updated successfully'
     );
   })
 );

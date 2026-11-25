@@ -9,22 +9,35 @@ crmSettingsRouter.get('/users', async (_req, res) => {
   try {
     const dbUsers = await UserModel.find().sort({ createdAt: -1 }).lean();
     if (dbUsers && dbUsers.length > 0) {
-      const formattedUsers = dbUsers.map((u: any) => ({
-        id: u._id.toString(),
-        name: u.name || 'User',
-        email: u.email,
-        mobile: u.phone || '',
-        department: u.role === 'superadmin' ? 'Management' : 'Sales & Operations',
-        designation: u.role === 'superadmin' ? 'Super Administrator' : (u.role === 'admin' ? 'Administrator' : 'Executive'),
-        role: u.role === 'superadmin' ? 'Super Admin' : (u.role === 'admin' ? 'Admin' : 'Staff'),
-        scope: 'Company-wide',
-        branch: 'HQ - Delhi NCR',
-        reportingManager: 'Executive Management',
-        status: u.lockUntil && new Date(u.lockUntil) > new Date() ? 'Disabled' : 'Active',
-        crmAccess: u.crmAccess !== undefined ? Boolean(u.crmAccess) : (u.role === 'superadmin'),
-        lastLogin: u.updatedAt ? new Date(u.updatedAt).toLocaleDateString('en-IN') : 'Recently',
-        locked: false,
-      }));
+      const formattedUsers = dbUsers.map((u: any) => {
+        const isSuperAdmin = u.role === 'superadmin' || u.adminRole === 'superadmin';
+        const crmRole = u.crmRole || (isSuperAdmin ? 'Super Admin' : (u.role === 'admin' ? 'Admin Executive' : 'Sales Manager'));
+        const adminRole = u.adminRole || u.role || 'admin';
+        const crmAccess = u.crmAccess !== undefined ? Boolean(u.crmAccess) : isSuperAdmin;
+        const adminAccess = u.adminAccess !== undefined ? Boolean(u.adminAccess) : (isSuperAdmin || u.role === 'admin');
+        const productAccess = u.productAccess || (crmAccess && adminAccess ? 'both' : crmAccess ? 'crm' : 'admin');
+
+        return {
+          id: u._id.toString(),
+          name: u.name || 'User',
+          email: u.email,
+          mobile: u.phone || '',
+          department: u.department || (isSuperAdmin ? 'Management' : 'Sales & Operations'),
+          designation: u.designation || (isSuperAdmin ? 'Super Administrator' : (u.role === 'admin' ? 'Administrator' : crmRole)),
+          role: crmRole,
+          crmRole: crmRole,
+          adminRole: adminRole,
+          scope: u.scope || 'Company-wide',
+          branch: u.branch || 'HQ - Delhi NCR',
+          reportingManager: u.reportingManager || 'Executive Management',
+          status: u.lockUntil && new Date(u.lockUntil) > new Date() ? 'Disabled' : 'Active',
+          crmAccess,
+          adminAccess,
+          productAccess,
+          lastLogin: u.updatedAt ? new Date(u.updatedAt).toLocaleDateString('en-IN') : 'Recently',
+          locked: false,
+        };
+      });
 
       return successResponse(
         res,
@@ -220,14 +233,15 @@ crmSettingsRouter.get('/audit-log', (_req, res) => {
 
 crmSettingsRouter.patch('/users/:id/crm-access', async (req, res) => {
   try {
-    const { crmAccess } = req.body;
+    const { crmAccess, productAccess } = req.body;
     const user = await UserModel.findById(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    user.crmAccess = Boolean(crmAccess);
+    if (crmAccess !== undefined) user.crmAccess = Boolean(crmAccess);
+    if (productAccess !== undefined) user.productAccess = productAccess;
     await user.save();
     return successResponse(
       res,
-      { id: user._id.toString(), crmAccess: Boolean(user.crmAccess) },
+      { id: user._id.toString(), crmAccess: Boolean(user.crmAccess), productAccess: user.productAccess },
       'CRM access updated'
     );
   } catch (err: any) {
@@ -239,16 +253,25 @@ crmSettingsRouter.put('/:section', async (req, res) => {
   const section = req.params.section;
   const body = req.body || {};
 
-  if (section === 'users' && (body.id || body._id)) {
+  if (section === 'users') {
     try {
       const userId = body.id || body._id;
-      const updateData: Record<string, unknown> = {};
-      if (body.name) updateData.name = body.name;
-      if (body.email) updateData.email = body.email.toLowerCase().trim();
-      if (body.mobile !== undefined) updateData.phone = body.mobile;
-      if (body.phone !== undefined) updateData.phone = body.phone;
-      if (body.crmAccess !== undefined) updateData.crmAccess = Boolean(body.crmAccess);
-      await UserModel.findByIdAndUpdate(userId, { $set: updateData });
+      if (userId) {
+        const updateData: Record<string, unknown> = {};
+        if (body.name) updateData.name = body.name;
+        if (body.email) updateData.email = body.email.toLowerCase().trim();
+        if (body.mobile !== undefined) updateData.phone = body.mobile;
+        if (body.phone !== undefined) updateData.phone = body.phone;
+        if (body.department !== undefined) updateData.department = body.department;
+        if (body.designation !== undefined) updateData.designation = body.designation;
+        if (body.crmRole) updateData.crmRole = body.crmRole;
+        if (body.role && !body.crmRole) updateData.crmRole = body.role;
+        if (body.adminRole) updateData.adminRole = body.adminRole;
+        if (body.crmAccess !== undefined) updateData.crmAccess = Boolean(body.crmAccess);
+        if (body.adminAccess !== undefined) updateData.adminAccess = Boolean(body.adminAccess);
+        if (body.productAccess !== undefined) updateData.productAccess = body.productAccess;
+        await UserModel.findByIdAndUpdate(userId, { $set: updateData });
+      }
     } catch (err: any) {
       console.warn('[CRM Settings] User update failed:', err?.message);
     }

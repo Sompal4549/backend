@@ -14,17 +14,24 @@ const totpValid = (secret: string | undefined, code: unknown): boolean => {
   return speakeasy.totp.verify({ secret, encoding: 'base32', token, window: 2 });
 };
 
-const formatAdminResponse = (user: UserDocument) => ({
-  id: user._id.toString(),
-  _id: user._id.toString(),
-  name: user.name,
-  email: user.email,
-  phone: user.phone,
-  role: user.role,
-  roleSlug: user.role === ROLE.SUPERADMIN ? 'SUPER_ADMIN' : 'ADMIN',
-  isTwoFactorEnabled: !!user.isTwoFactorEnabled,
-  avatarUrl: user.avatar,
-});
+const formatAdminResponse = (user: UserDocument) => {
+  const isSuper = user.role === ROLE.SUPERADMIN || user.adminRole === 'superadmin';
+  const adminRole = user.adminRole || (isSuper ? 'superadmin' : 'admin');
+  return {
+    id: user._id.toString(),
+    _id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: adminRole,
+    roleSlug: isSuper ? 'SUPER_ADMIN' : 'ADMIN',
+    crmRole: user.crmRole || (isSuper ? 'Super Admin' : 'Admin Executive'),
+    crmAccess: user.crmAccess !== undefined ? Boolean(user.crmAccess) : isSuper,
+    adminAccess: user.adminAccess !== undefined ? Boolean(user.adminAccess) : true,
+    isTwoFactorEnabled: !!user.isTwoFactorEnabled,
+    avatarUrl: user.avatar,
+  };
+};
 
 export const loginAdminService = async (data: {
   email?: string;

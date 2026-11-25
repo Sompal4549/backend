@@ -1,6 +1,6 @@
 import { Schema, model, Types, HydratedDocument } from 'mongoose';
 import bcrypt from 'bcrypt';
-import { ROLE } from '../constants/roles.constants';
+import { ROLE, CRM_ROLE_VALUES, CrmRole } from '../constants/roles.constants';
 
 export interface IUser {
   name: string;
@@ -20,8 +20,12 @@ export interface IUser {
   loginAttempts?: number;
   lockUntil?: Date;
   employeeId?: string;
+  adminAccess?: boolean;
+  adminRole?: string;
   crmAccess?: boolean;
+  crmRole?: CrmRole;
   permissions?: string[];
+  productAccess?: 'crm' | 'admin' | 'both';
   createdAt?: Date;
   updatedAt?: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -49,8 +53,12 @@ const userSchema = new Schema<IUser>(
     loginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
     employeeId: { type: String, trim: true, sparse: true },
+    adminAccess: { type: Boolean, default: false },
+    adminRole: { type: String, enum: ['superadmin', 'admin', 'user'], default: 'admin' },
     crmAccess: { type: Boolean, default: false },
+    crmRole: { type: String, enum: CRM_ROLE_VALUES, default: 'Super Admin' },
     permissions: [{ type: String }],
+    productAccess: { type: String, enum: ['crm', 'admin', 'both'], default: 'crm' },
   },
   { timestamps: true }
 );

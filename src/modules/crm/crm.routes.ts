@@ -47,22 +47,34 @@ crmRouter.get('/users', async (_req, res) => {
   try {
     const { UserModel } = await import('../../models/user.model');
     const users = await UserModel.find()
-      .select('name email phone role avatar employeeId crmAccess permissions createdAt updatedAt')
+      .select('name email phone role crmRole adminRole adminAccess avatar employeeId crmAccess productAccess permissions createdAt updatedAt')
       .sort({ createdAt: -1 })
       .lean();
 
-    const items = users.map((u: any) => ({
-      id: u._id.toString(),
-      name: u.name,
-      email: u.email,
-      phone: u.phone || '',
-      role: u.role || 'admin',
-      avatar: u.avatar || '',
-      employeeId: u.employeeId || '',
-      crmAccess: u.role === 'superadmin' ? true : Boolean(u.crmAccess || (u.permissions && u.permissions.includes('crm'))),
-      status: { label: 'Active', tone: 'success' },
-      createdAt: u.createdAt,
-    }));
+    const items = users.map((u: any) => {
+      const isSuper = u.role === 'superadmin' || u.adminRole === 'superadmin';
+      const crmRole = u.crmRole || (isSuper ? 'Super Admin' : (u.role === 'admin' ? 'Admin Executive' : 'Sales Manager'));
+      const adminRole = u.adminRole || u.role || 'admin';
+      const crmAccess = u.crmAccess !== undefined ? Boolean(u.crmAccess) : isSuper;
+      const adminAccess = u.adminAccess !== undefined ? Boolean(u.adminAccess) : isSuper;
+
+      return {
+        id: u._id.toString(),
+        name: u.name,
+        email: u.email,
+        phone: u.phone || '',
+        role: crmRole,
+        crmRole,
+        adminRole,
+        avatar: u.avatar || '',
+        employeeId: u.employeeId || '',
+        crmAccess,
+        adminAccess,
+        productAccess: u.productAccess || (crmAccess && adminAccess ? 'both' : crmAccess ? 'crm' : 'admin'),
+        status: { label: 'Active', tone: 'success' },
+        createdAt: u.createdAt,
+      };
+    });
 
     return successResponse(res, items, 'Users list retrieved');
   } catch (err: any) {
