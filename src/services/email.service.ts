@@ -48,10 +48,11 @@ export const sendEmail = async (
   subject: string,
   text: string,
   html?: string,
-  attachments?: nodemailer.SendMailOptions['attachments']
+  attachments?: nodemailer.SendMailOptions['attachments'],
+  cc?: string
 ): Promise<void> => {
   if (config.emailProvider === 'console') {
-    console.info(`[Console Email] To: ${to} | Subject: ${subject}`);
+    console.info(`[Console Email] To: ${to}${cc ? ` | Cc: ${cc}` : ''} | Subject: ${subject}`);
     console.info(`Content (Text): ${text}`);
     if (html) console.info(`Content (HTML): ${html}`);
     return;
@@ -60,6 +61,7 @@ export const sendEmail = async (
   await transporter.sendMail({
     from: formatAddress(config.emailFrom, config.emailFromName),
     to,
+    cc: cc || undefined,
     subject,
     text,
     html: html || undefined,

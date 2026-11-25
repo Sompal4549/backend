@@ -460,8 +460,79 @@ crmQuotationsRouter.put('/:id', async (req, res) => {
 crmQuotationsRouter.post('/:id/send', async (req, res) => {
   try {
     const id = req.params.id;
-    await QuotationModel.findOneAndUpdate({ id }, { $set: { status: 'Sent' } });
-    return successResponse(res, { id }, 'Quotation sent successfully');
+    const body = req.body || {};
+    const via = body.via || 'email';
+    const recipient = body.recipient || '';
+    const cc = body.cc || '';
+    const subject = body.subject || `ENSIS Quotation ${id}`;
+    const message = body.message || '';
+
+    await QuotationModel.findOneAndUpdate(
+      { id },
+      {
+        $set: {
+          status: 'Sent',
+          sentVia: via,
+          sentTo: recipient,
+          sentCc: cc,
+          sentAt: new Date().toISOString(),
+          sentSubject: subject,
+          sentMessage: message,
+        },
+      }
+    );
+
+    try {
+      const { CrmRecord } = await import('../../../models/crm-record.model');
+      const existingActivitiesDoc = await CrmRecord.findOne({ key: 'dashboard.activities' });
+      const currentActivities = existingActivitiesDoc?.data || [];
+      const newActivity = {
+        id: `act-${Date.now().toString().slice(-4)}`,
+        at: 'Just now',
+        by: body.sender || 'Sales Team',
+        text: `Quotation ${id} sent via ${via === 'whatsapp' ? 'WhatsApp' : 'Email'} to ${recipient}`,
+        module: 'Sales',
+      };
+      await CrmRecord.findOneAndUpdate(
+        { key: 'dashboard.activities' },
+        { key: 'dashboard.activities', data: [newActivity, ...currentActivities] },
+        { upsert: true, new: true }
+      );
+    } catch (_actErr) {
+      // Activity logging fallback
+    }
+
+    if (via === 'email' && recipient) {
+      try {
+        const { sendEmail } = await import('../../../services/email.service');
+        const formattedHtml = `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <div style="border-bottom: 2px solid #005a36; padding-bottom: 12px; margin-bottom: 20px;">
+              <h2 style="color: #005a36; margin: 0;">ENSIS — Panchkarma &amp; Wellness Spaces</h2>
+            </div>
+            <div style="white-space: pre-line; font-size: 14px; margin-bottom: 24px;">
+              ${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+            </div>
+            <div style="background-color: #f9fafb; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #4b5563; border-left: 4px solid #005a36;">
+              <strong>Quotation Reference:</strong> ${id}<br />
+              <strong>Official Contact:</strong> sales@ensis.in | +91 98110 02200
+            </div>
+          </div>
+        `;
+        await sendEmail(recipient, subject, message, formattedHtml, undefined, cc);
+      } catch (emailErr) {
+        console.error('[Quotation Send Email Error]:', emailErr);
+      }
+    } else if (via === 'whatsapp' && recipient) {
+      try {
+        const { sendWhatsAppMessage } = await import('../../../utils/whatsapp');
+        await sendWhatsAppMessage(recipient, message);
+      } catch (waErr) {
+        console.error('[Quotation Send WhatsApp Error]:', waErr);
+      }
+    }
+
+    return successResponse(res, { id, status: 'Sent' }, 'Quotation sent successfully');
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Error sending quotation' });
   }
