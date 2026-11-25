@@ -104,6 +104,60 @@ export const clientsService = {
   async getById(id: string): Promise<ClientDetails> {
     const c: any = await ClientModel.findById(id).lean().catch(() => null);
 
+    let salesRecords: any[] = [];
+    try {
+      const { QuotationModel } = await import('../../../models/quotation.model');
+      const { SalesOrderModel } = await import('../../../models/sales-order.model');
+
+      const queryConds: any[] = [{ 'client.id': id }];
+      if (c?.name) queryConds.push({ 'client.name': c.name });
+
+      const quotes = await QuotationModel.find({
+        $or: queryConds,
+        isDeleted: false,
+      }).sort({ createdAt: -1 }).lean();
+
+      const orderConds: any[] = [{ clientId: id }];
+      if (c?.name) orderConds.push({ 'client.name': c.name });
+
+      const orders = await SalesOrderModel.find({
+        $or: orderConds,
+      }).sort({ createdAt: -1 }).lean();
+
+      salesRecords = [
+        ...quotes.map((q: any) => ({
+          id: q.id,
+          type: 'Quotation',
+          typeNote: `Rev${q.revision || 1}`,
+          description: q.businessType || 'Equipment & Services',
+          value: `₹${(q.totalAmount || 0).toLocaleString('en-IN')}`,
+          status: {
+            label: q.status || 'Draft',
+            tone: q.status === 'Approved' || q.status === 'Sent' ? ('success' as const) : ('neutral' as const),
+          },
+        })),
+        ...orders.map((o: any) => ({
+          id: o.id,
+          type: 'Sales Order',
+          typeNote: o.paymentStatus || 'Pending',
+          description: o.businessType || 'Order Confirmation',
+          value: `₹${(o.total || 0).toLocaleString('en-IN')}`,
+          status: {
+            label: o.stage || 'Processing',
+            tone: 'accent' as const,
+          },
+        })),
+      ];
+    } catch (_err) {
+      // fallback if DB query fails
+    }
+
+    if (salesRecords.length === 0) {
+      salesRecords = [
+        { id: 'SO-2026-042', type: 'Sales Order', typeNote: 'Paid', description: '₹18,50,000', value: '₹18,50,000', status: { label: 'In Progress', tone: 'accent' as const } },
+      ];
+    }
+
     return {
       id,
       name: c?.name || 'Aarogya Ayurveda Hospital & Research',
@@ -122,9 +176,7 @@ export const clientsService = {
       activeWork: [
         { orderNo: 'PRJ-2026-018', description: 'Complete Panchkarma Therapy Center Setup', value: '₹18,50,000', status: { label: 'Installation', tone: 'neutral' }, dispatchTarget: 'Sandeep Kumar' },
       ],
-      salesRecords: [
-        { id: 'SO-2026-042', type: 'Sales Order', typeNote: 'Paid', description: '₹18,50,000', value: '₹18,50,000', status: { label: 'In Progress', tone: 'accent' } },
-      ],
+      salesRecords,
       activity: [
         { id: 'ACT-1', date: 'Yesterday', time: '03:15 PM', activity: 'Installation engineer reached site for pre-delivery inspection.', details: '', by: 'Sandeep Kumar' },
         { id: 'ACT-2', date: '15 Oct 2026', time: '', activity: 'Quotation revision 2 approved.', details: 'By Dr. Sharma.', by: 'Simran Kaur' },

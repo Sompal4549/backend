@@ -407,8 +407,8 @@ crmQuotationsRouter.post('/', async (req, res) => {
     const id = body.id || generateDocumentNumber('estimate', 130 + count + 1);
 
     const isSubmit = Boolean(body.submit);
-    const status = isSubmit ? 'Awaiting approval' : body.status || 'Draft';
-    const approvalStatus = isSubmit ? 'Pending' : body.approvalStatus || 'Not submitted';
+    const status = isSubmit ? 'Approved' : (body.status || 'Draft');
+    const approvalStatus = isSubmit ? 'Approved' : (body.approvalStatus || 'Not submitted');
 
     // Calculate total
     const lines = Array.isArray(body.lines) ? body.lines : [];
@@ -461,6 +461,21 @@ crmQuotationsRouter.post('/:id/send', async (req, res) => {
     return successResponse(res, { id }, 'Quotation sent successfully');
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Error sending quotation' });
+  }
+});
+
+// POST /api/v1/crm/quotations/:id/approve
+crmQuotationsRouter.post('/:id/approve', async (req, res) => {
+  try {
+    const id = req.params.id;
+    await QuotationModel.findOneAndUpdate(
+      { id },
+      { $set: { status: 'Approved', approvalStatus: 'Approved' } },
+      { new: true }
+    );
+    return successResponse(res, { id, status: 'Approved', approvalStatus: 'Approved' }, 'Quotation approved successfully');
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Error approving quotation' });
   }
 });
 
