@@ -102,7 +102,20 @@ export const clientsService = {
   },
 
   async getById(id: string): Promise<ClientDetails> {
-    const c: any = await ClientModel.findById(id).lean().catch(() => null);
+    let c: any = null;
+    if (id && id.match(/^[0-9a-fA-F]{24}$/)) {
+      c = await ClientModel.findById(id).lean().catch(() => null);
+    }
+    if (!c && id) {
+      c = await ClientModel.findOne({
+        $or: [
+          { id },
+          { name: id },
+          { name: new RegExp('^' + id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+        ],
+        isDeleted: { $ne: true },
+      }).lean().catch(() => null);
+    }
 
     let salesRecords: any[] = [];
     let activeWork: any[] = [];

@@ -138,22 +138,58 @@ crmAccountsRouter.get('/lookups', (_req, res) => {
   successResponse(res, lookups, 'Accounts lookups retrieved');
 });
 
-crmAccountsRouter.get('/invoices/new', (_req, res) => {
+crmAccountsRouter.get('/invoices/new', async (req, res) => {
+  const salesOrderId = (req.query.salesOrder || req.query.orderId) as string;
+  let clientName = 'Aarogya Ayurveda';
+  let contactName = 'Dr. Neha';
+  let cityName = 'Jaipur';
+  let sourceRef = 'SO0090 / QT0130Rev2';
+  let lines = [
+    { id: 'i1', name: 'Steam Chamber', spec: 'Standard model', hsn: '8419', qty: 2, unit: 'Nos.', rate: 65000, discount: 0, gst: 18 },
+    { id: 'i2', name: 'Therapy Table', spec: 'Standard model', hsn: '9403', qty: 1, unit: 'Nos.', rate: 45000, discount: 0, gst: 18 },
+  ];
+
+  if (salesOrderId) {
+    try {
+      const { SalesOrderModel } = await import('../../../models/sales-order.model');
+      let order: any = await SalesOrderModel.findOne({ id: salesOrderId, isDeleted: { $ne: true } }).lean();
+      if (!order && salesOrderId.match(/^[0-9a-fA-F]{24}$/)) {
+        order = await SalesOrderModel.findById(salesOrderId).lean();
+      }
+      if (order) {
+        clientName = order.client || clientName;
+        sourceRef = `${order.id}${order.quotationId ? ` / ${order.quotationId}` : ''}`;
+        if (order.lines && order.lines.length > 0) {
+          lines = order.lines.map((l: any, idx: number) => ({
+            id: l.id || `i${idx + 1}`,
+            name: l.name,
+            spec: l.spec || 'Standard model',
+            hsn: l.hsn || '8419',
+            qty: l.qty || 1,
+            unit: l.unit || 'Nos.',
+            rate: l.rate || 0,
+            discount: l.discount || 0,
+            gst: l.gst || 18,
+          }));
+        }
+      }
+    } catch (_err) {
+      // fallback
+    }
+  }
+
   const invoice = {
     id: `INV-2026-${String(Math.floor(Math.random() * 900 + 100))}`,
     date: new Date().toISOString().slice(0, 10),
     status: 'Draft',
-    source: 'SO0090 / QT0130Rev2',
+    source: sourceRef,
     owner: 'Simran Kaur',
-    client: 'Aarogya Ayurveda',
-    contact: 'Dr. Neha',
-    city: 'Jaipur',
+    client: clientName,
+    contact: contactName,
+    city: cityName,
     placeOfSupply: 'Rajasthan',
     seller: { name: 'Design House India Pvt Ltd / ENSIS', gstin: '07AAAAA0000A1Z5', address: 'Delhi NCR' },
-    lines: [
-      { id: 'i1', name: 'Steam Chamber', spec: 'Standard model', hsn: '8419', qty: 2, unit: 'Nos.', rate: 65000, discount: 0, gst: 18 },
-      { id: 'i2', name: 'Therapy Table', spec: 'Standard model', hsn: '9403', qty: 1, unit: 'Nos.', rate: 45000, discount: 0, gst: 18 },
-    ],
+    lines,
     discount: 5000,
     advanceReceived: 50000,
     dueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),

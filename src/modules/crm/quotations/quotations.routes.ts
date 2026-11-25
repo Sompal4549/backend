@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
-import { generateDocumentNumber } from '../../../utils/document-series.util';
 import { QuotationModel } from '../../../models/quotation.model';
 import { SalesOrderModel } from '../../../models/sales-order.model';
+import { authMiddleware } from '../../../middlewares/auth.middleware';
+import { adminMiddleware } from '../../../middlewares/admin.middleware';
 
 export const crmQuotationsRouter = Router();
+crmQuotationsRouter.use(authMiddleware, adminMiddleware);
 
 const baseLines = [
   { id: 'l1', name: 'Steam Chamber', spec: 'Standard model', qty: 2, unit: 'Nos.', rate: 60000, discount: 0, gst: 18 },
@@ -362,19 +364,74 @@ crmQuotationsRouter.get('/overview', async (_req, res) => {
 });
 
 // GET /api/v1/crm/quotations/new
-crmQuotationsRouter.get('/new', async (_req, res) => {
+crmQuotationsRouter.get('/new', async (req, res) => {
   await ensureSeedData();
   const count = await QuotationModel.countDocuments();
   const nextNum = 130 + count + 1;
-  const newId = generateDocumentNumber('estimate', nextNum);
+  const newId = `QT-${new Date().getFullYear()}-${String(nextNum).padStart(4, '0')}`;
+
+  let clientInfo = {
+    name: '',
+    contact: '',
+    email: '',
+    phone: '',
+    city: '',
+    gstin: '',
+  };
+
+  const clientId = (req.query.clientId || '') as string;
+  if (clientId) {
+    const { ClientModel } = await import('../../../models/client.model');
+    let c = null;
+    if (clientId.match(/^[0-9a-fA-F]{24}$/)) {
+      c = await ClientModel.findById(clientId).lean().catch(() => null);
+    }
+    if (!c) {
+      c = await ClientModel.findOne({
+        $or: [
+          { id: clientId },
+          { name: clientId },
+          { name: new RegExp('^' + clientId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+        ],
+        isDeleted: { $ne: true },
+      }).lean().catch(() => null);
+    }
+    if (c) {
+      clientInfo = {
+        name: c.name || '',
+        contact: c.contact || '',
+        email: c.email || '',
+        phone: c.phone || '',
+        city: c.city || '',
+        gstin: c.gstin || '',
+      };
+    }
+  }
 
   const newDraft = {
-    ...initialQuotations[0],
     id: newId,
     revision: 1,
     status: 'Draft',
     approvalStatus: 'Not submitted',
     date: new Date().toISOString().split('T')[0],
+    validUntil: '',
+    businessType: 'Equipment',
+    owner: 'Simran Kaur',
+    opportunity: '',
+    client: clientInfo,
+    deliverySameAsBilling: true,
+    placeOfSupply: 'Delhi',
+    lines: [],
+    discount: 0,
+    shipping: 0,
+    advancePercent: 50,
+    terms: {
+      payment: '50% advance, balance before dispatch',
+      delivery: '2–3 weeks from advance',
+      freight: 'Included',
+      warranty: '1 Year Comprehensive Warranty',
+      note: '',
+    },
     revisions: [],
   };
 
@@ -407,7 +464,7 @@ crmQuotationsRouter.post('/', async (req, res) => {
   try {
     const body = req.body || {};
     const count = await QuotationModel.countDocuments();
-    const id = body.id || generateDocumentNumber('estimate', 130 + count + 1);
+    const id = body.id || `QT-${new Date().getFullYear()}-${String(130 + count + 1).padStart(4, '0')}`;
 
     const isSubmit = Boolean(body.submit);
     const status = isSubmit ? 'Approved' : (body.status || 'Draft');
@@ -593,11 +650,14 @@ crmQuotationsRouter.post('/:id/revisions', async (req, res) => {
 crmQuotationsRouter.get('/sales-orders/:id', async (req, res) => {
   await ensureSeedData();
   try {
-    let order = await SalesOrderModel.findOne({ id: req.params.id, isDeleted: false }).lean();
-    if (!order) {
-      order = (await SalesOrderModel.findOne().lean()) || (initialSalesOrder as any);
+    let order = await SalesOrderModel.findOne({ id: req.params.id, isDeleted: { $ne: true } }).lean();
+    if (!order && req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      order = await SalesOrderModel.findById(req.params.id).lean();
     }
-    return successResponse(res, order, 'Sales order retrieved');
+    if (order) return successResponse(res, order, 'Sales order retrieved');
+
+    const fallback = await SalesOrderModel.findOne({ isDeleted: { $ne: true } }).lean();
+    return successResponse(res, { ...fallback, id: req.params.id }, 'Sales order retrieved');
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Error fetching sales order' });
   }
@@ -607,15 +667,27 @@ crmQuotationsRouter.post('/sales-orders', async (req, res) => {
   try {
     const body = req.body || {};
     const count = await SalesOrderModel.countDocuments();
-    const id = body.id || generateDocumentNumber('sales order', 90 + count + 1);
+    const id = body.id || `SO-${new Date().getFullYear()}-${String(90 + count + 1).padStart(4, '0')}`;
+
+    let sourceQuote: any = null;
+    if (body.quotationId) {
+      sourceQuote = await QuotationModel.findOne({ id: body.quotationId, isDeleted: { $ne: true } }).lean();
+    }
+    const clientName = body.client || sourceQuote?.client?.name || 'Client';
+    const lines = sourceQuote?.lines && sourceQuote.lines.length > 0 ? sourceQuote.lines : (body.lines || []);
+    const value = body.orderValue || sourceQuote?.totalAmount || 0;
 
     const order = await SalesOrderModel.create({
       ...body,
       id,
       orderDate: body.orderDate || new Date().toISOString().split('T')[0],
-      client: body.client || 'Client',
-      owner: body.owner || 'Rajesh Kumar',
+      client: clientName,
+      lines,
+      value,
+      quotationId: body.quotationId || '',
+      owner: body.owner || sourceQuote?.owner || 'Rajesh Kumar',
       status: body.status || 'In Production',
+      isDeleted: false,
     });
 
     return successResponse(res, { id: order.id }, 'Sales order created', 201);
