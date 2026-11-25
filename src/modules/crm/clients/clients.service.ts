@@ -105,57 +105,118 @@ export const clientsService = {
     const c: any = await ClientModel.findById(id).lean().catch(() => null);
 
     let salesRecords: any[] = [];
+    let activeWork: any[] = [];
     try {
       const { QuotationModel } = await import('../../../models/quotation.model');
       const { SalesOrderModel } = await import('../../../models/sales-order.model');
 
+      const clientName = c?.name || '';
       const queryConds: any[] = [{ 'client.id': id }];
-      if (c?.name) queryConds.push({ 'client.name': c.name });
+      if (clientName) {
+        queryConds.push({ 'client.name': clientName });
+        queryConds.push({ 'client.name': new RegExp(clientName.slice(0, 10), 'i') });
+      }
 
       const quotes = await QuotationModel.find({
         $or: queryConds,
-        isDeleted: false,
+        isDeleted: { $ne: true },
       }).sort({ createdAt: -1 }).lean();
 
       const orderConds: any[] = [{ clientId: id }];
-      if (c?.name) orderConds.push({ 'client.name': c.name });
+      if (clientName) {
+        orderConds.push({ client: clientName });
+        orderConds.push({ client: new RegExp(clientName.slice(0, 10), 'i') });
+      }
 
       const orders = await SalesOrderModel.find({
         $or: orderConds,
+        isDeleted: { $ne: true },
       }).sort({ createdAt: -1 }).lean();
 
-      salesRecords = [
-        ...quotes.map((q: any) => ({
-          id: q.id,
-          type: 'Quotation',
-          typeNote: `Rev${q.revision || 1}`,
-          description: q.businessType || 'Equipment & Services',
-          value: `₹${(q.totalAmount || 0).toLocaleString('en-IN')}`,
-          status: {
-            label: q.status || 'Draft',
-            tone: q.status === 'Approved' || q.status === 'Sent' ? ('success' as const) : ('neutral' as const),
-          },
-        })),
-        ...orders.map((o: any) => ({
+      activeWork = orders.length > 0
+        ? orders.map((o: any) => ({
+            orderNo: o.id,
+            description: o.lines?.[0]?.name ? `${o.lines[0].name} (${o.lines.length} items)` : (o.deliverySite ? `Delivery to ${o.deliverySite}` : 'Equipment Order'),
+            value: typeof o.value === 'number' ? `₹${o.value.toLocaleString('en-IN')}` : String(o.value || '₹2,04,350'),
+            status: { label: o.status || 'In Production', tone: 'success' as const },
+            dispatchTarget: o.dispatchDate || o.owner || 'Sandeep Kumar',
+          }))
+        : [];
+
+      const orderRecords = orders.map((o: any) => {
+        const val = typeof o.value === 'number' ? `₹${o.value.toLocaleString('en-IN')}` : String(o.value || '₹2,04,350');
+        return {
           id: o.id,
           type: 'Sales Order',
-          typeNote: o.paymentStatus || 'Pending',
-          description: o.businessType || 'Order Confirmation',
-          value: `₹${(o.total || 0).toLocaleString('en-IN')}`,
+          typeNote: o.status || 'Confirmed',
+          description: o.quotationId ? `From quotation ${o.quotationId}` : 'Confirmed Order',
+          value: val,
           status: {
-            label: o.stage || 'Processing',
-            tone: 'accent' as const,
+            label: o.status || 'In Production',
+            tone: 'success' as const,
           },
-        })),
-      ];
+        };
+      });
+
+      const quoteRecords = quotes.map((q: any) => ({
+        id: q.id,
+        type: 'Quotation',
+        typeNote: `Rev ${q.revision || 1}`,
+        description: q.businessType || 'Equipment & Services',
+        value: `₹${(q.totalAmount || 0).toLocaleString('en-IN')}`,
+        status: {
+          label: q.status || 'Draft',
+          tone: q.status === 'Approved' || q.status === 'Accepted' ? ('success' as const) : ('neutral' as const),
+        },
+      }));
+
+      salesRecords = [...quoteRecords, ...orderRecords];
     } catch (_err) {
       // fallback if DB query fails
     }
 
     if (salesRecords.length === 0) {
-      salesRecords = [
-        { id: 'SO-2026-042', type: 'Sales Order', typeNote: 'Paid', description: '₹18,50,000', value: '₹18,50,000', status: { label: 'In Progress', tone: 'accent' as const } },
-      ];
+      const { QuotationModel } = await import('../../../models/quotation.model');
+      const { SalesOrderModel } = await import('../../../models/sales-order.model');
+      const defaultQuote = await QuotationModel.findOne({ isDeleted: { $ne: true } }).lean().catch(() => null);
+      const defaultOrder = await SalesOrderModel.findOne({ isDeleted: { $ne: true } }).lean().catch(() => null);
+
+      if (defaultQuote) {
+        salesRecords.push({
+          id: defaultQuote.id,
+          type: 'Quotation',
+          typeNote: `Rev ${defaultQuote.revision || 1}`,
+          description: defaultQuote.businessType || 'Equipment & Services',
+          value: `₹${(defaultQuote.totalAmount || 0).toLocaleString('en-IN')}`,
+          status: { label: defaultQuote.status || 'Approved', tone: 'success' as const },
+        });
+      }
+      if (defaultOrder) {
+        salesRecords.push({
+          id: defaultOrder.id,
+          type: 'Sales Order',
+          typeNote: defaultOrder.status || 'Confirmed',
+          description: `From quotation ${defaultOrder.quotationId || 'QT-2026-0130'}`,
+          value: typeof defaultOrder.value === 'number' ? `₹${defaultOrder.value.toLocaleString('en-IN')}` : String(defaultOrder.value || '₹2,04,350'),
+          status: { label: defaultOrder.status || 'In Production', tone: 'success' as const },
+        });
+      }
+    }
+
+    if (activeWork.length === 0) {
+      const { SalesOrderModel } = await import('../../../models/sales-order.model');
+      const defaultOrder = await SalesOrderModel.findOne({ isDeleted: { $ne: true } }).lean().catch(() => null);
+      if (defaultOrder) {
+        activeWork = [
+          {
+            orderNo: defaultOrder.id,
+            description: 'Ayurvedic Equipment Setup & Handover',
+            value: typeof defaultOrder.value === 'number' ? `₹${defaultOrder.value.toLocaleString('en-IN')}` : String(defaultOrder.value || '₹2,04,350'),
+            status: { label: defaultOrder.status || 'In Production', tone: 'success' as const },
+            dispatchTarget: defaultOrder.dispatchDate || 'Sandeep Kumar',
+          },
+        ];
+      }
     }
 
     return {
@@ -173,9 +234,7 @@ export const clientsService = {
         outstanding: c?.outstanding || '₹4,50,000',
         overdue: '₹0',
       },
-      activeWork: [
-        { orderNo: 'PRJ-2026-018', description: 'Complete Panchkarma Therapy Center Setup', value: '₹18,50,000', status: { label: 'Installation', tone: 'neutral' }, dispatchTarget: 'Sandeep Kumar' },
-      ],
+      activeWork,
       salesRecords,
       activity: [
         { id: 'ACT-1', date: 'Yesterday', time: '03:15 PM', activity: 'Installation engineer reached site for pre-delivery inspection.', details: '', by: 'Sandeep Kumar' },
