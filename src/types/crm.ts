@@ -81,7 +81,7 @@ export interface LeadDetails {
   info: Array<{ label: string; value: string }>;
   nextFollowUp: { when: string; purpose: string; owner: string };
   requirement: Array<{ label: string; value: string }>;
-  opportunity: { id: string; title: string; stage: string; value: string; expectedClose: string };
+  opportunity?: { id: string; title: string; stage: string; value: string; expectedClose: string };
   latestActivity: string;
 }
 

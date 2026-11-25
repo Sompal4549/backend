@@ -277,8 +277,8 @@ async function ensureSeedData() {
 crmQuotationsRouter.get('/overview', async (_req, res) => {
   await ensureSeedData();
   try {
-    const quotations = await QuotationModel.find({ isDeleted: false }).sort({ createdAt: -1 }).lean();
-    const salesOrders = await SalesOrderModel.find({ isDeleted: false }).sort({ createdAt: -1 }).lean();
+    const quotations = await QuotationModel.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
+    const salesOrders = await SalesOrderModel.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
 
     const draftsCount = quotations.filter((q) => q.status === 'Draft' || q.status === 'Revision Draft').length;
     const awaitingApprovalCount = quotations.filter((q) => q.status === 'Awaiting approval' || q.approvalStatus === 'Pending').length;
@@ -385,7 +385,10 @@ crmQuotationsRouter.get('/new', async (_req, res) => {
 crmQuotationsRouter.get('/:id', async (req, res) => {
   await ensureSeedData();
   try {
-    let quotation = await QuotationModel.findOne({ id: req.params.id, isDeleted: false }).lean();
+    let quotation = await QuotationModel.findOne({ id: req.params.id, isDeleted: { $ne: true } }).lean();
+    if (!quotation && req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      quotation = await QuotationModel.findById(req.params.id).lean();
+    }
     if (!quotation) {
       // Check if it matches any initial template
       quotation = initialQuotations.find((q) => q.id === req.params.id) as any;

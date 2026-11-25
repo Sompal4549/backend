@@ -1,4 +1,5 @@
 import { LeadModel } from '../../../models/lead.model';
+import { OpportunityModel } from '../../../models/opportunity.model';
 import type {
   LeadImportPreview,
   LeadImportRecord,
@@ -122,6 +123,27 @@ export const leadsService = {
   async getLeadById(id: string): Promise<LeadDetails> {
     const doc: any = await LeadModel.findById(id).lean().catch(() => null);
 
+    const leadIdStr = doc?._id?.toString() || id;
+    const realOpp = await OpportunityModel.findOne({
+      $or: [
+        { linkedLead: id },
+        { linkedLead: leadIdStr },
+        ...(doc?.companyName ? [{ client: doc.companyName }] : []),
+        ...(doc?.firstName ? [{ contact: new RegExp(doc.firstName, 'i') }] : []),
+      ],
+      isDeleted: { $ne: true },
+    }).sort({ createdAt: -1 }).lean().catch(() => null);
+
+    const opportunity = realOpp
+      ? {
+          id: realOpp.id,
+          title: realOpp.title,
+          stage: realOpp.stage === 'requirement' ? 'Requirement Assessment' : realOpp.stage === 'proposal' ? 'Proposal Design' : realOpp.stage === 'quotation' ? 'Quotation Sent' : 'Negotiation',
+          value: realOpp.value,
+          expectedClose: realOpp.expectedClose || 'Next Month',
+        }
+      : undefined;
+
     return {
       id,
       name: doc ? `${doc.firstName || ''} ${doc.lastName || ''}`.trim() : 'Aarogya Ayurveda Clinic',
@@ -148,14 +170,8 @@ export const leadsService = {
         { label: 'Expected Start', value: doc?.expectedStart || 'Dec 2026' },
         { label: 'Requirement Brief', value: doc?.requirementBrief || doc?.leadNotes || 'Six-room clinic requiring equipment, interiors and installation.' },
       ],
-      opportunity: {
-        id: 'OP-2026-081',
-        title: 'Turnkey Ayurvedic Center Setup',
-        stage: 'Quotation Sent',
-        value: doc?.estimatedDealValue || '₹4,50,000',
-        expectedClose: '30 Nov 2026',
-      },
-      latestActivity: 'Quotation Q-2026-042 sent with 5% seasonal discount applied.',
+      opportunity,
+      latestActivity: realOpp ? `Opportunity ${realOpp.id} active in pipeline.` : (doc?.leadNotes || 'New lead registered in CRM.'),
     };
   },
 

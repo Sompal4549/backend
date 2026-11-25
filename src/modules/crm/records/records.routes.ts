@@ -2,6 +2,8 @@ import { Router } from 'express';
 import path from 'path';
 import { successResponse } from '../../../utils/api-response';
 import { CrmRecord } from '../../../models/crm-record.model';
+import { QuotationModel } from '../../../models/quotation.model';
+import { SalesOrderModel } from '../../../models/sales-order.model';
 
 export const crmRecordsRouter = Router();
 
@@ -13,6 +15,81 @@ try {
   recordSetsMock = mod.recordSetsMock || {};
 } catch (err) {
   console.warn('[CRM Records] Warning: Could not load frontend record-sets mock:', (err as any)?.message);
+}
+
+async function getLiveRecordSet(key: string) {
+  if (key === 'quotations.orders') {
+    try {
+      const orders = await SalesOrderModel.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
+      if (orders && orders.length > 0) {
+        const baseDef = recordSetsMock['quotations.orders'] || {
+          id: 'quotations.orders',
+          title: 'Sales Orders',
+          description: 'Confirmed orders converted from accepted quotations.',
+          columns: [
+            { key: 'order', label: 'Order No.', kind: 'id' },
+            { key: 'client', label: 'Client', kind: 'strong' },
+            { key: 'quotation', label: 'From Quotation' },
+            { key: 'value', label: 'Order Value', kind: 'amount', align: 'right' },
+            { key: 'advance', label: 'Advance Received', kind: 'amount', align: 'right' },
+            { key: 'dispatch', label: 'Target Dispatch' },
+            { key: 'owner', label: 'Owner', filter: true },
+            { key: 'status', label: 'Status', kind: 'status', filter: true },
+          ],
+        };
+        const rows = orders.map((so: any) => ({
+          id: so.id,
+          order: so.id,
+          client: so.client,
+          quotation: so.quotationId || 'QT-0124',
+          value: typeof so.value === 'number' ? `₹${so.value.toLocaleString('en-IN')}` : String(so.value || '₹2,04,350'),
+          advance: `₹${((typeof so.value === 'number' ? so.value : 204350) * ((so.advancePercent || 50) / 100)).toLocaleString('en-IN')}`,
+          dispatch: so.dispatchDate || 'Planned Soon',
+          owner: so.owner || 'Rajesh Kumar',
+          status: { label: so.status || 'In Production', tone: 'info' },
+        }));
+        return { ...baseDef, rows, total: rows.length };
+      }
+    } catch {}
+  }
+
+  if (key === 'quotations.approvals') {
+    try {
+      const pending = await QuotationModel.find({
+        isDeleted: { $ne: true },
+        $or: [{ approvalStatus: 'Pending' }, { status: 'Awaiting approval' }],
+      }).sort({ createdAt: -1 }).lean();
+
+      if (pending && pending.length > 0) {
+        const baseDef = recordSetsMock['quotations.approvals'] || {
+          id: 'quotations.approvals',
+          title: 'Quotation Approvals',
+          description: 'Discount and payment-term exceptions waiting for a decision.',
+          rowAction: 'Review',
+          columns: [
+            { key: 'quotation', label: 'Quotation', kind: 'id' },
+            { key: 'client', label: 'Client', kind: 'strong' },
+            { key: 'value', label: 'Value', kind: 'amount', align: 'right' },
+            { key: 'exception', label: 'Exception' },
+            { key: 'approver', label: 'Approver', filter: true },
+            { key: 'requested', label: 'Requested' },
+          ],
+        };
+        const rows = pending.map((q: any) => ({
+          id: q.id,
+          quotation: q.id,
+          client: q.client?.name || 'Client',
+          value: q.totalAmount ? `₹${q.totalAmount.toLocaleString('en-IN')}` : '₹1,60,000',
+          exception: q.revisionReason || `Discount of ₹${q.discount || 0}`,
+          approver: 'Sales Manager',
+          requested: q.date || 'Recently',
+        }));
+        return { ...baseDef, rows, total: rows.length };
+      }
+    } catch {}
+  }
+
+  return null;
 }
 
 const workCalendar = [
@@ -114,7 +191,10 @@ crmRecordsRouter.get('/', async (req, res) => {
       const docMap = new Map(docs.map((d: any) => [d.key, d.data]));
 
       for (const key of keys) {
-        if (docMap.has(key)) {
+        const liveSet = await getLiveRecordSet(key);
+        if (liveSet) {
+          result[key] = liveSet;
+        } else if (docMap.has(key)) {
           result[key] = docMap.get(key);
         } else {
           const initial = recordSetsMock[key] || {
@@ -159,6 +239,11 @@ crmRecordsRouter.get('/', async (req, res) => {
 crmRecordsRouter.get('/:key', async (req, res) => {
   const key = req.params.key;
   try {
+    const liveSet = await getLiveRecordSet(key);
+    if (liveSet) {
+      return successResponse(res, liveSet, `Record set ${key} retrieved from live database`);
+    }
+
     const existing = await CrmRecord.findOne({ key });
     const mock = recordSetsMock[key];
     if (existing && existing.data) {

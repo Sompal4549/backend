@@ -1,4 +1,4 @@
-import { Schema, model, Document, Types } from 'mongoose';
+import mongoose, { Schema, model, Document, Types } from 'mongoose';
 
 export interface IActivity extends Document {
   opportunityId: Types.ObjectId;
@@ -23,7 +23,13 @@ export interface IOpportunity extends Document {
   businessType: string;
   linkedLead: string;
   scope: string;
-  latestQuotation: {
+  nextAction?: {
+    kind: string;
+    label: string;
+    when: string;
+    tone: string;
+  };
+  latestQuotation?: {
     id: string;
     revision: string;
     sentOn: string;
@@ -45,15 +51,14 @@ export interface IOpportunity extends Document {
 
 const opportunitySchema = new Schema<IOpportunity>(
   {
-    id: { type: String, required: true, unique: true, trim: true },
+    id: { type: String, required: true, unique: true, trim: true, index: true },
     title: { type: String, required: true, trim: true },
     client: { type: String, required: true, trim: true },
-    contact: { type: String, required: true, trim: true },
-    city: { type: String, required: true, trim: true },
+    contact: { type: String, default: '', trim: true },
+    city: { type: String, default: '', trim: true },
     value: { type: String, required: true, trim: true },
     stage: {
       type: String,
-      enum: ['requirement', 'proposal', 'quotation', 'negotiation'],
       default: 'requirement',
       index: true,
     },
@@ -63,14 +68,20 @@ const opportunitySchema = new Schema<IOpportunity>(
     businessType: { type: String, default: '', trim: true },
     linkedLead: { type: String, default: '', trim: true },
     scope: { type: String, default: '', trim: true },
+    nextAction: {
+      kind: { type: String, default: 'call' },
+      label: { type: String, default: '' },
+      when: { type: String, default: '' },
+      tone: { type: String, default: 'neutral' },
+    },
     latestQuotation: {
       id: { type: String, default: '' },
       revision: { type: String, default: '' },
       sentOn: { type: String, default: '' },
       value: { type: String, default: '' },
       status: {
-        label: String,
-        tone: String,
+        label: { type: String, default: '' },
+        tone: { type: String, default: 'neutral' },
       },
     },
     activity: [
@@ -82,7 +93,6 @@ const opportunitySchema = new Schema<IOpportunity>(
         detail: String,
         tone: {
           type: String,
-          enum: ['success', 'neutral'],
           default: 'neutral',
         },
       },
@@ -94,5 +104,23 @@ const opportunitySchema = new Schema<IOpportunity>(
   { timestamps: true }
 );
 
-export const OpportunityModel = model<IOpportunity>('Opportunity', opportunitySchema);
-export const ActivityModel = model<IActivity>('Activity', new Schema({ opportunityId: { type: Schema.Types.ObjectId, ref: 'Opportunity', required: true }, type: String, title: String, detail: String, by: String, tone: String }, { timestamps: true }));
+export const OpportunityModel =
+  (mongoose.models.Opportunity as mongoose.Model<IOpportunity>) ||
+  model<IOpportunity>('Opportunity', opportunitySchema);
+
+export const ActivityModel =
+  (mongoose.models.Activity as mongoose.Model<IActivity>) ||
+  model<IActivity>(
+    'Activity',
+    new Schema(
+      {
+        opportunityId: { type: Schema.Types.ObjectId, ref: 'Opportunity', required: true },
+        type: String,
+        title: String,
+        detail: String,
+        by: String,
+        tone: String,
+      },
+      { timestamps: true }
+    )
+  );

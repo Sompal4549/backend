@@ -17,10 +17,8 @@ export const getOpportunity = asyncHandler(async (req: AuthRequest, res: Respons
 export const createOpportunity = asyncHandler(async (req: AuthRequest, res: Response) => {
   const body = req.body || {};
   const title = String(body.title || body.name || '').trim();
-  const client = String(body.client || body.clientName || '').trim();
   const errors: Record<string, string> = {};
   if (!title) errors.title = 'Opportunity title is required.';
-  if (!client) errors.client = 'Client is required.';
   if (Object.keys(errors).length > 0) {
     return res.status(400).json({
       success: false,
