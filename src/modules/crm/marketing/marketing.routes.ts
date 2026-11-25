@@ -11,14 +11,14 @@ crmMarketingRouter.get('/overview', async (_req, res) => {
   try {
     const count = await LeadModel.countDocuments({ isDeleted: { $ne: true } });
     if (count > 0) leadsCount = count;
-  } catch {}
+  } catch { }
 
   let campaigns = await CampaignModel.find({ isDeleted: { $ne: true } }).lean();
   if (!campaigns || campaigns.length === 0) {
     try {
       await seedCampaigns();
       campaigns = await CampaignModel.find({ isDeleted: { $ne: true } }).lean();
-    } catch {}
+    } catch { }
   }
 
   // Calculate live dynamic metrics from MongoDB campaigns

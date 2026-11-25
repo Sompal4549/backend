@@ -15,6 +15,7 @@ export const CRM_ROLE = {
   ACCOUNTS_MANAGER: 'Accounts Manager',
   HR_MANAGER: 'HR Manager',
   ADMIN_EXECUTIVE: 'Admin Executive',
+  USER: 'User',
 } as const;
 
 export const CRM_ROLE_VALUES = [
@@ -28,6 +29,7 @@ export const CRM_ROLE_VALUES = [
   'Accounts Manager',
   'HR Manager',
   'Admin Executive',
+  'User',
 ] as const;
 
 export type CrmRole = (typeof CRM_ROLE_VALUES)[number];
