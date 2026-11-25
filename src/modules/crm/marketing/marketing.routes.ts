@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
 import { LeadModel } from '../../../models/lead.model';
+import { CampaignModel } from '../../../models/campaign.model';
+import { seedCampaigns } from '../../../seeds/seed-campaigns';
 
 export const crmMarketingRouter = Router();
 
@@ -11,62 +13,60 @@ crmMarketingRouter.get('/overview', async (_req, res) => {
     if (count > 0) leadsCount = count;
   } catch {}
 
+  let campaigns = await CampaignModel.find({ isDeleted: { $ne: true } }).lean();
+  if (!campaigns || campaigns.length === 0) {
+    try {
+      await seedCampaigns();
+      campaigns = await CampaignModel.find({ isDeleted: { $ne: true } }).lean();
+    } catch {}
+  }
+
+  // Calculate live dynamic metrics from MongoDB campaigns
+  const layout005Campaigns = (campaigns || []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    channel: c.channel,
+    channelDetails: c.channelDetails || `${c.channel} campaign`,
+    status: c.status,
+    eligibleAudience: c.eligibleAudience || 0,
+    excludedCount: c.excludedCount || 0,
+    qualified: c.qualified || 0,
+    owner: c.owner,
+    action: c.action || 'Open',
+    templateName: c.templateName,
+    calloutText: c.calloutText,
+  }));
+
+  const superAdminCampaigns = (campaigns || []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    channel: c.channel,
+    owner: c.owner,
+    leads: c.leads || c.eligibleAudience || 0,
+    qualified: c.qualified || 0,
+    spend: c.spend || '₹10,000.00',
+    status: c.status,
+  }));
+
+  const scheduledCampaign = layout005Campaigns.find((c: any) => c.status === 'Scheduled') || layout005Campaigns[0];
+
+  const totalEligible = layout005Campaigns.reduce((sum: number, c: any) => sum + (c.eligibleAudience || 0), 0);
+  const totalQualified = layout005Campaigns.reduce((sum: number, c: any) => sum + (c.qualified || 0), 0);
+  const totalExcluded = layout005Campaigns.reduce((sum: number, c: any) => sum + (c.excludedCount || 0), 0);
+
   const overview = {
     layout005Kpis: {
-      campaignsInScope: 4,
-      qualifiedResponses: 18,
-      scheduledOutreach: 24,
-      suppressedContacts: 7,
+      campaignsInScope: layout005Campaigns.length || 4,
+      qualifiedResponses: totalQualified || 18,
+      scheduledOutreach: totalEligible || 24,
+      suppressedContacts: totalExcluded || 7,
     },
-    layout005Campaigns: [
-      {
-        id: 'cmp-101',
-        name: 'Panchakarma catalogue email',
-        channel: 'Email',
-        channelDetails: 'Email / approved template',
-        status: 'Scheduled',
-        eligibleAudience: 24,
-        excludedCount: 7,
-        qualified: 8,
-        owner: 'Neha Singh',
-        action: 'Open',
-        templateName: 'Panchakarma Catalogue 2026',
-        calloutText: 'Panchakarma catalogue email: 24 eligible contacts. Review the audience and message before activation.',
-      },
-      {
-        id: 'cmp-102',
-        name: 'Steam chamber enquiries',
-        channel: 'WhatsApp',
-        channelDetails: 'WhatsApp / customer enquiry',
-        status: 'Active',
-        eligibleAudience: 12,
-        excludedCount: 2,
-        qualified: 6,
-        owner: 'Neha Singh',
-        action: 'Open',
-        templateName: 'Steam Chamber WhatsApp Outreach',
-        calloutText: 'Steam chamber enquiries: 12 eligible contacts actively engaged.',
-      },
-      {
-        id: 'cmp-103',
-        name: 'Spa equipment nurture',
-        channel: 'Email',
-        channelDetails: 'Email / consent recorded',
-        status: 'Draft',
-        eligibleAudience: 18,
-        excludedCount: 4,
-        qualified: 4,
-        owner: 'Executive B',
-        action: 'Edit',
-        templateName: 'Spa Equipment Nurture Rev 1',
-        calloutText: 'Spa equipment nurture draft awaiting final review by department manager.',
-      },
-    ],
+    layout005Campaigns,
     nextScheduledOutreach: {
-      title: 'Panchakarma catalogue email',
-      calloutText: 'Panchakarma catalogue email: 24 eligible contacts. Review the audience and message before activation.',
+      title: scheduledCampaign?.name || 'Panchakarma catalogue email',
+      calloutText: scheduledCampaign?.calloutText || 'Panchakarma catalogue email: 24 eligible contacts. Review the audience and message before activation.',
       checklist: {
-        audience: '24 eligible / 7 excluded',
+        audience: `${scheduledCampaign?.eligibleAudience || 24} eligible / ${scheduledCampaign?.excludedCount || 7} excluded`,
         content: 'Approved catalogue and template',
         onReply: 'Pause the current sales sequence',
         failedDelivery: 'Review before another attempt',
@@ -74,7 +74,7 @@ crmMarketingRouter.get('/overview', async (_req, res) => {
       supportNote: 'A customer reply pauses the current follow-up sequence.',
     },
     kpis: {
-      activeCampaigns: 3,
+      activeCampaigns: superAdminCampaigns.filter((c: any) => c.status === 'Active').length || 3,
       leadsGenerated: leadsCount,
       leadsChange: '+24%',
       unanswered: 6,
@@ -82,38 +82,7 @@ crmMarketingRouter.get('/overview', async (_req, res) => {
       overdueFollowUps: 4,
       overdueChange: '+1',
     },
-    campaigns: [
-      {
-        id: 'cmp-1',
-        name: 'Panchkarma Clinic Setup',
-        channel: 'Meta Ads',
-        owner: 'Ritu Sharma',
-        leads: 42,
-        qualified: 12,
-        spend: '₹18,000.00',
-        status: 'Active',
-      },
-      {
-        id: 'cmp-2',
-        name: 'Spa Equipment Enquiries',
-        channel: 'Google Ads',
-        owner: 'Ritu Sharma',
-        leads: 28,
-        qualified: 9,
-        spend: '₹12,500.00',
-        status: 'Active',
-      },
-      {
-        id: 'cmp-3',
-        name: 'Resort Wellness Outreach',
-        channel: 'Email',
-        owner: 'Simran Kaur',
-        leads: 16,
-        qualified: 5,
-        spend: '₹2,500.00',
-        status: 'Active',
-      },
-    ],
+    campaigns: superAdminCampaigns,
     needsResponse: [
       { key: 'enquiries', title: 'New enquiries', subtitle: 'Require first response', count: 6 },
       { key: 'overdue', title: 'Overdue follow-ups', subtitle: 'Follow-ups pending', count: 4 },

@@ -1,5 +1,6 @@
 import { LeadModel } from '../../../models/lead.model';
 import { OpportunityModel } from '../../../models/opportunity.model';
+import { CrmRecord } from '../../../models/crm-record.model';
 import type {
   LeadImportPreview,
   LeadImportRecord,
@@ -382,61 +383,98 @@ export const leadsService = {
   },
 
   async getMatches() {
+    let resolvedMap: Record<string, any> = {};
+    try {
+      const records = await CrmRecord.find({ key: { $regex: /^lead_match_/ } }).lean();
+      for (const r of records) {
+        if (r.data?.matchId) {
+          resolvedMap[r.data.matchId] = r.data;
+        }
+      }
+    } catch {}
+
+    const defaultMatches = [
+      {
+        id: 'M-001',
+        incomingSource: 'Meta form / lead-demo-204',
+        incomingRequirement: 'Spa trolley enquiry',
+        possibleCustomer: 'CL-0042 / Wellness Retreat',
+        phone: '+91 98111 22334',
+        matchEvidence: 'Same phone; new requirement',
+        decision: 'Review',
+        status: 'pending',
+        existingOpportunity: 'Steam chamber / still open',
+        suggestedDecision: 'Link contact; keep new opportunity',
+      },
+      {
+        id: 'M-002',
+        incomingSource: 'Website / form-demo-205',
+        incomingRequirement: 'Steam chamber enquiry',
+        possibleCustomer: 'EN-1043 / Wellness Retreat',
+        phone: '+91 98111 22334',
+        matchEvidence: 'Same phone + requirement',
+        decision: 'Review',
+        status: 'pending',
+        existingOpportunity: 'Steam chamber bed / 2 units',
+        suggestedDecision: 'Link contact; merge with open enquiry',
+      },
+      {
+        id: 'M-003',
+        incomingSource: 'Google / lead-demo-206',
+        incomingRequirement: 'New Panchakarma centre',
+        possibleCustomer: 'CL-0051 / Healing Centre',
+        phone: '+91 98444 55667',
+        matchEvidence: 'Shared company email only',
+        decision: 'Ambiguous',
+        status: 'pending',
+        existingOpportunity: 'Shirodhara table',
+        suggestedDecision: 'Keep separate until verified by phone',
+      },
+    ];
+
+    const matches = defaultMatches.map((m) => {
+      const resolved = resolvedMap[m.id];
+      if (resolved) {
+        return {
+          ...m,
+          status: resolved.status || 'resolved',
+          decision: resolved.decision === 'link' ? 'Linked' : 'Separate',
+          notes: resolved.notes,
+        };
+      }
+      return m;
+    });
+
+    const pendingCount = matches.filter((m) => m.status === 'pending').length;
+
     return {
       kpis: {
-        potentialMatches: 3,
+        potentialMatches: pendingCount,
         exactSourceReplays: 7,
         separateRequirements: 2,
         needsReviewer: 1,
       },
-      matches: [
-        {
-          id: 'M-001',
-          incomingSource: 'Meta form / lead-demo-204',
-          incomingRequirement: 'Spa trolley enquiry',
-          possibleCustomer: 'CL-0042 / Wellness Retreat',
-          phone: '+91 98111 22334',
-          matchEvidence: 'Same phone; new requirement',
-          decision: 'Review',
-          status: 'pending',
-          existingOpportunity: 'Steam chamber / still open',
-          suggestedDecision: 'Link contact; keep new opportunity',
-        },
-        {
-          id: 'M-002',
-          incomingSource: 'Website / form-demo-205',
-          incomingRequirement: 'Steam chamber enquiry',
-          possibleCustomer: 'EN-1043 / Wellness Retreat',
-          phone: '+91 98111 22334',
-          matchEvidence: 'Same phone + requirement',
-          decision: 'Review',
-          status: 'pending',
-          existingOpportunity: 'Steam chamber bed / 2 units',
-          suggestedDecision: 'Link contact; merge with open enquiry',
-        },
-        {
-          id: 'M-003',
-          incomingSource: 'Google / lead-demo-206',
-          incomingRequirement: 'New Panchakarma centre',
-          possibleCustomer: 'CL-0051 / Healing Centre',
-          phone: '+91 98444 55667',
-          matchEvidence: 'Shared company email only',
-          decision: 'Ambiguous',
-          status: 'pending',
-          existingOpportunity: 'Shirodhara table',
-          suggestedDecision: 'Keep separate until verified by phone',
-        },
-      ],
+      matches,
     };
   },
 
   async recordMatchDecision(matchId: string, decision: 'link' | 'separate', notes?: string) {
-    return {
+    const record = {
       matchId,
       decision,
       notes: notes || '',
       status: 'resolved',
       recordedAt: new Date().toISOString(),
     };
+    try {
+      await CrmRecord.findOneAndUpdate(
+        { key: `lead_match_${matchId}` },
+        { $set: { key: `lead_match_${matchId}`, data: record } },
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      console.warn('[leadsService] Could not persist match decision to MongoDB:', err);
+    }
+    return record;
   },
 };
