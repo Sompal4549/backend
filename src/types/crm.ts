@@ -47,6 +47,11 @@ export interface LeadListItem {
   owner: { name: string; team: string } | null;
   stage: string;
   nextFollowUp: { label: string; tone: StatusView['tone'] };
+  priorityScore?: number;
+  priorityTier?: 'High' | 'Normal' | 'Low';
+  priorityReason?: string;
+  nextAction?: string;
+  calloutText?: string;
 }
 
 export interface LeadsOverview {

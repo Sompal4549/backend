@@ -3,8 +3,11 @@ import { successResponse } from '../../../utils/api-response';
 import { asyncHandler } from '../../../utils/async-handler';
 import { leadsService } from './leads.service';
 
-export const getLeadsOverview = asyncHandler(async (_req, res: Response) => {
-  const overview = await leadsService.getOverview();
+export const getLeadsOverview = asyncHandler(async (req, res: Response) => {
+  const role = (req.query.role as string) || (req as any).user?.crmRole || (req as any).user?.role;
+  const ownerName = (req.query.owner as string) || (req as any).user?.name;
+  const userId = (req as any).user?._id;
+  const overview = await leadsService.getOverview({ role, ownerName, userId });
   successResponse(res, overview, 'Leads overview retrieved');
 });
 
@@ -67,4 +70,15 @@ export const getImports = asyncHandler(async (_req, res: Response) => {
 export const previewImport = asyncHandler(async (req, res: Response) => {
   const preview = await leadsService.previewImport(req.body);
   successResponse(res, preview, 'Import preview generated');
+});
+
+export const getLeadMatches = asyncHandler(async (_req, res: Response) => {
+  const matches = await leadsService.getMatches();
+  successResponse(res, matches, 'Lead matches retrieved');
+});
+
+export const postMatchDecision = asyncHandler(async (req, res: Response) => {
+  const { matchId, decision, notes } = req.body;
+  const result = await leadsService.recordMatchDecision(matchId, decision, notes);
+  successResponse(res, result, 'Match decision recorded');
 });

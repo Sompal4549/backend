@@ -47,6 +47,10 @@ export interface ILead extends Document {
   leadNotes?: string;
   internalNotes?: string;
   leadCategory?: "hot" | "cold" | "";
+  priorityScore?: number;
+  priorityReason?: string;
+  nextAction?: string;
+  calloutText?: string;
   refreshToken?: string;
   orders?: Types.ObjectId[];
   isDeleted?: boolean;
@@ -124,6 +128,10 @@ const leadSchema = new Schema<ILead>(
       enum: ["hot", "cold", ""],
       default: "",
     },
+    priorityScore: { type: Number, default: 60 },
+    priorityReason: { type: String, default: "" },
+    nextAction: { type: String, default: "" },
+    calloutText: { type: String, default: "" },
     refreshToken: { type: String, select: false },
     orders: [{ type: Schema.Types.ObjectId, ref: "Order" }],
     isDeleted: { type: Boolean, default: false, index: true },

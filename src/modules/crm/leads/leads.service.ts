@@ -32,32 +32,49 @@ function mapStage(raw?: string): LeadStage {
 }
 
 export const leadsService = {
-  async getOverview(): Promise<LeadsOverview> {
-    const rawLeads = await LeadModel.find({ isDeleted: { $ne: true } })
+  async getOverview(filter?: { role?: string; userId?: string; ownerName?: string }): Promise<LeadsOverview> {
+    const query: Record<string, unknown> = { isDeleted: { $ne: true } };
+    if (filter?.ownerName && filter?.role?.toLowerCase().includes('staff')) {
+      query.$or = [{ ownerName: filter.ownerName }, ...(filter.userId ? [{ assignedTo: filter.userId }] : [])];
+    }
+
+    const rawLeads = await LeadModel.find(query)
       .sort({ createdAt: -1 })
       .limit(100)
       .lean();
 
-    const totalLeads = await LeadModel.countDocuments({ isDeleted: { $ne: true } });
+    const totalLeads = await LeadModel.countDocuments(query);
 
-    const leads: LeadListItem[] = rawLeads.map((doc: any) => ({
-      id: doc._id.toString(),
-      name: `${doc.firstName || ''} ${doc.lastName || ''}`.trim() || 'New Lead',
-      phone: doc.phone || '9810000000',
-      organisation: doc.companyName || 'Individual',
-      city: doc.city || 'Delhi NCR',
-      interest: doc.interestedProduct || 'Wellness Consultation',
-      source: mapSource(doc.leadSource),
-      owner: {
-        name: doc.ownerName || (doc.assignedTo && typeof doc.assignedTo === 'object' ? doc.assignedTo.name : '') || 'Simran Kaur',
-        team: doc.ownerTeam || 'Sales',
-      },
-      stage: mapStage(doc.leadStatus),
-      nextFollowUp: {
-        label: doc.followUpDate ? `${doc.followUpDate} ${doc.followUpTime || ''}`.trim() : 'Tomorrow, 11:00 AM',
-        tone: 'accent',
-      },
-    }));
+    const leads: LeadListItem[] = rawLeads.map((doc: any) => {
+      const pScore = doc.priorityScore ?? (doc.priority === 'High' ? 80 : doc.priority === 'Medium' ? 60 : 48);
+      const pTier = (doc.priority === 'High' ? 'High' : pScore >= 70 ? 'High' : 'Normal') as 'High' | 'Normal' | 'Low';
+      const pReason = doc.priorityReason || (pTier === 'High' ? 'buy this month' : 'budget pending');
+      const nextAct = doc.nextAction || (doc.leadStatus === 'New' ? 'Confirm installation' : doc.leadStatus === 'Contacted' ? 'Confirm timeline' : 'Ask budget range');
+
+      return {
+        id: doc._id.toString(),
+        name: `${doc.firstName || ''} ${doc.lastName || ''}`.trim() || 'New Lead',
+        phone: doc.phone || '9810000000',
+        organisation: doc.companyName || 'Individual',
+        city: doc.city || 'Delhi NCR',
+        interest: doc.interestedProduct || 'Wellness Consultation',
+        source: mapSource(doc.leadSource),
+        owner: {
+          name: doc.ownerName || (doc.assignedTo && typeof doc.assignedTo === 'object' ? doc.assignedTo.name : '') || 'Simran Kaur',
+          team: doc.ownerTeam || 'Sales',
+        },
+        stage: mapStage(doc.leadStatus),
+        nextFollowUp: {
+          label: doc.followUpDate ? `${doc.followUpDate} ${doc.followUpTime || ''}`.trim() : 'Tomorrow, 11:00 AM',
+          tone: 'accent',
+        },
+        priorityScore: pScore,
+        priorityTier: pTier,
+        priorityReason: pReason,
+        nextAction: nextAct,
+        calloutText: doc.calloutText || `${doc.companyName || doc.firstName || 'Lead'} needs installation details. Follow up scheduled for today.`,
+      };
+    });
 
     return {
       kpis: {
@@ -361,6 +378,65 @@ export const leadsService = {
         { name: 'Dr. Anand Verma', organisation: 'Rishikesh Wellness', contact: '9811223344', interest: 'Panchkarma Equipment', check: 'Ready' },
         { name: 'Priya Mehra', organisation: 'Haridwar Retreat', contact: '9899112233', interest: 'Spa Equipment', check: 'Ready' },
       ],
+    };
+  },
+
+  async getMatches() {
+    return {
+      kpis: {
+        potentialMatches: 3,
+        exactSourceReplays: 7,
+        separateRequirements: 2,
+        needsReviewer: 1,
+      },
+      matches: [
+        {
+          id: 'M-001',
+          incomingSource: 'Meta form / lead-demo-204',
+          incomingRequirement: 'Spa trolley enquiry',
+          possibleCustomer: 'CL-0042 / Wellness Retreat',
+          phone: '+91 98111 22334',
+          matchEvidence: 'Same phone; new requirement',
+          decision: 'Review',
+          status: 'pending',
+          existingOpportunity: 'Steam chamber / still open',
+          suggestedDecision: 'Link contact; keep new opportunity',
+        },
+        {
+          id: 'M-002',
+          incomingSource: 'Website / form-demo-205',
+          incomingRequirement: 'Steam chamber enquiry',
+          possibleCustomer: 'EN-1043 / Wellness Retreat',
+          phone: '+91 98111 22334',
+          matchEvidence: 'Same phone + requirement',
+          decision: 'Review',
+          status: 'pending',
+          existingOpportunity: 'Steam chamber bed / 2 units',
+          suggestedDecision: 'Link contact; merge with open enquiry',
+        },
+        {
+          id: 'M-003',
+          incomingSource: 'Google / lead-demo-206',
+          incomingRequirement: 'New Panchakarma centre',
+          possibleCustomer: 'CL-0051 / Healing Centre',
+          phone: '+91 98444 55667',
+          matchEvidence: 'Shared company email only',
+          decision: 'Ambiguous',
+          status: 'pending',
+          existingOpportunity: 'Shirodhara table',
+          suggestedDecision: 'Keep separate until verified by phone',
+        },
+      ],
+    };
+  },
+
+  async recordMatchDecision(matchId: string, decision: 'link' | 'separate', notes?: string) {
+    return {
+      matchId,
+      decision,
+      notes: notes || '',
+      status: 'resolved',
+      recordedAt: new Date().toISOString(),
     };
   },
 };
