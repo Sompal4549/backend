@@ -6,9 +6,9 @@ export interface ILead extends Document {
   lastName?: string;
   companyName?: string;
   designation?: string;
-  email: string;
+  email?: string;
   officialEmail?: string;
-  phone: string;
+  phone?: string;
   phoneCode?: string;
   altPhone?: string;
   altPhoneCode?: string;
@@ -17,11 +17,11 @@ export interface ILead extends Document {
   title?: string;
   typeOfBusiness?: string;
   industrySector?: string;
-  marketType?: "Domestic" | "International";
-  leadType?: "Individual" | "Corporate";
+  marketType?: string;
+  leadType?: string;
   leadSource?: string;
-  leadStatus?: "New" | "Contacted" | "Qualified" | "Negotiation" | "Converted" | "Lost";
-  priority?: "High" | "Medium" | "Low";
+  leadStatus?: string;
+  priority?: string;
   assignedTo?: Types.ObjectId | null;
   ownerName?: string;
   ownerTeam?: string;
@@ -29,7 +29,7 @@ export interface ILead extends Document {
   leadDate?: string;
   followUpDate?: string;
   followUpTime?: string;
-  followUpMethod?: "WhatsApp" | "Email" | "Phone" | "Meeting" | "Other" | "";
+  followUpMethod?: string;
   followUpSource?: string;
   interestedProduct?: string;
   expectedBudget?: string;
@@ -61,9 +61,9 @@ const leadSchema = new Schema<ILead>(
     lastName: { type: String, default: "", trim: true },
     companyName: { type: String, default: "Individual", trim: true },
     designation: { type: String, default: "" },
-    email: { type: String, required: true, lowercase: true, trim: true },
+    email: { type: String, default: "", lowercase: true, trim: true },
     officialEmail: { type: String, default: "", lowercase: true, trim: true },
-    phone: { type: String, required: true },
+    phone: { type: String, default: "" },
     phoneCode: { type: String, default: "+91" },
     altPhone: { type: String, default: "" },
     altPhoneCode: { type: String, default: "+91" },
@@ -74,27 +74,22 @@ const leadSchema = new Schema<ILead>(
     industrySector: { type: String, default: "Wellness" },
     marketType: {
       type: String,
-      enum: ["Domestic", "International"],
       default: "Domestic",
     },
     leadType: {
       type: String,
-      enum: ["Individual", "Corporate"],
       default: "Individual",
     },
     leadSource: {
       type: String,
-      enum: ["Instagram", "Facebook", "Website", "WhatsApp", "Google", "LinkedIn", "Referral", "Cold Call", "Event", "Meta Ads", "Excel Import", "Social Media", "Other"],
       default: "Website",
     },
     leadStatus: {
       type: String,
-      enum: ["New", "Contacted", "Qualified", "Quotation Sent", "Negotiation", "Converted", "Lost"],
       default: "New",
     },
     priority: {
       type: String,
-      enum: ["High", "Medium", "Low"],
       default: "High",
     },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", default: null },
@@ -106,7 +101,6 @@ const leadSchema = new Schema<ILead>(
     followUpTime: { type: String, default: "" },
     followUpMethod: {
       type: String,
-      enum: ["WhatsApp", "Email", "Phone", "Meeting", "Other", ""],
       default: "",
     },
     followUpSource: { type: String, default: "" },

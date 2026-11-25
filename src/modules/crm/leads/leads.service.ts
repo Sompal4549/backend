@@ -163,7 +163,7 @@ export const leadsService = {
     const fullName = String(data.fullName || data.name || '').trim();
     const firstName = String(data.firstName || (fullName ? fullName.split(' ')[0] : '') || '').trim();
     const lastName = String(data.lastName || (fullName ? fullName.split(' ').slice(1).join(' ') : '') || '').trim();
-    const typeMap: Record<string, string> = { Call: 'Phone', WhatsApp: 'WhatsApp', Email: 'Email', Meeting: 'Meeting' };
+    const typeMap: Record<string, string> = { Call: 'Phone', WhatsApp: 'WhatsApp', Email: 'Email', Meeting: 'Meeting', 'Site Visit': 'Meeting' };
     const ownerMap: Record<string, string> = {
       simran: 'Simran Kaur',
       'amit-mehta': 'Amit Mehta',
@@ -177,8 +177,8 @@ export const leadsService = {
       firstName: firstName || 'New',
       lastName,
       companyName: data.organisation || data.companyName || 'Individual',
-      email: data.email || 'lead@example.com',
-      phone: data.phone || data.mobile || '9810000000',
+      email: data.email ? String(data.email).trim().toLowerCase() : '',
+      phone: data.phone || data.mobile || '',
       city: data.city || 'Delhi NCR',
       country: data.country || 'India',
       leadStatus: data.stage || data.leadStatus || 'New',

@@ -17,9 +17,10 @@ export const createLead = asyncHandler(async (req, res: Response) => {
   const body = req.body || {};
   const name = String(body.name || body.fullName || body.firstName || '').trim();
   const phone = String(body.phone || body.mobile || '').trim();
+  const email = String(body.email || '').trim();
   const errors: Record<string, string> = {};
   if (!name) errors.name = 'Contact name is required.';
-  if (!phone) errors.mobile = 'Mobile number is required.';
+  if (!phone && !email) errors.mobile = 'Mobile number or email is required.';
   if (Object.keys(errors).length > 0) {
     return res.status(400).json({
       success: false,
