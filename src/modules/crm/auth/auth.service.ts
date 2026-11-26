@@ -52,15 +52,20 @@ export const crmAuthService = {
     }
 
     const isSuperAdmin = String(dbUser.role) === String(ROLE.SUPERADMIN) || String(dbUser.role) === 'superadmin';
+    const productAccess = (dbUser as any).productAccess;
     const hasCrmAccess =
-      (dbUser as any).crmAccess !== undefined
-        ? Boolean((dbUser as any).crmAccess)
-        : (isSuperAdmin || (Array.isArray((dbUser as any).permissions) && (dbUser as any).permissions.includes('crm')));
+      productAccess === 'crm' || productAccess === 'both'
+        ? true
+        : productAccess === 'admin'
+          ? false
+          : (dbUser as any).crmAccess !== undefined
+            ? Boolean((dbUser as any).crmAccess)
+            : (isSuperAdmin || (Array.isArray((dbUser as any).permissions) && (dbUser as any).permissions.includes('crm')));
 
     if (!hasCrmAccess) {
       throw new AppError(
         403,
-        'Aapke account ke paas Ensis CRM ka access nahi hai. Kripya Super Admin se permission ke liye sampark karein.'
+        'Your account does not have access to Ensis CRM. Please contact your Super Admin for permission.'
       );
     }
 

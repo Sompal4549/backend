@@ -438,15 +438,48 @@ crmSettingsRouter.patch('/users/:id/crm-access', async (req, res) => {
     const user = await UserModel.findById(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     if (crmAccess !== undefined) user.crmAccess = Boolean(crmAccess);
-    if (productAccess !== undefined) user.productAccess = productAccess;
+    if (productAccess !== undefined) {
+      user.productAccess = productAccess;
+      user.crmAccess = productAccess === 'crm' || productAccess === 'both';
+      user.adminAccess = productAccess === 'admin' || productAccess === 'both';
+    }
     await user.save();
     return successResponse(
       res,
-      { id: user._id.toString(), crmAccess: Boolean(user.crmAccess), productAccess: user.productAccess },
+      { id: user._id.toString(), crmAccess: Boolean(user.crmAccess), adminAccess: Boolean(user.adminAccess), productAccess: user.productAccess },
       'CRM access updated'
     );
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Failed to update CRM access' });
+  }
+});
+
+crmSettingsRouter.patch('/users/:id/product-access', async (req, res) => {
+  try {
+    const { productAccess } = req.body || {};
+    if (productAccess !== 'crm' && productAccess !== 'admin' && productAccess !== 'both') {
+      return res.status(400).json({ success: false, message: 'Invalid productAccess value. Must be crm, admin, or both.' });
+    }
+    const user = await UserModel.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    user.productAccess = productAccess;
+    user.crmAccess = productAccess === 'crm' || productAccess === 'both';
+    user.adminAccess = productAccess === 'admin' || productAccess === 'both';
+    await user.save();
+
+    return successResponse(
+      res,
+      {
+        id: user._id.toString(),
+        crmAccess: Boolean(user.crmAccess),
+        adminAccess: Boolean(user.adminAccess),
+        productAccess: user.productAccess,
+      },
+      'Product access updated'
+    );
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Failed to update product access' });
   }
 });
 
