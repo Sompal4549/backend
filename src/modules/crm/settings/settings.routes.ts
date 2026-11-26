@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { UserModel } from '../../../models/user.model';
 import { ProductModel } from '../../../models/product.model';
+import { CategoryModel } from '../../../models/category.model';
+import { CrmRecord } from '../../../models/crm-record.model';
+import { getApprovedPricingConfig } from '../quotations/quotation-controls.service';
 import { successResponse } from '../../../utils/api-response';
 
 export const crmSettingsRouter = Router();
@@ -221,6 +224,204 @@ crmSettingsRouter.get('/catalogue', async (_req, res) => {
     console.warn('[CRM Settings] Error fetching catalogue products:', err?.message);
   }
   return successResponse(res, [], 'Catalogue retrieved');
+});
+
+crmSettingsRouter.get('/catalogue-overview', async (_req, res) => {
+  try {
+    const [products, categories, aiMetaDoc, pricingConfig] = await Promise.all([
+      ProductModel.find({ isDeleted: { $ne: true } })
+        .populate('category', 'name')
+        .sort({ orderBy: 1, createdAt: -1 })
+        .lean(),
+      CategoryModel.find({ isDeleted: { $ne: true } }).sort({ name: 1 }).lean(),
+      CrmRecord.findOne({ key: 'catalogue.aiMetadata' }).lean<any>(),
+      getApprovedPricingConfig(),
+    ]);
+
+    const aiMetaMap: Record<string, any> =
+      aiMetaDoc && !Array.isArray(aiMetaDoc) && aiMetaDoc.data && typeof aiMetaDoc.data === 'object'
+        ? aiMetaDoc.data
+        : {};
+
+    const defaultPriceVersion = pricingConfig?.priceListVersion || 'V2026.11';
+
+    const cleanHtmlText = (val: unknown) =>
+      String(val || '')
+        .replace(/<br\s*\/?>/gi, ' ')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;|&apos;/gi, "'")
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const items = (products || []).map((p: any, idx: number) => {
+      const id = p._id.toString();
+      const meta = aiMetaMap[id] || {};
+      const hasContent = Boolean((p.description && p.description.trim().length >= 20) || (p.shortDescription && p.shortDescription.trim().length >= 10));
+      const defaultStatus: 'Approved' | 'Awaiting review' | 'Excluded' =
+        p.isActive === false ? 'Excluded' : hasContent ? 'Approved' : 'Awaiting review';
+      const aiStatus: 'Approved' | 'Awaiting review' | 'Excluded' =
+        meta.aiStatus === 'Approved' || meta.aiStatus === 'Awaiting review' || meta.aiStatus === 'Excluded'
+          ? meta.aiStatus
+          : defaultStatus;
+
+      const kbPrefix = `KB-${String(idx + 1).padStart(3, '0')}`;
+      const knowledgeVersion =
+        meta.knowledgeVersion || (aiStatus === 'Awaiting review' ? `${kbPrefix} / draft` : `${kbPrefix} / v1`);
+
+      return {
+        id,
+        title: cleanHtmlText(p.title),
+        slug: p.slug || '',
+        code: p.code || `SKU-${id.slice(-6).toUpperCase()}`,
+        variant: cleanHtmlText(p.subcategory || p.material || (p.isActive === false ? 'inactive' : 'configured variant')),
+        category: cleanHtmlText((p.category as any)?.name || 'Equipment'),
+        categoryId: (p.category as any)?._id?.toString() || '',
+        description: cleanHtmlText(p.shortDescription || p.description || ''),
+        fullDescription: cleanHtmlText(p.description || ''),
+        price: Number(p.price || 0),
+        discountPrice: p.discountPrice !== undefined && p.discountPrice !== null ? Number(p.discountPrice) : null,
+        effectivePrice: Number(p.discountPrice || p.price || 0),
+        gstRate: Number(p.gstRate ?? 18),
+        hsnCode: p.hsnCode || '',
+        stock: Number(p.stock ?? 0),
+        isActive: p.isActive !== false,
+        isFeatured: Boolean(p.isFeatured),
+        image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '',
+        knowledgeVersion,
+        priceVersion: meta.priceVersion || defaultPriceVersion,
+        aiStatus,
+        owner: meta.owner || 'Catalogue Admin',
+        reviewNote: meta.reviewNote || '',
+        updatedAt: meta.updatedAt || p.updatedAt || p.createdAt || new Date().toISOString(),
+      };
+    });
+
+    const summary = {
+      total: items.length,
+      aiEligible: items.filter((item) => item.aiStatus === 'Approved').length,
+      awaitingReview: items.filter((item) => item.aiStatus === 'Awaiting review').length,
+      expiredExcluded: items.filter((item) => item.aiStatus === 'Excluded').length,
+    };
+
+    const categoryList = (categories || []).map((c: any) => ({
+      id: c._id.toString(),
+      name: c.name,
+    }));
+
+    return successResponse(
+      res,
+      {
+        items,
+        categories: categoryList,
+        summary,
+        priceListVersion: defaultPriceVersion,
+      },
+      'Product catalogue overview retrieved'
+    );
+  } catch (err: any) {
+    console.warn('[CRM Settings] Error fetching catalogue overview:', err?.message);
+    return res.status(500).json({ success: false, message: err?.message || 'Failed to fetch product catalogue' });
+  }
+});
+
+crmSettingsRouter.patch('/catalogue/:id/ai-review', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const product = await ProductModel.findById(productId).lean();
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const { aiStatus, knowledgeVersion, priceVersion, owner, reviewNote } = req.body || {};
+    const validStatus = aiStatus === 'Approved' || aiStatus === 'Awaiting review' || aiStatus === 'Excluded' ? aiStatus : 'Approved';
+
+    const existingDoc = await CrmRecord.findOne({ key: 'catalogue.aiMetadata' }).lean<any>();
+    const currentMap: Record<string, any> =
+      existingDoc && !Array.isArray(existingDoc) && existingDoc.data && typeof existingDoc.data === 'object'
+        ? { ...existingDoc.data }
+        : {};
+
+    const prev = currentMap[productId] || {};
+    currentMap[productId] = {
+      ...prev,
+      aiStatus: validStatus,
+      knowledgeVersion: knowledgeVersion || prev.knowledgeVersion || 'KB-001 / v1',
+      priceVersion: priceVersion || prev.priceVersion || 'V2026.11',
+      owner: owner || prev.owner || 'Catalogue Admin',
+      reviewNote: reviewNote !== undefined ? String(reviewNote) : (prev.reviewNote || ''),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await CrmRecord.findOneAndUpdate(
+      { key: 'catalogue.aiMetadata' },
+      { $set: { data: currentMap } },
+      { upsert: true, new: true }
+    );
+
+    return successResponse(res, { id: productId, ...currentMap[productId] }, 'Product AI review updated');
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Failed to update product AI review' });
+  }
+});
+
+crmSettingsRouter.post('/catalogue/products', async (req, res) => {
+  try {
+    const { title, code, price, discountPrice, gstRate, hsnCode, stock, categoryId, shortDescription, description } = req.body || {};
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ success: false, message: 'Product title is required.' });
+    }
+
+    let resolvedCategoryId = categoryId;
+    if (!resolvedCategoryId) {
+      const firstCat = await CategoryModel.findOne({ isDeleted: { $ne: true } }).lean<any>();
+      if (!firstCat) {
+        const createdCat = await CategoryModel.create({ name: 'Equipment', slug: 'equipment', isActive: true });
+        resolvedCategoryId = createdCat._id;
+      } else {
+        resolvedCategoryId = firstCat._id;
+      }
+    }
+
+    const baseSlug = String(title)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    const uniqueSlug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
+
+    const created = await ProductModel.create({
+      title: String(title).trim(),
+      slug: uniqueSlug,
+      code: code ? String(code).trim() : undefined,
+      price: Number(price || 0),
+      discountPrice: discountPrice !== undefined && discountPrice !== '' ? Number(discountPrice) : undefined,
+      gstRate: Number(gstRate ?? 18),
+      hsnCode: hsnCode ? String(hsnCode).trim() : undefined,
+      stock: Number(stock ?? 0),
+      category: resolvedCategoryId,
+      shortDescription: shortDescription ? String(shortDescription).trim() : undefined,
+      description: description ? String(description).trim() : String(shortDescription || title).trim(),
+      isActive: true,
+    });
+
+    return successResponse(
+      res,
+      {
+        id: created._id.toString(),
+        title: created.title,
+        code: created.code || '',
+        price: created.price,
+      },
+      'Product added to catalogue',
+      201
+    );
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Failed to create product' });
+  }
 });
 
 crmSettingsRouter.get('/master-config', (_req, res) => {

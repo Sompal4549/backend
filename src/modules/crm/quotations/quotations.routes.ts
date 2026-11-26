@@ -1,12 +1,34 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { successResponse } from '../../../utils/api-response';
 import { QuotationModel } from '../../../models/quotation.model';
 import { SalesOrderModel } from '../../../models/sales-order.model';
 import { authMiddleware } from '../../../middlewares/auth.middleware';
-import { adminMiddleware } from '../../../middlewares/admin.middleware';
+import { crmAccessMiddleware, CrmActorContext } from '../../../middlewares/crm-access.middleware';
+import {
+  calculateQuotationTotals,
+  computeSpecHash,
+  createCostingOrReviewTask,
+  evaluateSendReadiness,
+  evaluateStopAwareFollowUp,
+  getApprovedPricingConfig,
+  getChannelProviderConfig,
+  saveApprovedPricingConfig,
+  saveChannelProviderConfig,
+  updateConversationStateWithCas,
+} from './quotation-controls.service';
 
 export const crmQuotationsRouter = Router();
-crmQuotationsRouter.use(authMiddleware, adminMiddleware);
+crmQuotationsRouter.use(authMiddleware, crmAccessMiddleware);
+
+const getActor = (req: Request): CrmActorContext =>
+  (req as any).crmActor || {
+    id: '',
+    name: 'Simran Kaur',
+    email: '',
+    systemRole: 'superadmin',
+    crmRole: 'Super Admin',
+    roleTier: 'superadmin',
+  };
 
 const baseLines = [
   { id: 'l1', name: 'Steam Chamber', spec: 'Standard model', qty: 2, unit: 'Nos.', rate: 60000, discount: 0, gst: 18 },
@@ -275,12 +297,52 @@ async function ensureSeedData() {
   }
 }
 
+// GET /api/v1/crm/quotations/config (Approved pricing & calculation configuration)
+crmQuotationsRouter.get('/config', async (_req, res) => {
+  const pricing = await getApprovedPricingConfig();
+  return successResponse(res, pricing, 'Approved pricing config retrieved');
+});
+
+crmQuotationsRouter.put('/config', async (req, res) => {
+  const actor = getActor(req);
+  if (actor.roleTier !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only Super Admin can update approved pricing rules.' });
+  }
+  const updated = await saveApprovedPricingConfig(req.body || {});
+  return successResponse(res, updated, 'Approved pricing config updated');
+});
+
+// GET / PUT /api/v1/crm/quotations/channel-config (Channel/provider & template approval controls)
+crmQuotationsRouter.get('/channel-config', async (_req, res) => {
+  const cfg = await getChannelProviderConfig();
+  return successResponse(res, cfg, 'Channel & provider config retrieved');
+});
+
+crmQuotationsRouter.put('/channel-config', async (req, res) => {
+  const actor = getActor(req);
+  if (actor.roleTier !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only Super Admin can modify channel/provider setup.' });
+  }
+  const updated = await saveChannelProviderConfig(req.body || {});
+  return successResponse(res, updated, 'Channel & provider config updated');
+});
+
 // GET /api/v1/crm/quotations/overview
-crmQuotationsRouter.get('/overview', async (_req, res) => {
+crmQuotationsRouter.get('/overview', async (req, res) => {
   await ensureSeedData();
   try {
-    const quotations = await QuotationModel.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
+    const actor = getActor(req);
+    const allQuotations = await QuotationModel.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
     const salesOrders = await SalesOrderModel.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
+
+    // Staff/User sees own/assigned quotations first (falls back to accessible workspace quotes if none match by name yet)
+    const ownMatches = allQuotations.filter(
+      (q) =>
+        (q.owner || '').toLowerCase() === actor.name.toLowerCase() ||
+        (q.reviewer || '').toLowerCase() === actor.name.toLowerCase()
+    );
+    const quotations =
+      actor.roleTier === 'user' && ownMatches.length > 0 ? ownMatches : allQuotations;
 
     const draftsCount = quotations.filter((q) => q.status === 'Draft' || q.status === 'Revision Draft').length;
     const awaitingApprovalCount = quotations.filter((q) => q.status === 'Awaiting approval' || q.approvalStatus === 'Pending').length;
@@ -315,8 +377,8 @@ crmQuotationsRouter.get('/overview', async (_req, res) => {
       .map((q) => ({
         id: q.id,
         client: q.client?.name || 'Client',
-        reason: q.revisionReason || `Discount on quotation (${q.discount ? `₹${q.discount}` : 'Special pricing'})`,
-        requires: 'Requires Sales Manager approval',
+        reason: q.revisionReason || (q.sendBlockedReasons?.[0] || `Discount on quotation (${q.discount ? `₹${q.discount}` : 'Review required'})`),
+        requires: q.reviewer ? `Requires ${q.reviewer} approval` : 'Requires Sales Manager / Super Admin approval',
         requestedBy: q.owner || 'Simran Kaur',
         requestedAt: q.date ? `${q.date}` : 'Recently',
       }));
@@ -366,6 +428,8 @@ crmQuotationsRouter.get('/overview', async (_req, res) => {
 // GET /api/v1/crm/quotations/new
 crmQuotationsRouter.get('/new', async (req, res) => {
   await ensureSeedData();
+  const actor = getActor(req);
+  const pricing = await getApprovedPricingConfig();
   const count = await QuotationModel.countDocuments();
   const nextNum = 130 + count + 1;
   const newId = `QT-${new Date().getFullYear()}-${String(nextNum).padStart(4, '0')}`;
@@ -415,8 +479,10 @@ crmQuotationsRouter.get('/new', async (req, res) => {
     approvalStatus: 'Not submitted',
     date: new Date().toISOString().split('T')[0],
     validUntil: '',
+    rateValidUntil: pricing.validThrough,
+    priceListVersion: pricing.priceListVersion,
     businessType: 'Equipment',
-    owner: 'Simran Kaur',
+    owner: actor.name || 'Simran Kaur',
     opportunity: '',
     client: clientInfo,
     deliverySameAsBilling: true,
@@ -424,6 +490,7 @@ crmQuotationsRouter.get('/new', async (req, res) => {
     lines: [],
     discount: 0,
     shipping: 0,
+    installation: 0,
     advancePercent: 50,
     terms: {
       payment: '50% advance, balance before dispatch',
@@ -433,9 +500,110 @@ crmQuotationsRouter.get('/new', async (req, res) => {
       note: '',
     },
     revisions: [],
+    conversation: {
+      ownerType: 'human',
+      ownerName: actor.name || 'Simran Kaur',
+      ownershipVersion: 1,
+      humanTakeover: false,
+      replied: false,
+      optedOutChannels: [],
+      frequencyCount24h: 0,
+      chatStatus: 'open',
+      resolvedIsNotWonSale: true,
+      orderConfirmed: false,
+    },
   };
 
   successResponse(res, newDraft, 'New quotation draft');
+});
+
+// Sales Orders endpoints (must be before /:id)
+crmQuotationsRouter.get('/sales-orders/:id', async (req, res) => {
+  await ensureSeedData();
+  try {
+    let order = await SalesOrderModel.findOne({ id: req.params.id, isDeleted: { $ne: true } }).lean();
+    if (!order && req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      order = await SalesOrderModel.findById(req.params.id).lean();
+    }
+    if (order) return successResponse(res, order, 'Sales order retrieved');
+
+    const fallback = await SalesOrderModel.findOne({ isDeleted: { $ne: true } }).lean();
+    return successResponse(res, { ...fallback, id: req.params.id }, 'Sales order retrieved');
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Error fetching sales order' });
+  }
+});
+
+crmQuotationsRouter.post('/sales-orders', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const actor = getActor(req);
+    const count = await SalesOrderModel.countDocuments();
+    const id = body.id || `SO-${new Date().getFullYear()}-${String(90 + count + 1).padStart(4, '0')}`;
+
+    let sourceQuote: any = null;
+    if (body.quotationId) {
+      sourceQuote = await QuotationModel.findOne({ id: body.quotationId, isDeleted: { $ne: true } }).lean();
+      if (sourceQuote && sourceQuote.approvalStatus !== 'Approved') {
+        return res.status(422).json({
+          success: false,
+          message: `Quotation ${body.quotationId} is "${sourceQuote.approvalStatus}" — only an approved quotation revision can be converted into a Sales Order.`,
+        });
+      }
+      if (sourceQuote && (!body.evidence || body.accepted !== true || body.termsConfirmed !== true)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Customer acceptance evidence and confirmed terms are required to convert a quotation into an order.',
+        });
+      }
+    }
+
+    const clientName = body.client || sourceQuote?.client?.name || 'Client';
+    const lines = sourceQuote?.lines && sourceQuote.lines.length > 0 ? sourceQuote.lines : (body.lines || []);
+    const value = body.orderValue || sourceQuote?.totalAmount || 0;
+
+    const order = await SalesOrderModel.create({
+      ...body,
+      id,
+      orderDate: body.orderDate || new Date().toISOString().split('T')[0],
+      client: clientName,
+      lines,
+      value,
+      quotationId: body.quotationId || '',
+      quotationRevision: sourceQuote?.revision || body.quotationRevision || 1,
+      owner: body.owner || sourceQuote?.owner || actor.name || 'Rajesh Kumar',
+      status: body.status || 'In Production',
+      isDeleted: false,
+    });
+
+    if (sourceQuote) {
+      await QuotationModel.findOneAndUpdate(
+        { id: sourceQuote.id },
+        {
+          $set: {
+            status: 'Accepted',
+            orderLinkedId: order.id,
+            'conversation.orderConfirmed': true,
+          },
+        }
+      );
+    }
+
+    return successResponse(res, { id: order.id }, 'Sales order created', 201);
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Error creating sales order' });
+  }
+});
+
+crmQuotationsRouter.put('/sales-orders/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const body = req.body || {};
+    const updated = await SalesOrderModel.findOneAndUpdate({ id }, { $set: body }, { new: true });
+    return successResponse(res, { id: updated?.id || id }, 'Sales order updated');
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Error updating sales order' });
+  }
 });
 
 // GET /api/v1/crm/quotations/:id
@@ -447,7 +615,6 @@ crmQuotationsRouter.get('/:id', async (req, res) => {
       quotation = await QuotationModel.findById(req.params.id).lean();
     }
     if (!quotation) {
-      // Check if it matches any initial template
       quotation = initialQuotations.find((q) => q.id === req.params.id) as any;
     }
     if (!quotation) {
@@ -459,43 +626,222 @@ crmQuotationsRouter.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/v1/crm/quotations
+// GET /api/v1/crm/quotations/:id/readiness
+crmQuotationsRouter.get('/:id/readiness', async (req, res) => {
+  try {
+    const actor = getActor(req);
+    const quote = await QuotationModel.findOne({ id: req.params.id, isDeleted: { $ne: true } }).lean();
+    if (!quote) {
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
+    }
+    const via = ((req.query.via as string) || 'email') as 'email' | 'whatsapp' | 'voice';
+    const recipient = (req.query.recipient as string) || (via === 'email' ? quote.client?.email || '' : quote.client?.phone || '');
+    const sender = (req.query.sender as string) || 'sales@ensis.in (verified)';
+    const templateName = (req.query.template as string) || 'Quotation with Payment Terms';
+
+    const readiness = await evaluateSendReadiness({
+      quotation: quote,
+      via,
+      recipient,
+      sender,
+      templateName,
+      actor,
+    });
+    return successResponse(res, readiness, 'Quotation send readiness evaluated');
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Error checking quotation readiness' });
+  }
+});
+
+// POST /api/v1/crm/quotations (create / save draft / submit for review & approval)
 crmQuotationsRouter.post('/', async (req, res) => {
   try {
     const body = req.body || {};
+    const actor = getActor(req);
+    const pricingConfig = await getApprovedPricingConfig();
     const count = await QuotationModel.countDocuments();
     const id = body.id || `QT-${new Date().getFullYear()}-${String(130 + count + 1).padStart(4, '0')}`;
+    const existing = await QuotationModel.findOne({ id }).lean();
+
+    const calc = calculateQuotationTotals(
+      {
+        lines: body.lines || [],
+        discount: body.discount,
+        shipping: body.shipping,
+        installation: body.installation,
+        advancePercent: body.advancePercent,
+      },
+      pricingConfig
+    );
 
     const isSubmit = Boolean(body.submit);
-    const status = isSubmit ? 'Approved' : (body.status || 'Draft');
-    const approvalStatus = isSubmit ? 'Approved' : (body.approvalStatus || 'Not submitted');
+    let status = body.status || existing?.status || 'Draft';
+    let approvalStatus = body.approvalStatus || existing?.approvalStatus || 'Not submitted';
+    let approvedBy = body.approvedBy || existing?.approvedBy || '';
+    let approvedAt = existing?.approvedAt || '';
+    let approvedSnapshotHash = existing?.approvedSnapshotHash || '';
+    let costingTaskId = existing?.costingTaskId || '';
+    let reviewer = body.reviewer || existing?.reviewer || '';
+    const sendBlockedReasons: string[] = [];
 
-    // Calculate total
-    const lines = Array.isArray(body.lines) ? body.lines : [];
-    let subtotal = 0;
-    lines.forEach((l: any) => {
-      const lineTotal = (Number(l.rate) || 0) * (Number(l.qty) || 1) - (Number(l.discount) || 0);
-      const tax = (lineTotal * (Number(l.gst) || 18)) / 100;
-      subtotal += lineTotal + tax;
-    });
-    const discount = Number(body.discount) || 0;
-    const shipping = Number(body.shipping) || 0;
-    const totalAmount = Math.max(0, subtotal - discount + shipping);
+    if (isSubmit) {
+      const todayIso = new Date().toISOString().split('T')[0];
+      const freightTerm = String(body.terms?.freight || '').trim().toLowerCase();
+      const shipping = Number(body.shipping ?? 0);
+      const freightUnknown =
+        ['actual', 'tbd', 'unknown', 'confirm', 'pending', 'costing'].some((k) => freightTerm.includes(k)) ||
+        (freightTerm !== 'included' && freightTerm !== 'client arranged' && shipping <= 0) ||
+        (!body.deliverySameAsBilling && !String(body.deliveryAddress || '').trim());
+
+      const lines = Array.isArray(body.lines) ? body.lines : [];
+      const missingPrices = lines.length === 0 || lines.some((l: any) => !Number(l.rate) || Number(l.rate) <= 0 || Number(l.qty) <= 0);
+      const hasCustomLine = lines.some((l: any) => l.isCustom === true || String(l.name || '').toLowerCase().includes('custom'));
+      const customNeedsCosting = Boolean(body.customScope) || (body.businessType === 'Turnkey' && !body.costingApproved) || (hasCustomLine && !body.costingApproved) || missingPrices;
+      const validityMissingOrExpired = !body.validUntil || String(body.validUntil) < todayIso;
+      const exceedsManagerLimit = calc.discountPercent > pricingConfig.managerDiscountLimitPercent;
+      const isSelfSubmission = (body.owner || existing?.owner || actor.name).toLowerCase() === actor.name.toLowerCase();
+
+      // Determine whether this submission needs costing/review or can be approved now
+      const blockers: any[] = [];
+      if (freightUnknown) {
+        blockers.push({
+          code: 'UNKNOWN_DELIVERY_CHARGES',
+          message: 'Delivery/freight charges are unknown — costing task created; do not invent delivery charges.',
+          ownerDepartment: 'Operations & Costing',
+          assignedOwner: 'Sales Manager',
+        });
+      }
+      if (customNeedsCosting) {
+        blockers.push({
+          code: 'CUSTOM_SCOPE_COSTING_REQUIRED',
+          message: missingPrices
+            ? 'Line item pricing is incomplete — costing required; prices must not be invented.'
+            : 'Custom/turnkey scope requires estimation & costing approval.',
+          ownerDepartment: 'Estimation & Costing',
+          assignedOwner: 'Sales Manager',
+        });
+      }
+      if (validityMissingOrExpired) {
+        blockers.push({
+          code: 'EXPIRED_RATE_OR_VALIDITY',
+          message: 'Quotation validity date is missing or expired — confirm approved rate validity.',
+          ownerDepartment: 'Sales',
+          assignedOwner: 'Sales Manager',
+        });
+      }
+
+      // Role checks (PDF Page 4):
+      // - Staff (User) cannot self-approve -> enters Awaiting approval with Manager reviewer
+      // - Manager cannot self-approve above 5% discount limit or custom scope -> enters Awaiting approval with Super Admin reviewer
+      // - Super Admin approves when all completeness checks pass (no unknown freight / custom costing / expired validity)
+      const needsIndependentReview =
+        actor.roleTier === 'user' ||
+        (actor.roleTier === 'manager' && (exceedsManagerLimit || (isSelfSubmission && existing?.approvalStatus !== 'Pending')));
+
+      if (blockers.length > 0 || needsIndependentReview) {
+        status = 'Awaiting approval';
+        approvalStatus = 'Pending';
+        approvedBy = '';
+        approvedSnapshotHash = '';
+        reviewer =
+          reviewer ||
+          (actor.roleTier === 'manager' || exceedsManagerLimit ? 'Vijay Sharma' : 'Sales Manager');
+
+        if (needsIndependentReview && blockers.length === 0) {
+          blockers.push({
+            code: 'MISSING_REVIEWER_OR_APPROVAL',
+            message:
+              actor.roleTier === 'user'
+                ? `Submitted by ${actor.name} (${actor.crmRole}) — requires ${reviewer} approval before sending.`
+                : `Requires independent reviewer (${reviewer}) approval (discount ${calc.discountPercent}% / non-self sign-off).`,
+            ownerDepartment: 'Management Review',
+            assignedOwner: reviewer,
+          });
+        }
+        sendBlockedReasons.push(...blockers.map((b) => b.message));
+        const createdTaskId = await createCostingOrReviewTask({
+          quotationId: id,
+          clientName: body.client?.name || existing?.client?.name || 'Client',
+          blockers,
+          requestedBy: actor.name,
+        });
+        if (createdTaskId) costingTaskId = createdTaskId;
+      } else {
+        // Authorized Super Admin / Manager reviewing complete quotation within rules
+        status = 'Approved';
+        approvalStatus = 'Approved';
+        approvedBy = actor.name;
+        approvedAt = new Date().toISOString();
+        approvedSnapshotHash = computeSpecHash(body);
+        reviewer = reviewer || actor.name;
+      }
+    } else if (existing?.approvedSnapshotHash) {
+      // Editing a previously approved draft detects specification/price drift
+      const newHash = computeSpecHash(body);
+      if (newHash !== existing.approvedSnapshotHash) {
+        body.specChanged = true;
+        status = 'Draft';
+        approvalStatus = 'Not submitted';
+        approvedBy = '';
+        approvedSnapshotHash = '';
+      }
+    }
 
     const quotation = await QuotationModel.findOneAndUpdate(
       { id },
       {
         ...body,
         id,
+        owner: body.owner || existing?.owner || actor.name || 'Simran Kaur',
         status,
         approvalStatus,
-        totalAmount,
+        reviewer,
+        approvedBy,
+        approvedAt,
+        approvedSnapshotHash,
+        costingTaskId,
+        sendBlockedReasons,
+        shipping: calc.shipping,
+        installation: calc.installation,
+        priceListVersion: body.priceListVersion || pricingConfig.priceListVersion,
+        rateValidUntil: body.rateValidUntil || pricingConfig.validThrough,
+        totalAmount: calc.total,
+        conversation: existing?.conversation || body.conversation || {
+          ownerType: 'human',
+          ownerName: body.owner || actor.name || 'Simran Kaur',
+          ownershipVersion: 1,
+          humanTakeover: false,
+          replied: false,
+          optedOutChannels: [],
+          frequencyCount24h: 0,
+          chatStatus: 'open',
+          resolvedIsNotWonSale: true,
+          orderConfirmed: false,
+        },
         isDeleted: false,
       },
       { upsert: true, new: true }
     );
 
-    return successResponse(res, { id: quotation.id }, 'Quotation created', 201);
+    return successResponse(
+      res,
+      {
+        id: quotation.id,
+        status: quotation.status,
+        approvalStatus: quotation.approvalStatus,
+        costingTaskId: quotation.costingTaskId,
+        sendBlockedReasons: quotation.sendBlockedReasons,
+        totals: calc,
+      },
+      approvalStatus === 'Pending'
+        ? costingTaskId
+          ? `Quotation routed for review/costing (Task ${costingTaskId})`
+          : 'Quotation submitted for reviewer approval'
+        : isSubmit
+          ? 'Quotation approved'
+          : 'Quotation saved',
+      201
+    );
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Error creating quotation' });
   }
@@ -506,10 +852,134 @@ crmQuotationsRouter.put('/:id', async (req, res) => {
   try {
     const id = req.params.id;
     const body = req.body || {};
-    await QuotationModel.findOneAndUpdate({ id }, { $set: body }, { new: true });
-    return successResponse(res, { id, ...body }, 'Quotation updated');
+    const existing = await QuotationModel.findOne({ id }).lean();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
+    }
+    const pricingConfig = await getApprovedPricingConfig();
+    const merged = { ...existing, ...body };
+    const calc = calculateQuotationTotals(merged, pricingConfig);
+
+    // Spec/pricing change invalidates previous approval snapshot
+    const newHash = computeSpecHash(merged);
+    const specChanged = Boolean(existing.approvedSnapshotHash && newHash !== existing.approvedSnapshotHash);
+    const patch: Record<string, any> = {
+      ...body,
+      totalAmount: calc.total,
+    };
+    if (specChanged) {
+      patch.specChanged = true;
+      patch.approvalStatus = 'Not submitted';
+      patch.status = 'Revision Draft';
+      patch.approvedBy = '';
+      patch.approvedSnapshotHash = '';
+    }
+
+    const updated = await QuotationModel.findOneAndUpdate({ id }, { $set: patch }, { new: true }).lean();
+    return successResponse(res, { id, ...updated, totals: calc }, 'Quotation updated');
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Error updating quotation' });
+  }
+});
+
+// POST /api/v1/crm/quotations/:id/costing-task (Explicitly create/fetch costing/review task)
+crmQuotationsRouter.post('/:id/costing-task', async (req, res) => {
+  try {
+    const actor = getActor(req);
+    const quote = await QuotationModel.findOne({ id: req.params.id, isDeleted: { $ne: true } }).lean();
+    if (!quote) {
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
+    }
+    const reason = String(req.body?.reason || 'Costing / freight / custom scope estimation required before final quotation send.');
+    const blocker = {
+      code: (req.body?.code || 'UNKNOWN_DELIVERY_CHARGES') as any,
+      message: reason,
+      ownerDepartment: String(req.body?.department || 'Operations & Costing'),
+      assignedOwner: String(req.body?.assignedOwner || quote.owner || 'Sales Manager'),
+    };
+    const taskId = await createCostingOrReviewTask({
+      quotationId: quote.id,
+      clientName: quote.client?.name || 'Client',
+      blockers: [blocker],
+      requestedBy: actor.name,
+    });
+    if (taskId) {
+      await QuotationModel.findOneAndUpdate({ id: quote.id }, { $set: { costingTaskId: taskId } });
+    }
+    return successResponse(res, { id: quote.id, costingTaskId: taskId }, 'Costing/review task created', 201);
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Error creating costing task' });
+  }
+});
+
+// POST /api/v1/crm/quotations/:id/follow-up-check (Stop-aware recheck immediately before sending/dialling)
+crmQuotationsRouter.post('/:id/follow-up-check', async (req, res) => {
+  try {
+    const quote = await QuotationModel.findOne({ id: req.params.id, isDeleted: { $ne: true } }).lean();
+    if (!quote) {
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
+    }
+    const via = ((req.body?.via as string) || 'email') as 'email' | 'whatsapp' | 'voice';
+    const recipient = String(
+      req.body?.recipient || (via === 'email' ? quote.client?.email || '' : quote.client?.phone || '')
+    );
+    const result = await evaluateStopAwareFollowUp({
+      quotation: quote,
+      via,
+      recipient,
+      sender: req.body?.sender,
+      templateName: req.body?.template,
+      actorType: req.body?.actorType || 'human',
+      expectedOwnershipVersion: req.body?.ownershipVersion,
+      isAutomatedFollowUp: Boolean(req.body?.isAutomatedFollowUp ?? true),
+    });
+
+    if (!result.allowed) {
+      return res.status(result.checks.ownershipClear ? 422 : 409).json({
+        success: false,
+        message: result.reasons[0],
+        reasons: result.reasons,
+        checks: result.checks,
+      });
+    }
+    return successResponse(res, result, 'Follow-up stop-aware checks passed');
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Error running follow-up check' });
+  }
+});
+
+// POST /api/v1/crm/quotations/:id/conversation-state (CAS ownershipVersion & stop flags; resolved chat != won sale)
+crmQuotationsRouter.post('/:id/conversation-state', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const expectedVersion = Number(body.expectedOwnershipVersion ?? body.ownershipVersion ?? 1);
+    const outcome = await updateConversationStateWithCas({
+      quotationId: req.params.id,
+      expectedOwnershipVersion: expectedVersion,
+      patch: {
+        ownerType: body.ownerType,
+        ownerName: body.ownerName,
+        humanTakeover: body.humanTakeover,
+        replied: body.replied,
+        optOutChannel: body.optOutChannel,
+        optInChannel: body.optInChannel,
+        chatStatus: body.chatStatus,
+      },
+    });
+    if (!outcome.ok) {
+      return res.status(outcome.statusCode).json({ success: false, message: outcome.message });
+    }
+    return successResponse(
+      res,
+      {
+        id: req.params.id,
+        status: outcome.quotation?.status,
+        conversation: outcome.quotation?.conversation,
+      },
+      outcome.message
+    );
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Error updating conversation state' });
   }
 });
 
@@ -517,12 +987,111 @@ crmQuotationsRouter.put('/:id', async (req, res) => {
 crmQuotationsRouter.post('/:id/send', async (req, res) => {
   try {
     const id = req.params.id;
+    const actor = getActor(req);
     const body = req.body || {};
-    const via = body.via || 'email';
-    const recipient = body.recipient || '';
-    const cc = body.cc || '';
-    const subject = body.subject || `ENSIS Quotation ${id}`;
-    const message = body.message || '';
+    const via = (body.via || 'email') as 'email' | 'whatsapp' | 'voice';
+    const recipient = String(body.recipient || '');
+    const cc = String(body.cc || '');
+    const sender = String(body.sender || '');
+    const templateName = String(body.template || '');
+    const subject = String(body.subject || `ENSIS Quotation ${id}`);
+    const message = String(body.message || '');
+    const isDraft = Boolean(body.draft);
+
+    const existing = await QuotationModel.findOne({ id, isDeleted: { $ne: true } }).lean();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
+    }
+
+    if (isDraft) {
+      await QuotationModel.findOneAndUpdate(
+        { id },
+        {
+          $set: {
+            sentVia: via,
+            sentTo: recipient,
+            sentCc: cc,
+            sentSubject: subject,
+            sentMessage: message,
+          },
+        }
+      );
+      return successResponse(res, { id, status: existing.status, draft: true }, 'Send draft saved');
+    }
+
+    // Enforce all completeness, channel eligibility, stop-aware, and ownership checks before final send
+    const readiness = await evaluateSendReadiness({
+      quotation: existing,
+      via,
+      recipient,
+      sender,
+      templateName,
+      actor,
+      expectedOwnershipVersion: body.ownershipVersion !== undefined ? Number(body.ownershipVersion) : undefined,
+    });
+
+    if (!readiness.ready) {
+      const taskId = await createCostingOrReviewTask({
+        quotationId: id,
+        clientName: existing.client?.name || 'Client',
+        blockers: readiness.blockers,
+        requestedBy: actor.name,
+      });
+
+      const reasonMessages = readiness.blockers.map((b) => b.message);
+      await QuotationModel.findOneAndUpdate(
+        { id },
+        {
+          $set: {
+            sendBlockedReasons: reasonMessages,
+            ...(taskId ? { costingTaskId: taskId } : {}),
+          },
+        }
+      );
+
+      const hasOwnershipConflict = readiness.blockers.some((b) => b.code === 'OWNERSHIP_CONFLICT');
+      const primaryMessage = reasonMessages[0] || 'Final send blocked until quotation checks are complete.';
+      const fullMessage = taskId
+        ? `${primaryMessage} (Owned task ${taskId} created)`
+        : primaryMessage;
+
+      return res.status(hasOwnershipConflict ? 409 : 422).json({
+        success: false,
+        message: fullMessage,
+        error: fullMessage,
+        costingTaskId: taskId,
+        blockers: readiness.blockers,
+      });
+    }
+
+    const prevVersion = Number(existing.conversation?.ownershipVersion ?? 1);
+    const nextVersion = prevVersion + 1;
+    const prevFreq = Number(existing.conversation?.frequencyCount24h ?? 0);
+    const traceEntry = {
+      at: new Date().toISOString(),
+      by: actor.name,
+      role: actor.crmRole,
+      via,
+      recipient,
+      template: templateName || 'Default',
+      sender: sender || undefined,
+      revision: existing.revision || 1,
+      ownershipVersion: nextVersion,
+      status: 'sent',
+    };
+
+    const existingConv = existing.conversation || {
+      ownerType: 'human',
+      ownerName: existing.owner || actor.name,
+      ownershipVersion: 1,
+      humanTakeover: false,
+      replied: false,
+      optedOutChannels: [],
+      frequencyCount24h: 0,
+      chatStatus: 'open',
+      resolvedIsNotWonSale: true,
+      orderConfirmed: false,
+    };
 
     await QuotationModel.findOneAndUpdate(
       { id },
@@ -532,9 +1101,21 @@ crmQuotationsRouter.post('/:id/send', async (req, res) => {
           sentVia: via,
           sentTo: recipient,
           sentCc: cc,
-          sentAt: new Date().toISOString(),
+          sentAt: traceEntry.at,
           sentSubject: subject,
           sentMessage: message,
+          sendBlockedReasons: [],
+          conversation: {
+            ...existingConv,
+            ownerType: 'human',
+            ownerName: actor.name,
+            ownershipVersion: nextVersion,
+            frequencyCount24h: prevFreq + 1,
+            lastOutboundAt: traceEntry.at,
+          },
+        },
+        $push: {
+          deliveryTrace: traceEntry,
         },
       }
     );
@@ -546,7 +1127,7 @@ crmQuotationsRouter.post('/:id/send', async (req, res) => {
       const newActivity = {
         id: `act-${Date.now().toString().slice(-4)}`,
         at: 'Just now',
-        by: body.sender || 'Sales Team',
+        by: actor.name || body.sender || 'Sales Team',
         text: `Quotation ${id} sent via ${via === 'whatsapp' ? 'WhatsApp' : 'Email'} to ${recipient}`,
         module: 'Sales',
       };
@@ -555,7 +1136,7 @@ crmQuotationsRouter.post('/:id/send', async (req, res) => {
         { key: 'dashboard.activities', data: [newActivity, ...currentActivities] },
         { upsert: true, new: true }
       );
-    } catch (_actErr) {
+    } catch {
       // Activity logging fallback
     }
 
@@ -589,7 +1170,11 @@ crmQuotationsRouter.post('/:id/send', async (req, res) => {
       }
     }
 
-    return successResponse(res, { id, status: 'Sent' }, 'Quotation sent successfully');
+    return successResponse(
+      res,
+      { id, status: 'Sent', ownershipVersion: nextVersion, deliveryTrace: traceEntry },
+      'Quotation sent successfully'
+    );
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Error sending quotation' });
   }
@@ -599,12 +1184,61 @@ crmQuotationsRouter.post('/:id/send', async (req, res) => {
 crmQuotationsRouter.post('/:id/approve', async (req, res) => {
   try {
     const id = req.params.id;
+    const actor = getActor(req);
+    const existing = await QuotationModel.findOne({ id, isDeleted: { $ne: true } }).lean();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
+    }
+
+    if (actor.roleTier === 'user') {
+      return res.status(403).json({
+        success: false,
+        message: 'Staff users cannot approve quotations. Request approval from a Sales Manager or Super Admin.',
+      });
+    }
+
+    const pricingConfig = await getApprovedPricingConfig();
+    const calc = calculateQuotationTotals(existing, pricingConfig);
+    const isSelfQuote = (existing.owner || '').toLowerCase() === actor.name.toLowerCase();
+
+    if (actor.roleTier === 'manager') {
+      if (isSelfQuote) {
+        return res.status(403).json({
+          success: false,
+          message: 'Managers cannot self-approve their own quotation submission. Route to Super Admin or peer reviewer.',
+        });
+      }
+      if (calc.discountPercent > pricingConfig.managerDiscountLimitPercent) {
+        return res.status(403).json({
+          success: false,
+          message: `Discount (${calc.discountPercent}%) exceeds Manager limit (${pricingConfig.managerDiscountLimitPercent}%). Super Admin approval required.`,
+        });
+      }
+    }
+
+    const hash = computeSpecHash(existing);
     await QuotationModel.findOneAndUpdate(
       { id },
-      { $set: { status: 'Approved', approvalStatus: 'Approved' } },
+      {
+        $set: {
+          status: 'Approved',
+          approvalStatus: 'Approved',
+          approvedBy: actor.name,
+          reviewer: actor.name,
+          approvedAt: new Date().toISOString(),
+          approvedSnapshotHash: hash,
+          specChanged: false,
+          sendBlockedReasons: [],
+        },
+      },
       { new: true }
     );
-    return successResponse(res, { id, status: 'Approved', approvalStatus: 'Approved' }, 'Quotation approved successfully');
+
+    return successResponse(
+      res,
+      { id, status: 'Approved', approvalStatus: 'Approved', approvedBy: actor.name, approvedSnapshotHash: hash },
+      'Quotation approved successfully'
+    );
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Error approving quotation' });
   }
@@ -614,16 +1248,28 @@ crmQuotationsRouter.post('/:id/approve', async (req, res) => {
 crmQuotationsRouter.post('/:id/revisions', async (req, res) => {
   try {
     const id = req.params.id;
+    const actor = getActor(req);
     const body = req.body || {};
     const existing = await QuotationModel.findOne({ id });
+    const pricingConfig = await getApprovedPricingConfig();
+    const calc = calculateQuotationTotals(
+      {
+        lines: body.lines || existing?.lines || [],
+        discount: body.discount ?? existing?.discount,
+        shipping: body.shipping ?? existing?.shipping,
+        installation: body.installation ?? existing?.installation,
+        advancePercent: body.advancePercent ?? existing?.advancePercent,
+      },
+      pricingConfig
+    );
 
     const nextRevision = (existing?.revision || 1) + 1;
     const revisions = existing?.revisions ? [...existing.revisions] : [];
     revisions.push({
       revision: existing?.revision || 1,
-      total: existing?.totalAmount || 0,
+      total: existing?.totalAmount || calc.total,
       createdOn: new Date().toLocaleDateString('en-IN'),
-      createdBy: existing?.owner || 'Simran Kaur',
+      createdBy: existing?.owner || actor.name || 'Simran Kaur',
     });
 
     await QuotationModel.findOneAndUpdate(
@@ -634,75 +1280,18 @@ crmQuotationsRouter.post('/:id/revisions', async (req, res) => {
           revision: nextRevision,
           status: 'Revision Draft',
           approvalStatus: 'Not submitted',
+          approvedBy: '',
+          approvedSnapshotHash: '',
+          specChanged: false,
+          totalAmount: calc.total,
           revisions,
         },
       },
       { new: true }
     );
 
-    return successResponse(res, { id, revision: nextRevision }, 'Revision created', 201);
+    return successResponse(res, { id, revision: nextRevision, totals: calc }, 'Revision created', 201);
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err?.message || 'Error creating revision' });
-  }
-});
-
-// Sales Orders endpoints
-crmQuotationsRouter.get('/sales-orders/:id', async (req, res) => {
-  await ensureSeedData();
-  try {
-    let order = await SalesOrderModel.findOne({ id: req.params.id, isDeleted: { $ne: true } }).lean();
-    if (!order && req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
-      order = await SalesOrderModel.findById(req.params.id).lean();
-    }
-    if (order) return successResponse(res, order, 'Sales order retrieved');
-
-    const fallback = await SalesOrderModel.findOne({ isDeleted: { $ne: true } }).lean();
-    return successResponse(res, { ...fallback, id: req.params.id }, 'Sales order retrieved');
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err?.message || 'Error fetching sales order' });
-  }
-});
-
-crmQuotationsRouter.post('/sales-orders', async (req, res) => {
-  try {
-    const body = req.body || {};
-    const count = await SalesOrderModel.countDocuments();
-    const id = body.id || `SO-${new Date().getFullYear()}-${String(90 + count + 1).padStart(4, '0')}`;
-
-    let sourceQuote: any = null;
-    if (body.quotationId) {
-      sourceQuote = await QuotationModel.findOne({ id: body.quotationId, isDeleted: { $ne: true } }).lean();
-    }
-    const clientName = body.client || sourceQuote?.client?.name || 'Client';
-    const lines = sourceQuote?.lines && sourceQuote.lines.length > 0 ? sourceQuote.lines : (body.lines || []);
-    const value = body.orderValue || sourceQuote?.totalAmount || 0;
-
-    const order = await SalesOrderModel.create({
-      ...body,
-      id,
-      orderDate: body.orderDate || new Date().toISOString().split('T')[0],
-      client: clientName,
-      lines,
-      value,
-      quotationId: body.quotationId || '',
-      owner: body.owner || sourceQuote?.owner || 'Rajesh Kumar',
-      status: body.status || 'In Production',
-      isDeleted: false,
-    });
-
-    return successResponse(res, { id: order.id }, 'Sales order created', 201);
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err?.message || 'Error creating sales order' });
-  }
-});
-
-crmQuotationsRouter.put('/sales-orders/:id', async (req, res) => {
-  try {
-    const id = req.params.id;
-    const body = req.body || {};
-    const updated = await SalesOrderModel.findOneAndUpdate({ id }, { $set: body }, { new: true });
-    return successResponse(res, { id: updated?.id || id }, 'Sales order updated');
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err?.message || 'Error updating sales order' });
   }
 });

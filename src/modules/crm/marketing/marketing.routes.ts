@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { successResponse } from '../../../utils/api-response';
 import { LeadModel } from '../../../models/lead.model';
 import { CampaignModel } from '../../../models/campaign.model';
+import { CrmRecord } from '../../../models/crm-record.model';
 import { seedCampaigns } from '../../../seeds/seed-campaigns';
 
 export const crmMarketingRouter = Router();
@@ -256,6 +257,76 @@ crmMarketingRouter.get('/templates/new', (_req, res) => {
 
 crmMarketingRouter.get('/templates/:id', (req, res) => {
   successResponse(res, { ...templateDraft, id: req.params.id }, 'Template retrieved');
+});
+
+crmMarketingRouter.post('/campaigns/save', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const code = body.code || `CMP-${Date.now().toString().slice(-4)}`;
+    const saved = await CampaignModel.findOneAndUpdate(
+      { code },
+      {
+        $set: {
+          code,
+          name: body.name || 'Panchakarma catalogue follow-up',
+          purpose: body.purpose || 'Marketing / equipment catalogue',
+          channel: body.channel || 'Email',
+          owner: body.owner || 'Neha Singh / Marketing',
+          segment: body.segment || 'Qualified equipment enquiries',
+          eligibleCount: Number(body.eligibleCount ?? 0),
+          suppressedCount: Number(body.suppressedCount ?? 0),
+          status: body.status || 'Draft',
+          templateName: body.templateName || 'Catalogue template / v2',
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true }
+    ).lean();
+    return successResponse(res, saved, 'Campaign saved to database');
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Failed to save campaign' });
+  }
+});
+
+crmMarketingRouter.post('/campaigns/audience-check', async (req, res) => {
+  try {
+    const channel = String(req.body?.channel || 'Email').toLowerCase();
+    const leads = await LeadModel.find({ isDeleted: { $ne: true } }).lean<any[]>();
+    const total = leads.length;
+    const eligible = leads.filter((l) => {
+      if (channel === 'whatsapp') return Boolean(l.phone && String(l.phone).trim().length >= 8);
+      return Boolean(l.email && String(l.email).includes('@'));
+    }).length;
+    const suppressed = Math.max(0, total - eligible);
+    return successResponse(res, { reviewed: total, eligible, suppressed, channel }, 'Audience check completed');
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Audience check failed' });
+  }
+});
+
+crmMarketingRouter.post('/templates/save', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const id = body.id || 'EN-QT-04';
+    const existing = await CrmRecord.findOne({ key: 'marketing.templates' }).lean<any>();
+    const map: Record<string, any> =
+      existing && !Array.isArray(existing) && existing.data && typeof existing.data === 'object'
+        ? { ...existing.data }
+        : {};
+    map[id] = {
+      ...body,
+      id,
+      updatedAt: new Date().toISOString(),
+    };
+    await CrmRecord.findOneAndUpdate(
+      { key: 'marketing.templates' },
+      { $set: { data: map } },
+      { upsert: true, new: true }
+    );
+    return successResponse(res, map[id], 'Template saved to database');
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || 'Failed to save template' });
+  }
 });
 
 export default crmMarketingRouter;

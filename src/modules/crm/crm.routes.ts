@@ -18,7 +18,7 @@ import { crmOpportunitiesRouter } from './opportunities/opportunities.routes';
 import { getPipeline, getOpportunity, createOpportunity, updateOpportunity, updateStage, logActivity } from './opportunities/opportunities.controller';
 
 import { crmClientsRouter } from './clients/clients.routes';
-import { getClientsOverview, getClient, createClient, updateClient } from './clients/clients.controller';
+import { getClientsOverview } from './clients/clients.controller';
 
 import { crmAccountsRouter } from './accounts/accounts.routes';
 import { crmTeamRouter } from './team/team.routes';
@@ -191,10 +191,6 @@ crmRouter.put('/opportunities/:id', updateOpportunity);
 crmRouter.use('/opportunities', crmOpportunitiesRouter);
 
 // ─── 3. Clients ───────────────────────────────────────────────────────────────
-crmRouter.get('/clients/overview', getClientsOverview);
-crmRouter.get('/clients/:id', getClient);
-crmRouter.post('/clients', createClient);
-crmRouter.put('/clients/:id', updateClient);
 crmRouter.use('/clients', crmClientsRouter);
 
 // ─── 4. Management & Finance ──────────────────────────────────────────────────
@@ -792,17 +788,53 @@ crmRouter.get('/sales-orders/:id', async (req, res) => {
 });
 crmRouter.post('/sales-orders', async (req, res) => {
   const { SalesOrderModel } = await import('../../models/sales-order.model');
+  const { QuotationModel } = await import('../../models/quotation.model');
   const body = req.body || {};
+
+  let sourceQuote: any = null;
+  if (body.quotationId) {
+    sourceQuote = await QuotationModel.findOne({ id: body.quotationId, isDeleted: { $ne: true } }).lean();
+    if (sourceQuote && sourceQuote.approvalStatus !== 'Approved') {
+      return res.status(422).json({
+        success: false,
+        message: `Quotation ${body.quotationId} is "${sourceQuote.approvalStatus}" — only an approved quotation can be converted to an order.`,
+      });
+    }
+    if (sourceQuote && (!body.evidence || body.accepted !== true || body.termsConfirmed !== true)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer acceptance evidence and confirmed terms are required to confirm an order.',
+      });
+    }
+  }
+
   const count = await SalesOrderModel.countDocuments();
   const id = body.id || `SO-2026-${String(90 + count + 1).padStart(4, '0')}`;
   const order = await SalesOrderModel.create({
     ...body,
     id,
     orderDate: body.orderDate || new Date().toISOString().split('T')[0],
-    client: body.client || 'Client',
-    owner: body.owner || 'Rajesh Kumar',
+    client: body.client || sourceQuote?.client?.name || 'Client',
+    lines: sourceQuote?.lines?.length ? sourceQuote.lines : (body.lines || []),
+    value: body.orderValue || sourceQuote?.totalAmount || 0,
+    quotationRevision: sourceQuote?.revision || body.quotationRevision || 1,
+    owner: body.owner || sourceQuote?.owner || 'Rajesh Kumar',
     status: body.status || 'In Production',
   });
+
+  if (sourceQuote) {
+    await QuotationModel.findOneAndUpdate(
+      { id: sourceQuote.id },
+      {
+        $set: {
+          status: 'Accepted',
+          orderLinkedId: order.id,
+          'conversation.orderConfirmed': true,
+        },
+      }
+    );
+  }
+
   return successResponse(res, { id: order.id }, 'Sales order created', 201);
 });
 crmRouter.put('/sales-orders/:id', async (req, res) => {
@@ -895,8 +927,116 @@ const mockNotifications = [
   { id: 'nt-2', title: 'Quotation Approved', body: 'Discount approval granted for QT-2026-0130.', time: '1 hour ago', read: false },
 ];
 
-crmRouter.get('/approvals', (_req, res) => successResponse(res, mockApprovals, 'Approvals retrieved'));
-crmRouter.post('/approvals/:id/decision', (req, res) => successResponse(res, { id: req.params.id, status: req.body.decision || 'APPROVED' }, 'Decision recorded'));
+crmRouter.get('/approvals', async (_req, res) => {
+  try {
+    const { QuotationModel } = await import('../../models/quotation.model');
+    const pendingQuotes = await QuotationModel.find({
+      isDeleted: { $ne: true },
+      $or: [{ approvalStatus: 'Pending' }, { status: 'Awaiting approval' }, { approvalStatus: 'Approved' }],
+    })
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .lean();
+
+    if (pendingQuotes.length > 0) {
+      const requests = pendingQuotes.map((q: any) => {
+        const isPending = q.approvalStatus === 'Pending' || q.status === 'Awaiting approval';
+        const amountVal = Number(q.totalAmount || 0);
+        return {
+          id: `${q.id}`,
+          type: 'quotation',
+          typeLabel: q.customScope ? 'Custom Scope / Costing' : 'Quotation Approval',
+          amount: `₹${amountVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          requestedOn: q.date || 'Recently',
+          age: '0 day',
+          requestedBy: q.owner || 'Sales Team',
+          reason: q.sendBlockedReasons?.[0] || q.revisionReason || `Discount ₹${Number(q.discount || 0).toLocaleString('en-IN')} review`,
+          status: isPending ? 'pending' : 'approved',
+          assignedToMe: isPending,
+          approver: q.reviewer || q.approvedBy || 'Vijay Sharma',
+          details: {
+            client: q.client?.name || 'Client',
+            linkedRecord: q.opportunity || q.id,
+            documentNo: `${q.id} Rev${q.revision || 1}`,
+            documentDate: q.date || '',
+            summary: [
+              { label: 'Discount', value: `₹${Number(q.discount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
+              { label: 'Freight', value: `₹${Number(q.shipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
+              { label: 'Total', value: `₹${amountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
+            ],
+          },
+        };
+      });
+
+      const totalPendingAmt = pendingQuotes
+        .filter((q: any) => q.approvalStatus === 'Pending' || q.status === 'Awaiting approval')
+        .reduce((sum: number, q: any) => sum + Number(q.totalAmount || 0), 0);
+
+      return successResponse(
+        res,
+        {
+          totalAwaiting: `₹${totalPendingAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          requests,
+        },
+        'Approvals retrieved'
+      );
+    }
+  } catch {
+    // Fallback below if DB read fails
+  }
+  return successResponse(res, mockApprovals, 'Approvals retrieved');
+});
+
+crmRouter.post('/approvals/:id/decision', async (req, res) => {
+  try {
+    const headerRole = String(req.headers['x-crm-role'] || '').toLowerCase();
+    if (headerRole && !headerRole.includes('super') && !headerRole.includes('admin') && !headerRole.includes('manager')) {
+      return res.status(403).json({ success: false, message: 'Only Manager or Super Admin can decide approvals.' });
+    }
+    const rawId = decodeURIComponent(req.params.id).split(' ')[0];
+    const decision = String(req.body?.decision || 'approve').toLowerCase();
+    const notes = String(req.body?.notes || '').trim();
+    const { QuotationModel } = await import('../../models/quotation.model');
+    const { computeSpecHash } = await import('./quotations/quotation-controls.service');
+
+    const quote = await QuotationModel.findOne({ id: rawId, isDeleted: { $ne: true } }).lean();
+    if (quote) {
+      if (decision === 'approve') {
+        await QuotationModel.findOneAndUpdate(
+          { id: rawId },
+          {
+            $set: {
+              status: 'Approved',
+              approvalStatus: 'Approved',
+              approvedBy: 'Reviewer',
+              approvedAt: new Date().toISOString(),
+              approvedSnapshotHash: computeSpecHash(quote),
+              specChanged: false,
+              sendBlockedReasons: [],
+            },
+          }
+        );
+      } else {
+        await QuotationModel.findOneAndUpdate(
+          { id: rawId },
+          {
+            $set: {
+              status: 'Draft',
+              approvalStatus: 'Returned',
+              approvedBy: '',
+              approvedSnapshotHash: '',
+              revisionReason: notes || quote.revisionReason,
+            },
+          }
+        );
+      }
+      return successResponse(res, { id: rawId, status: decision === 'approve' ? 'APPROVED' : 'RETURNED' }, 'Decision recorded');
+    }
+  } catch {
+    // Fallback for non-quotation approval items
+  }
+  return successResponse(res, { id: req.params.id, status: req.body.decision || 'APPROVED' }, 'Decision recorded');
+});
 
 crmRouter.get('/follow-ups', async (_req, res) => {
   try {

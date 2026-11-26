@@ -42,6 +42,25 @@ export interface IQuotationTerms {
   note: string;
 }
 
+export interface IQuotationConversation {
+  ownerType: 'ai' | 'human';
+  ownerName: string;
+  ownershipVersion: number;
+  humanTakeover: boolean;
+  replied: boolean;
+  optedOutChannels: string[];
+  preferredWindow?: {
+    startHour: number;
+    endHour: number;
+    timezone: string;
+  };
+  frequencyCount24h: number;
+  lastOutboundAt?: string;
+  chatStatus: 'open' | 'resolved';
+  resolvedIsNotWonSale: boolean;
+  orderConfirmed: boolean;
+}
+
 export interface IQuotation extends Document {
   id: string;
   revision: number;
@@ -60,11 +79,32 @@ export interface IQuotation extends Document {
   lines: IQuotationLine[];
   discount: number;
   shipping: number;
+  installation: number;
   advancePercent: number;
   terms: IQuotationTerms;
   revisionReason?: string;
   revisions: IQuotationRevision[];
   totalAmount?: number;
+  priceListVersion?: string;
+  rateValidUntil?: string;
+  customScope?: boolean;
+  costingApproved?: boolean;
+  specChanged?: boolean;
+  approvedSnapshotHash?: string;
+  reviewer?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  costingTaskId?: string;
+  sendBlockedReasons?: string[];
+  sentVia?: string;
+  sentTo?: string;
+  sentCc?: string;
+  sentAt?: string;
+  sentSubject?: string;
+  sentMessage?: string;
+  orderLinkedId?: string;
+  deliveryTrace?: Array<Record<string, any>>;
+  conversation?: IQuotationConversation;
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -125,6 +165,7 @@ const QuotationSchema = new Schema<IQuotation>(
     lines: { type: [QuotationLineSchema], default: [] },
     discount: { type: Number, default: 0 },
     shipping: { type: Number, default: 0 },
+    installation: { type: Number, default: 0 },
     advancePercent: { type: Number, default: 50 },
     terms: {
       payment: { type: String, default: '50% advance, balance before dispatch' },
@@ -136,6 +177,46 @@ const QuotationSchema = new Schema<IQuotation>(
     revisionReason: { type: String, default: '' },
     revisions: { type: [QuotationRevisionSchema], default: [] },
     totalAmount: { type: Number, default: 0 },
+    priceListVersion: { type: String, default: 'Equipment / V2026.11' },
+    rateValidUntil: { type: String, default: '' },
+    customScope: { type: Boolean, default: false },
+    costingApproved: { type: Boolean, default: false },
+    specChanged: { type: Boolean, default: false },
+    approvedSnapshotHash: { type: String, default: '' },
+    reviewer: { type: String, default: '' },
+    approvedBy: { type: String, default: '' },
+    approvedAt: { type: String, default: '' },
+    costingTaskId: { type: String, default: '' },
+    sendBlockedReasons: { type: [String], default: [] },
+    sentVia: { type: String, default: '' },
+    sentTo: { type: String, default: '' },
+    sentCc: { type: String, default: '' },
+    sentAt: { type: String, default: '' },
+    sentSubject: { type: String, default: '' },
+    sentMessage: { type: String, default: '' },
+    orderLinkedId: { type: String, default: '' },
+    deliveryTrace: { type: [Schema.Types.Mixed], default: [] },
+    conversation: {
+      type: {
+        ownerType: { type: String, enum: ['ai', 'human'], default: 'human' },
+        ownerName: { type: String, default: '' },
+        ownershipVersion: { type: Number, default: 1 },
+        humanTakeover: { type: Boolean, default: false },
+        replied: { type: Boolean, default: false },
+        optedOutChannels: { type: [String], default: [] },
+        preferredWindow: {
+          startHour: { type: Number, default: 9 },
+          endHour: { type: Number, default: 20 },
+          timezone: { type: String, default: 'Asia/Kolkata' },
+        },
+        frequencyCount24h: { type: Number, default: 0 },
+        lastOutboundAt: { type: String, default: '' },
+        chatStatus: { type: String, enum: ['open', 'resolved'], default: 'open' },
+        resolvedIsNotWonSale: { type: Boolean, default: true },
+        orderConfirmed: { type: Boolean, default: false },
+      },
+      default: undefined,
+    },
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }

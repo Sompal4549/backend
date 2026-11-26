@@ -77,16 +77,30 @@ export interface LeadsOverview {
 
 export interface LeadDetails {
   id: string;
+  leadCode?: string;
   name: string;
   stage: string;
   organisation: string;
   city: string;
+  zipCode?: string;
   phone: string;
+  maskedPhone?: string;
   email: string;
+  priorityScore?: number;
+  priorityReason?: string;
+  nextAction?: string;
+  conversationMode?: string;
+  humanTakeover?: boolean;
+  summaryEvidence?: string;
+  confirmedPoints?: string;
+  toConfirmPoints?: string;
   info: Array<{ label: string; value: string }>;
   nextFollowUp: { when: string; purpose: string; owner: string };
   requirement: Array<{ label: string; value: string }>;
   opportunity?: { id: string; title: string; stage: string; value: string; expectedClose: string };
+  quotations?: Array<{ id: string; status: string; approvalStatus: string; totalAmount: number; date: string; revision: number }>;
+  conversations?: Array<{ id: string; sender: string; channel: string; at: string; text: string; kind: 'inbound' | 'ai' | 'takeover' | 'human' | 'system' }>;
+  activities?: Array<{ id: string; at: string; by: string; text: string; channel?: string }>;
   latestActivity: string;
 }
 

@@ -49,12 +49,41 @@ export const deleteLead = asyncHandler(async (req, res: Response) => {
 });
 
 export const reassignLead = asyncHandler(async (req, res: Response) => {
+  const actor = (req as any).crmActor;
+  if (actor?.roleTier === 'user') {
+    return res.status(403).json({
+      success: false,
+      message: 'Staff users cannot reassign lead ownership.',
+    });
+  }
   const { owner, reason } = req.body;
   if (!owner || !reason) {
-    return successResponse(res, { success: false, message: 'Owner and reason are required.' }, 'Invalid request', 400);
+    return res.status(400).json({ success: false, message: 'Owner and reason are required.' });
   }
-  await leadsService.updateLead(req.params.id, { assignedTo: owner, reassignReason: reason });
+  await leadsService.reassignOwner(req.params.id, {
+    owner,
+    reason,
+    updatedBy: actor?.name || 'Manager',
+  });
   successResponse(res, { id: req.params.id, owner }, 'Lead reassigned');
+});
+
+export const updateNextAction = asyncHandler(async (req, res: Response) => {
+  const actor = (req as any).crmActor;
+  const result = await leadsService.updateNextAction(req.params.id, {
+    ...req.body,
+    updatedBy: actor?.name || 'Executive',
+  });
+  successResponse(res, result, 'Next sales action updated');
+});
+
+export const recordConversation = asyncHandler(async (req, res: Response) => {
+  const actor = (req as any).crmActor;
+  const result = await leadsService.recordConversationEvent(req.params.id, {
+    ...req.body,
+    by: actor?.name || req.body?.by || 'Executive',
+  });
+  successResponse(res, result, 'Conversation updated', 201);
 });
 
 export const batchImport = asyncHandler(async (req, res: Response) => {

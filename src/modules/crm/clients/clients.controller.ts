@@ -4,14 +4,36 @@ import { asyncHandler } from '../../../utils/async-handler';
 import { AuthRequest } from '../../../middlewares/auth.middleware';
 import { clientsService } from './clients.service';
 
-export const getClientsOverview = asyncHandler(async (_req: AuthRequest, res: Response) => {
-  const result = await clientsService.getOverview();
+export const getClientsOverview = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const actor = (req as any).crmActor;
+  const result = await clientsService.getOverview({
+    roleTier: actor?.roleTier,
+    ownerName: actor?.name,
+  });
   successResponse(res, result, 'Clients overview retrieved');
 });
 
 export const getClient = asyncHandler(async (req: AuthRequest, res: Response) => {
   const client = await clientsService.getById(req.params.id);
   successResponse(res, client, 'Client retrieved');
+});
+
+export const getCustomer360 = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const actor = (req as any).crmActor;
+  const result = await clientsService.getCustomer360(req.params.id, actor);
+  successResponse(res, result, 'Customer 360 retrieved');
+});
+
+export const updateClientPreferences = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const actor = (req as any).crmActor;
+  const result = await clientsService.updatePreferences(req.params.id, req.body || {}, actor);
+  successResponse(res, result, 'Communication preferences updated');
+});
+
+export const recordClientConversation = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const actor = (req as any).crmActor;
+  const result = await clientsService.recordConversation(req.params.id, req.body || {}, actor);
+  successResponse(res, result, 'Conversation logged', 201);
 });
 
 export const createClient = asyncHandler(async (req: AuthRequest, res: Response) => {
